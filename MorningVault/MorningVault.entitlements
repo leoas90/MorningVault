@@ -6,7 +6,5 @@
 	<true/>
 	<key>com.apple.developer.healthkit.background-delivery</key>
 	<true/>
-	<key>com.apple.locationd.effective_bundle</key>
-	<true/>
 </dict>
 </plist>
