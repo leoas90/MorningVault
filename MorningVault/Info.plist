@@ -23,6 +23,8 @@
 	<string>MorningVault reads your calendar to include today's events in your briefing. Data stays on your device.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Approximate location only — for weather. No precise GPS stored or transmitted.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>MorningVault reads your health data — including sleep, steps, heart rate, and HRV — to include in your morning briefing. Data stays on your device and is never shared.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -32,6 +34,7 @@
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
