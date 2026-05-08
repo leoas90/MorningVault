@@ -91,8 +91,9 @@ struct ContentView: View {
         }
         .tint(Color.warmPrimaryAccent)
         .task {
-            if let deviceName = await ContactsService.shared.fetchDeviceName() {
-                userName = deviceName
+            // Try to read the user's name from their Me card / device
+            if let fetchedName = await ContactsService.shared.fetchDeviceName() {
+                userName = fetchedName
             }
         }
     }

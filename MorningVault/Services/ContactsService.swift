@@ -6,8 +6,7 @@ final class ContactsService {
     static let shared = ContactsService()
     private let store = CNContactStore()
 
-    /// Fetches the user's name from their "Me" contact card in Contacts.
-    /// Falls back to device name → nil if unavailable.
+    /// Fetches the user's personal name from Contacts Me card or device.
     func fetchDeviceName() async -> String? {
         if let meName = await fetchMeCardName() {
             return meName
@@ -18,7 +17,6 @@ final class ContactsService {
     // MARK: - Me Card
 
     private func fetchMeCardName() async -> String? {
-        // Request contacts permission if not determined
         let status = CNContactStore.authorizationStatus(for: .contacts)
         if status == .notDetermined {
             let granted = await requestContactsAccess()
@@ -27,9 +25,7 @@ final class ContactsService {
             return nil
         }
 
-        // Use the unifiedMeContactIdentifier on iOS 18+
-        // For iOS 17, fall back to device name
-        return await storeUnifiedMeName()
+        return await fetchMeCardOnMainActor()
     }
 
     private func requestContactsAccess() async -> Bool {
@@ -40,13 +36,11 @@ final class ContactsService {
         }
     }
 
-    /// Attempts to read the Me card using iOS 18+ `unifiedMeContactIdentifier` property.
-    /// Returns nil if unavailable (iOS < 18) so caller can use fallback.
-    private func storeUnifiedMeName() async -> String? {
-        // unifiedMeContactIdentifier is available on iOS 18+
-        // We use optional chaining to safely access it on older versions
-        let identifier: String? = await MainActor.run {
-            // Check if the property exists via mirror or directly
+    @MainActor
+    private func fetchMeCardOnMainActor() -> String? {
+        // Use Mirror to read the unifiedMeContactIdentifier property
+        // On iOS 18+ it's a real property; on iOS 17 and below it's absent
+        let identifier: String? = {
             let mirror = Mirror(reflecting: store)
             for child in mirror.children {
                 if child.label == "unifiedMeContactIdentifier" {
@@ -54,27 +48,21 @@ final class ContactsService {
                 }
             }
             return nil
-        }
+        }()
 
         guard let contactId = identifier, !contactId.isEmpty else {
             return nil
         }
 
-        return await fetchName(for: contactId)
-    }
-
-    private func fetchName(for identifier: String) async -> String? {
-        return await MainActor.run {
-            do {
-                let keys: [CNKeyDescriptor] = [
-                    CNContactGivenNameKey as CNKeyDescriptor,
-                    CNContactFamilyNameKey as CNKeyDescriptor
-                ]
-                let contact = try store.unifiedContact(withIdentifier: identifier, keysToFetch: keys)
-                return displayName(from: contact)
-            } catch {
-                return nil
-            }
+        do {
+            let keys: [CNKeyDescriptor] = [
+                CNContactGivenNameKey as CNKeyDescriptor,
+                CNContactFamilyNameKey as CNKeyDescriptor
+            ]
+            let contact = try store.unifiedContact(withIdentifier: contactId, keysToFetch: keys)
+            return displayName(from: contact)
+        } catch {
+            return nil
         }
     }
 
@@ -86,7 +74,7 @@ final class ContactsService {
         return nil
     }
 
-    // MARK: - Fallback device name
+    // MARK: - Device name fallback
 
     private func fallbackDeviceName() -> String? {
         let name = UIDevice.current.name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -96,7 +84,6 @@ final class ContactsService {
             let lower = name.lowercased()
             let isGeneric = genericSuffixes.contains { lower.hasSuffix($0.lowercased()) || lower == $0.lowercased() }
             if !isGeneric {
-                // "Yezid's iPhone" → "Yezid"
                 if let apostropheIndex = name.firstIndex(of: "'") {
                     let firstName = String(name[..<apostropheIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
                     if !firstName.isEmpty { return firstName }
