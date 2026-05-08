@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct ContentView: View {
-    @AppStorage("local_only") private var localOnly = false
     @AppStorage("user_name") private var userName: String = "Alex"
+    @AppStorage("local_only") private var localOnly = false
     @StateObject private var viewModel = BriefingViewModel()
     @State private var selectedTab: Tab = .brief
     @State private var tabBarIconScales: [Tab: CGFloat] = [:]
@@ -90,6 +90,11 @@ struct ContentView: View {
             .tag(Tab.settings)
         }
         .tint(Color.warmPrimaryAccent)
+        .task {
+            if let deviceName = await ContactsService.shared.fetchDeviceName() {
+                userName = deviceName
+            }
+        }
     }
 }
 

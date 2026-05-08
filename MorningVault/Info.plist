@@ -17,6 +17,8 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSContactsUsageDescription</key>
+	<string>MorningVault uses your contact card name for the greeting in your morning briefing. Stored locally only.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>MorningVault reads your calendar to include today's events in your briefing. Data stays on your device.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
