@@ -4,6 +4,7 @@ struct MarketsView: View {
     @StateObject private var viewModel = MarketsViewModel()
     @State private var newSymbol: String = ""
     @State private var newEntryPrice: String = ""
+    @FocusState private var isFieldFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -16,13 +17,19 @@ struct MarketsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { EditButton() }
             .safeAreaInset(edge: .bottom) {
-                HStack {
-                    Spacer()
-                    Button("Done") { hideKeyboard() }
+                if isFieldFocused {
+                    HStack {
+                        Spacer()
+                        Button("Done") {
+                            isFieldFocused = false
+                        }
                         .padding()
+                    }
+                    .background(.bar)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                .background(.bar)
             }
+            .animation(.easeInOut(duration: 0.15), value: isFieldFocused)
             .task { viewModel.load() }
         }
     }
@@ -55,9 +62,11 @@ struct MarketsView: View {
                 TextField("Symbol (e.g. AAPL)", text: $newSymbol)
                     .textInputAutocapitalization(.characters)
                     .frame(maxWidth: 130)
+                    .focused($isFieldFocused)
                 TextField("Entry $", text: $newEntryPrice)
                     .keyboardType(.decimalPad)
                     .frame(maxWidth: 100)
+                    .focused($isFieldFocused)
                 Button {
                     let sym = newSymbol.uppercased().trimmingCharacters(in: .whitespaces)
                     guard !sym.isEmpty else { return }
@@ -80,10 +89,6 @@ struct MarketsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-    }
-
-    private func hideKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }
 
