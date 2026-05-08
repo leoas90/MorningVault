@@ -33,6 +33,11 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             // MARK: - Brief Tab
             BriefTabView(viewModel: viewModel, userName: userName, localOnly: localOnly)
+                .onChange(of: selectedTab) { oldTab, newTab in
+                    if newTab == Tab.brief {
+                        Task { await viewModel.loadData() }
+                    }
+                }
                 .tabItem {
                     TabIcon(
                         tab: Tab.brief,
