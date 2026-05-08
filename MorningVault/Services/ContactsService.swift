@@ -33,6 +33,19 @@ final class ContactsService {
         let name = NSFullUserName().trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return nil }
 
+        // Skip generic or placeholder names
+        let genericNames = [
+            "mobile user",
+            "user",
+            "mac",
+            "admin",
+            "guest"
+        ]
+        let lower = name.lowercased()
+        if genericNames.contains(lower) {
+            return nil
+        }
+
         // Skip if it looks like a login name (no space, very short)
         if name.contains(" ") == false && name.count < 4 {
             return nil
