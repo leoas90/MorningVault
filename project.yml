@@ -42,7 +42,8 @@ targets:
         INFOPLIST_KEY_NSHealthShareUsageDescription: "MorningVault reads your health data to include sleep, steps, and HRV in your briefing. Data stays on your device."
         INFOPLIST_KEY_NSHealthUpdaterUseDescription: "MorningVault reads health data on-device only."
         INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "MorningVault uses approximate location (city-level only) for weather data. No precise GPS is stored or transmitted."
-        INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations~ipad: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.productivity"
     entitlements:
       path: MorningVault/MorningVault.entitlements

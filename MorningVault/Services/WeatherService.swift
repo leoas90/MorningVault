@@ -1,5 +1,6 @@
 import Foundation
 import CoreLocation
+import MapKit
 
 /// WeatherKit service — approximate location only, no precise GPS stored/transmitted
 /// Uses wttr.in which requires no API key and accepts city/area queries
@@ -58,13 +59,28 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
     }
 
     private func reverseGeocodeToCity(location: CLLocation) async {
-        // CLGeocoder.reverseGeocodeLocation deprecated iOS 26 — still works but triggers warning
-        // TODO: migrate to new MapKit API when replacement is confirmed in SDK
-        let geocoder = CLGeocoder()
-        if let placemarks = try? await geocoder.reverseGeocodeLocation(location),
-           let placemark = placemarks.first {
-            let city = placemark.locality ?? placemark.administrativeArea ?? "Unknown"
-            await MainActor.run { self.approximateLocation = city }
+        if #available(iOS 26.0, *) {
+            // Use new MapKit reverse geocoding API (iOS 26+)
+            guard let request = MKReverseGeocodingRequest(location: location) else { return }
+            await withCheckedContinuation { continuation in
+                request.getMapItems { mapItems, error in
+                    if let item = mapItems?.first {
+                        let city = item.placemark.locality ?? item.placemark.administrativeArea ?? "Unknown"
+                        Task { @MainActor in
+                            self.approximateLocation = city
+                        }
+                    }
+                    continuation.resume()
+                }
+            }
+        } else {
+            // Fallback for earlier iOS versions
+            let geocoder = CLGeocoder()
+            if let placemarks = try? await geocoder.reverseGeocodeLocation(location),
+               let placemark = placemarks.first {
+                let city = placemark.locality ?? placemark.administrativeArea ?? "Unknown"
+                await MainActor.run { self.approximateLocation = city }
+            }
         }
     }
 
