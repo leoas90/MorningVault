@@ -6,12 +6,38 @@ final class ContactsService {
     static let shared = ContactsService()
     private let store = CNContactStore()
 
-    /// Fetches the user's personal name from Contacts Me card or device.
+    /// Fetches the user's personal name for the greeting.
+    /// Priority: NSFullUserName() → Me card → device name → nil
     func fetchDeviceName() async -> String? {
+        // 1. macOS user account name (always available, no permission needed)
+        if let fullName = macOSFullUserName(), !fullName.isEmpty {
+            let trimmed = fullName.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.count > 1 {  // avoid single-char results like "Y"
+                return trimmed
+            }
+        }
+
+        // 2. Me card from Contacts
         if let meName = await fetchMeCardName() {
             return meName
         }
+
+        // 3. Device name
         return fallbackDeviceName()
+    }
+
+    // MARK: - NSFullUserName (macOS user account full name)
+
+    /// Returns the macOS user account's full name, e.g. "Yezid Rodriguez"
+    private func macOSFullUserName() -> String? {
+        let name = NSFullUserName().trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return nil }
+
+        // Skip if it looks like a login name (no space, very short)
+        if name.contains(" ") == false && name.count < 4 {
+            return nil
+        }
+        return name
     }
 
     // MARK: - Me Card
@@ -24,7 +50,6 @@ final class ContactsService {
         } else if status == .denied || status == .restricted {
             return nil
         }
-
         return await fetchMeCardOnMainActor()
     }
 
@@ -38,8 +63,8 @@ final class ContactsService {
 
     @MainActor
     private func fetchMeCardOnMainActor() -> String? {
-        // Use Mirror to read the unifiedMeContactIdentifier property
-        // On iOS 18+ it's a real property; on iOS 17 and below it's absent
+        // unifiedMeContactIdentifier is a class property on iOS 18+
+        // We try Mirror first (iOS 18+), then fall through
         let identifier: String? = {
             let mirror = Mirror(reflecting: store)
             for child in mirror.children {
