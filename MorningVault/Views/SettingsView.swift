@@ -12,6 +12,7 @@ struct SettingsView: View {
     @StateObject private var healthService = HealthKitService.shared
     @StateObject private var calendarService = CalendarService.shared
     @State private var showingPrivacyPolicy = false
+    @FocusState private var isNameFieldFocused: Bool
 
     private var currentTheme: AppTheme {
         get { AppTheme(rawValue: themeRaw) ?? .system }
@@ -52,6 +53,7 @@ struct SettingsView: View {
                 Section("Personalization") {
                     TextField("Your Name", text: $userName)
                         .textInputAutocapitalization(.words)
+                        .focused($isNameFieldFocused)
                     Text("Used for the greeting in your morning briefing.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -190,6 +192,17 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
+            .safeAreaInset(edge: .bottom) {
+                if isNameFieldFocused {
+                    Button("Done") {
+                        isNameFieldFocused = false
+                    }
+                    .font(.body.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color(uiColor: .systemBackground))
+                }
+            }
         }
     }
 }
