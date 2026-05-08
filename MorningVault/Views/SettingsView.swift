@@ -19,6 +19,7 @@ struct SettingsView: View {
     @AppStorage("local_only") private var localOnly = false
     @AppStorage("theme") private var themeRaw: String = AppTheme.system.rawValue
     @AppStorage("tracked_symbols") private var trackedSymbolsData: Data = Data()
+    @AppStorage("user_name") private var userName: String = "Alex"
     @StateObject private var healthService = HealthKitService.shared
     @StateObject private var calendarService = CalendarService.shared
     @State private var showingPrivacyPolicy = false
@@ -48,8 +49,6 @@ struct SettingsView: View {
             }
         )
     }
-
-    @AppStorage("user_name") private var userName: String = "Alex"
 
     private var themeDescription: String {
         switch currentTheme {
@@ -170,6 +169,7 @@ struct SettingsView: View {
                                 trackedSymbols = symbols
                             }
                         }
+                        .onChange(of: trackedSymbols) { _, _ in saveTrackedSymbols() }
                     }
 
                     HStack {
@@ -179,21 +179,22 @@ struct SettingsView: View {
                         TextField("Entry $", text: $newEntryPrice)
                             .keyboardType(.decimalPad)
                             .frame(maxWidth: 100)
-                    Button {
-                        let sym = newSymbol.uppercased().trimmingCharacters(in: .whitespaces)
-                        guard !sym.isEmpty else { return }
-                        var symbols = trackedSymbols
-                        symbols.append(TrackedSymbol(symbol: sym, entryPrice: Double(newEntryPrice)))
-                        trackedSymbols = symbols
-                        newSymbol = ""
-                        newEntryPrice = ""
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .foregroundStyle(.green)
+                        Button {
+                            let sym = newSymbol.uppercased().trimmingCharacters(in: .whitespaces)
+                            guard !sym.isEmpty else { return }
+                            var symbols = trackedSymbols
+                            symbols.append(TrackedSymbol(symbol: sym, entryPrice: Double(newEntryPrice)))
+                            trackedSymbols = symbols
+                            newSymbol = ""
+                            newEntryPrice = ""
+                        } label: {
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundStyle(.green)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(newSymbol.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
-                    .buttonStyle(.plain)
-                    .disabled(newSymbol.trimmingCharacters(in: .whitespaces).isEmpty)
-                    }
+                    .onChange(of: trackedSymbols) { _, _ in saveTrackedSymbols() }
 
                     Text("Track up to 10 symbols. Entry price enables P&L tracking.")
                         .font(.caption)
@@ -272,6 +273,7 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
+            .task { loadTrackedSymbols() }
         }
     }
 }
