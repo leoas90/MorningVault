@@ -8,7 +8,7 @@ struct SettingsView: View {
     @AppStorage("headlines_enabled") private var headlinesEnabled = true
     @AppStorage("local_only") private var localOnly = false
     @AppStorage("theme") private var themeRaw: String = AppTheme.system.rawValue
-    @AppStorage("user_name") private var userName: String = "Alex"
+    @AppStorage("user_name") private var userName: String = ""
     @StateObject private var healthService = HealthKitService.shared
     @StateObject private var calendarService = CalendarService.shared
     @State private var showingPrivacyPolicy = false
@@ -48,6 +48,15 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                // MARK: - Personalization
+                Section("Personalization") {
+                    TextField("Your Name", text: $userName)
+                        .textInputAutocapitalization(.words)
+                    Text("Used for the greeting in your morning briefing.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 // MARK: - Alarm Time
                 Section("Alarm") {
                     DatePicker(
