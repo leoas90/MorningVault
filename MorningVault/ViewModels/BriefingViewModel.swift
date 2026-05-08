@@ -330,8 +330,10 @@ final class BriefingViewModel: ObservableObject {
         } else {
             // Single-call path (under token limit)
             let result = await generateSingle(session: session, prompt: combinedPrompt)
-            aiInsight = result.insight
-            sentiment = result.sentiment
+            if let insight = result.insight {
+                aiInsight = insight
+                sentiment = result.sentiment
+            }
         }
 
         let latencyMs = Int(Date().timeIntervalSince(startTime) * 1000)
@@ -360,10 +362,13 @@ final class BriefingViewModel: ObservableObject {
     // MARK: - Single-call path (under token budget)
 
     @available(iOS 26.0, *)
-    private func generateSingle(session: LanguageModelSession, prompt: String) async -> (insight: String, sentiment: String?) {
+    private func generateSingle(session: LanguageModelSession, prompt: String) async -> (insight: String?, sentiment: String?) {
         do {
             let response = try await session.respond(to: prompt, generating: BriefingInsight.self)
             return (response.content.insight, response.content.sentiment)
+        } catch is CancellationError {
+            // Task was cancelled (e.g., user navigated away) — not an error, just abort silently
+            return (nil, nil)
         } catch {
             print("[BriefingViewModel] FM single-call error: \(error.localizedDescription)")
             return ("Unable to generate insight.", nil)
@@ -395,6 +400,9 @@ final class BriefingViewModel: ObservableObject {
                 if !response.content.text.isEmpty {
                     segmentInsights.append("\(section.title): \(response.content.text)")
                 }
+            } catch is CancellationError {
+                // Silently skip cancelled segment — user likely navigated away; stop chunking
+                break
             } catch {
                 print("[BriefingViewModel] FM chunk error for \(section.id): \(error.localizedDescription)")
             }
@@ -417,6 +425,12 @@ final class BriefingViewModel: ObservableObject {
         do {
             let response = try await session.respond(to: aggregationPrompt, generating: BriefingInsightText.self)
             return (response.content.text, response.content.sentiment)
+        } catch is CancellationError {
+            // Aggregation cancelled — return collected segment insights rather than losing them
+            guard !segmentInsights.isEmpty else {
+                return (insight: "Unable to generate insight.", sentiment: nil)
+            }
+            return (segmentInsights.joined(separator: " "), nil)
         } catch {
             return (segmentInsights.joined(separator: " "), nil)
         }

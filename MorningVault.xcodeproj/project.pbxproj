@@ -16,11 +16,14 @@
 		399FF72C653B49862C1EB0F4 /* CacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B0C6160616AE04F2461D038 /* CacheService.swift */; };
 		64F6609F49C467CE469C5F3B /* CoreLocation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6376F2CF2B5439BE403B053D /* CoreLocation.framework */; };
 		6671483266A6436D74A0A160 /* EventKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 88242292BC38B613DCF5E115 /* EventKit.framework */; };
+		68C67F4E231A6127AF354B59 /* BriefingSectionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 307C843A803E7C0976A2897F /* BriefingSectionCard.swift */; };
 		6930C99BB5D04D6E57C1E262 /* DataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAF1AB9ADD648A1E241B6F52 /* DataModels.swift */; };
 		707FF8CF0AFCADBDE4CA147A /* RSSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F22FA11BC4393AA0A34AC497 /* RSSService.swift */; };
 		72A4B6CD4EEAF78D67B2A1FE /* SourcesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C26F9E33368D424D3AAEDFBE /* SourcesView.swift */; };
 		764BFFE9AF023668F4BC94F8 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 744744A7C6ACBF0C75D72E34 /* PrivacyInfo.xcprivacy */; };
+		77DAC24F4D9E99F58D6301B2 /* Animations.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBC18FAF3CF8EF5002DBDA11 /* Animations.swift */; };
 		832AD0715C3DF03018E2DCBA /* MorningVaultApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 998676E916EA24056AE60CA8 /* MorningVaultApp.swift */; };
+		9F90F894A6C48ABA494BCCCF /* AnimatedComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD99CA77D5F7A485EA9E08EA /* AnimatedComponents.swift */; };
 		AECF485B2044FA53AB0A4C19 /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 428137D842E34AED7DAB8482 /* HealthKitService.swift */; };
 		B281FE55E090E469DAF71AAD /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E53372DCE56D9D3406815A /* ContentView.swift */; };
 		CC9730F579B0F4EDD5D5C214 /* AlarmService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57398225F0C285023D3C56AC /* AlarmService.swift */; };
@@ -30,7 +33,8 @@
 
 /* Begin PBXFileReference section */
 		1A263120723E5F68E8715198 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		2C1EAD34AC6A2C77C23646A3 /* MorningVault.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MorningVault.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2C1EAD34AC6A2C77C23646A3 /* MorningVault.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MorningVault.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		307C843A803E7C0976A2897F /* BriefingSectionCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BriefingSectionCard.swift; sourceTree = "<group>"; };
 		3867BC47FB872F6A4CD54B76 /* PrivacyPolicyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyPolicyView.swift; sourceTree = "<group>"; };
 		3B28A4999CCA31CE52592458 /* MorningVault.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MorningVault.entitlements; sourceTree = "<group>"; };
 		428137D842E34AED7DAB8482 /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
@@ -41,13 +45,15 @@
 		5764DBFB9577910F99CA7C18 /* BuildView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuildView.swift; sourceTree = "<group>"; };
 		5D4F604E0DBCADA9DF649363 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6376F2CF2B5439BE403B053D /* CoreLocation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreLocation.framework; path = System/Library/Frameworks/CoreLocation.framework; sourceTree = SDKROOT; };
-		744744A7C6ACBF0C75D72E34 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		744744A7C6ACBF0C75D72E34 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		88242292BC38B613DCF5E115 /* EventKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = EventKit.framework; path = System/Library/Frameworks/EventKit.framework; sourceTree = SDKROOT; };
 		96717330575D4D9806610694 /* WeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherService.swift; sourceTree = "<group>"; };
 		998676E916EA24056AE60CA8 /* MorningVaultApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningVaultApp.swift; sourceTree = "<group>"; };
 		ACAA8CF9C253BBAB993C7ABC /* CalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarService.swift; sourceTree = "<group>"; };
+		AD99CA77D5F7A485EA9E08EA /* AnimatedComponents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AnimatedComponents.swift; sourceTree = "<group>"; };
 		C26F9E33368D424D3AAEDFBE /* SourcesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourcesView.swift; sourceTree = "<group>"; };
 		DAF1AB9ADD648A1E241B6F52 /* DataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataModels.swift; sourceTree = "<group>"; };
+		DBC18FAF3CF8EF5002DBDA11 /* Animations.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Animations.swift; sourceTree = "<group>"; };
 		E249A63C0B140CBBF820E5C4 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		F1E53372DCE56D9D3406815A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		F22FA11BC4393AA0A34AC497 /* RSSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RSSService.swift; sourceTree = "<group>"; };
@@ -74,6 +80,7 @@
 				F1E53372DCE56D9D3406815A /* ContentView.swift */,
 				E249A63C0B140CBBF820E5C4 /* SettingsView.swift */,
 				C26F9E33368D424D3AAEDFBE /* SourcesView.swift */,
+				307C843A803E7C0976A2897F /* BriefingSectionCard.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -115,6 +122,8 @@
 			isa = PBXGroup;
 			children = (
 				DAF1AB9ADD648A1E241B6F52 /* DataModels.swift */,
+				AD99CA77D5F7A485EA9E08EA /* AnimatedComponents.swift */,
+				DBC18FAF3CF8EF5002DBDA11 /* Animations.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -191,8 +200,6 @@
 			dependencies = (
 			);
 			name = MorningVault;
-			packageProductDependencies = (
-			);
 			productName = MorningVault;
 			productReference = 2C1EAD34AC6A2C77C23646A3 /* MorningVault.app */;
 			productType = "com.apple.product-type.application";
@@ -204,10 +211,9 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1600;
+				LastUpgradeCheck = 2640;
 				TargetAttributes = {
 					503CFA92C92AF708C45357B5 = {
-						DevelopmentTeam = Z8ZPN58AQLD;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -262,6 +268,9 @@
 				0EEB81CEA1E301A373890122 /* SettingsView.swift in Sources */,
 				72A4B6CD4EEAF78D67B2A1FE /* SourcesView.swift in Sources */,
 				2527903266B6D07786002005 /* WeatherService.swift in Sources */,
+				9F90F894A6C48ABA494BCCCF /* AnimatedComponents.swift in Sources */,
+				77DAC24F4D9E99F58D6301B2 /* Animations.swift in Sources */,
+				68C67F4E231A6127AF354B59 /* BriefingSectionCard.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -272,6 +281,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -307,6 +317,7 @@
 				DEVELOPMENT_TEAM = Z8ZPN58AQLD;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -327,6 +338,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.9;
@@ -342,6 +354,7 @@
 				CODE_SIGN_ENTITLEMENTS = MorningVault/MorningVault.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8ZPN58AQLD;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MorningVault/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = MorningVault;
@@ -377,6 +390,7 @@
 				CODE_SIGN_ENTITLEMENTS = MorningVault/MorningVault.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8ZPN58AQLD;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MorningVault/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = MorningVault;
@@ -408,6 +422,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -443,6 +458,7 @@
 				DEVELOPMENT_TEAM = Z8ZPN58AQLD;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -456,6 +472,7 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.9;
