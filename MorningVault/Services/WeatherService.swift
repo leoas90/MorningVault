@@ -48,24 +48,24 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
         }
 
         // Reverse geocode to city name only (no precise address)
-        let geocoder = CLGeocoder()
-        do {
-            let placemarks = try await geocoder.reverseGeocodeLocation(location)
-            if let placemark = placemarks.first {
-                let city = placemark.locality ?? placemark.administrativeArea ?? "Unknown"
-                await MainActor.run {
-                    approximateLocation = city
-                }
-            }
-        } catch {
-            // Proceed without city name
-        }
+        await reverseGeocodeToCity(location: location)
 
         // Fetch weather using lat/lon (approximate, no street-level precision)
         return await fetchWeatherByCoordinates(
             lat: location.coordinate.latitude,
             lon: location.coordinate.longitude
         )
+    }
+
+    private func reverseGeocodeToCity(location: CLLocation) async {
+        // CLGeocoder.reverseGeocodeLocation deprecated iOS 26 — still works but triggers warning
+        // TODO: migrate to new MapKit API when replacement is confirmed in SDK
+        let geocoder = CLGeocoder()
+        if let placemarks = try? await geocoder.reverseGeocodeLocation(location),
+           let placemark = placemarks.first {
+            let city = placemark.locality ?? placemark.administrativeArea ?? "Unknown"
+            await MainActor.run { self.approximateLocation = city }
+        }
     }
 
     // MARK: - Fetch by Coordinates (approximate — no street precision in API calls)

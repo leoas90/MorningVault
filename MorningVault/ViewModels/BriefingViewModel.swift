@@ -184,7 +184,7 @@ final class BriefingViewModel: ObservableObject {
         if let cached: [CalendarEvent] = await cache.get("calendar", ttl: 1800) {
             return cached
         }
-        await calendarService.requestAuthorization()
+        _ = await calendarService.requestAuthorization()
         let events = await calendarService.fetchTodayEvents()
         await cache.setCalendar(events, ttl: 1800)
         return events
