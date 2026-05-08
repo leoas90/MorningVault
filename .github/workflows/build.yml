@@ -1,0 +1,54 @@
+name: Build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Verify Xcode
+        run: xcodebuild -version
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build iOS
+        run: |
+          xcodebuild -project MorningVault.xcodeproj \
+            -scheme MorningVault \
+            -configuration Debug \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+            build
+
+  archive:
+    runs-on: macos-latest
+    needs: build
+
+    steps:
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build archive
+        run: |
+          xcodebuild -project MorningVault.xcodeproj \
+            -scheme MorningVault \
+            -configuration Release \
+            -archivePath build/MorningVault.xcarchive \
+            archive
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: MorningVault-archive
+          path: build/MorningVault.xcarchive
