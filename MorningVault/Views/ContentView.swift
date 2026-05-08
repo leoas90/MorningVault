@@ -9,12 +9,14 @@ struct ContentView: View {
 
     enum Tab: String, CaseIterable {
         case brief = "Brief"
+        case markets = "Markets"
         case sources = "Sources"
         case settings = "Settings"
 
         var icon: String {
             switch self {
             case .brief: return "sun.max"
+            case .markets: return "chart.line.uptrend.xyaxis"
             case .sources: return "newspaper"
             case .settings: return "gearshape"
             }
@@ -23,6 +25,7 @@ struct ContentView: View {
         var filledIcon: String {
             switch self {
             case .brief: return "sun.max.fill"
+            case .markets: return "chart.line.uptrend.xyaxis"
             case .sources: return "newspaper.fill"
             case .settings: return "gearshape.fill"
             }
@@ -46,6 +49,19 @@ struct ContentView: View {
                     )
                 }
                 .tag(Tab.brief)
+
+            // MARK: - Markets Tab
+            NavigationStack {
+                MarketsView()
+            }
+            .tabItem {
+                TabIcon(
+                    tab: Tab.markets,
+                    isSelected: selectedTab == Tab.markets,
+                    scales: $tabBarIconScales
+                )
+            }
+            .tag(Tab.markets)
 
             // MARK: - Sources Tab
             NavigationStack {

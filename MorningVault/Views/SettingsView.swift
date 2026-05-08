@@ -1,15 +1,5 @@
 import SwiftUI
 
-// MARK: - Tracked Symbol
-
-struct TrackedSymbol: Codable, Identifiable, Equatable {
-    var id: String { symbol }
-    let symbol: String
-    var entryPrice: Double?
-}
-
-// MARK: - Settings View
-
 struct SettingsView: View {
     @AppStorage("briefing_time") private var briefingTimeSeconds: Double = 7 * 3600  // default 7 AM
     @AppStorage("health_enabled") private var healthEnabled = true
@@ -18,14 +8,10 @@ struct SettingsView: View {
     @AppStorage("headlines_enabled") private var headlinesEnabled = true
     @AppStorage("local_only") private var localOnly = false
     @AppStorage("theme") private var themeRaw: String = AppTheme.system.rawValue
-    @AppStorage("tracked_symbols") private var trackedSymbolsData: Data = Data()
     @AppStorage("user_name") private var userName: String = "Alex"
     @StateObject private var healthService = HealthKitService.shared
     @StateObject private var calendarService = CalendarService.shared
     @State private var showingPrivacyPolicy = false
-    @State private var newSymbol = ""
-    @State private var newEntryPrice = ""
-    @State private var trackedSymbols: [TrackedSymbol] = []
 
     private var currentTheme: AppTheme {
         get { AppTheme(rawValue: themeRaw) ?? .system }
@@ -56,21 +42,6 @@ struct SettingsView: View {
         case .warm: return "Soft cream tones — warm and energizing"
         case .cool: return "Cool gray-blue — calm and focused"
         case .dark: return "Premium dark — always dark mode"
-        }
-    }
-
-    private func loadTrackedSymbols() {
-        if let data = try? JSONDecoder().decode([TrackedSymbol].self, from: trackedSymbolsData), !data.isEmpty {
-            trackedSymbols = data
-        } else {
-            trackedSymbols = [TrackedSymbol(symbol: "BTC", entryPrice: nil),
-                             TrackedSymbol(symbol: "SPY", entryPrice: nil)]
-        }
-    }
-
-    private func saveTrackedSymbols() {
-        if let encoded = try? JSONEncoder().encode(trackedSymbols) {
-            trackedSymbolsData = encoded
         }
     }
 
@@ -136,69 +107,6 @@ struct SettingsView: View {
                         Label("Headlines", systemImage: "newspaper")
                     }
                     .disabled(localOnly)
-                }
-
-                // MARK: - Markets
-                Section("Markets") {
-                    ForEach(trackedSymbols) { item in
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(item.symbol)
-                                    .font(.headline)
-                                if let entry = item.entryPrice {
-                                    Text("Entry: $\(String(format: "%.2f", entry))")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            Spacer()
-                            Button {
-                                var symbols = trackedSymbols
-                                symbols.removeAll { $0.symbol == item.symbol }
-                                trackedSymbols = symbols
-                            } label: {
-                                Image(systemName: "minus.circle.fill")
-                                    .foregroundStyle(.red)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        .swipeActions(edge: .trailing) {
-                            Button("Delete", role: .destructive) {
-                                var symbols = trackedSymbols
-                                symbols.removeAll { $0.symbol == item.symbol }
-                                trackedSymbols = symbols
-                            }
-                        }
-                        .onChange(of: trackedSymbols) { _, _ in saveTrackedSymbols() }
-                    }
-
-                    HStack {
-                        TextField("Symbol (e.g. AAPL)", text: $newSymbol)
-                            .textInputAutocapitalization(.characters)
-                            .frame(maxWidth: 120)
-                        TextField("Entry $", text: $newEntryPrice)
-                            .keyboardType(.decimalPad)
-                            .frame(maxWidth: 100)
-                        Button {
-                            let sym = newSymbol.uppercased().trimmingCharacters(in: .whitespaces)
-                            guard !sym.isEmpty else { return }
-                            var symbols = trackedSymbols
-                            symbols.append(TrackedSymbol(symbol: sym, entryPrice: Double(newEntryPrice)))
-                            trackedSymbols = symbols
-                            newSymbol = ""
-                            newEntryPrice = ""
-                        } label: {
-                            Image(systemName: "plus.circle.fill")
-                                .foregroundStyle(.green)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(newSymbol.trimmingCharacters(in: .whitespaces).isEmpty)
-                    }
-                    .onChange(of: trackedSymbols) { _, _ in saveTrackedSymbols() }
-
-                    Text("Track up to 10 symbols. Entry price enables P&L tracking.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
 
                 // MARK: - Privacy
@@ -273,7 +181,6 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
-            .task { loadTrackedSymbols() }
         }
     }
 }
