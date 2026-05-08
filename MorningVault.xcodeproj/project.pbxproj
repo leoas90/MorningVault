@@ -33,6 +33,10 @@
 		CC9730F579B0F4EDD5D5C214 /* AlarmService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57398225F0C285023D3C56AC /* AlarmService.swift */; };
 		D31AE5982032296E4EBDDE78 /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3867BC47FB872F6A4CD54B76 /* PrivacyPolicyView.swift */; };
 		DC19F6726F134CBD3E779546 /* BriefingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A27C5D739FF263892E7845 /* BriefingViewModel.swift */; };
+		11D3D19C9437101F9EB708B1 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABF8E04757F48D2956A57EC5 /* OnboardingView.swift */; };
+		D0CFF94C345B226978EB3578 /* OnboardingNameStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34D319EDEE113573E0F06B7F /* OnboardingNameStep.swift */; };
+		0DA4D23EAB30922FDF497CB1 /* OnboardingSourcesStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 115703AF179160E87B3F0DB7 /* OnboardingSourcesStep.swift */; };
+		B54621C767FA06299AA43ACB /* OnboardingSymbolsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7D05124D6EE7B34FA2893A6 /* OnboardingSymbolsStep.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -65,6 +69,10 @@
 		C4D5E6F7A1B2C3D4E5F6A2B /* ContactsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsService.swift; sourceTree = "<group>"; };
 		F1E53372DCE56D9D3406815A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		F22FA11BC4393AA0A34AC497 /* RSSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RSSService.swift; sourceTree = "<group>"; };
+		ABF8E04757F48D2956A57EC5 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		34D319EDEE113573E0F06B7F /* OnboardingNameStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingNameStep.swift; sourceTree = "<group>"; };
+		115703AF179160E87B3F0DB7 /* OnboardingSourcesStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSourcesStep.swift; sourceTree = "<group>"; };
+		C7D05124D6EE7B34FA2893A6 /* OnboardingSymbolsStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSymbolsStep.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -87,10 +95,14 @@
 			children = (
 				5764DBFB9577910F99CA7C18 /* BuildView.swift */,
 				F1E53372DCE56D9D3406815A /* ContentView.swift */,
-					A1B2C3D4E5F6A1B2C3D4E6F8 /* MarketsView.swift */,
+				A1B2C3D4E5F6A1B2C3D4E6F8 /* MarketsView.swift */,
 				E249A63C0B140CBBF820E5C4 /* SettingsView.swift */,
 				C26F9E33368D424D3AAEDFBE /* SourcesView.swift */,
 				307C843A803E7C0976A2897F /* BriefingSectionCard.swift */,
+				ABF8E04757F48D2956A57EC5 /* OnboardingView.swift */,
+				34D319EDEE113573E0F06B7F /* OnboardingNameStep.swift */,
+				115703AF179160E87B3F0DB7 /* OnboardingSourcesStep.swift */,
+				C7D05124D6EE7B34FA2893A6 /* OnboardingSymbolsStep.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -287,6 +299,10 @@
 				B2C3D4E5F6A1B2C3D4E5F6A1 /* TrackedSymbol.swift in Sources */,
 				C4D5E6F7A1B2C3D4E5F6A1B2 /* ContactsService.swift in Sources */,
 				A2B3C4D5E6F7A2B3C4D5E6F7 /* MarketsView.swift in Sources */,
+					11D3D19C9437101F9EB708B1 /* OnboardingView.swift in Sources */,
+					D0CFF94C345B226978EB3578 /* OnboardingNameStep.swift in Sources */,
+					0DA4D23EAB30922FDF497CB1 /* OnboardingSourcesStep.swift in Sources */,
+					B54621C767FA06299AA43ACB /* OnboardingSymbolsStep.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

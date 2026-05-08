@@ -1,8 +1,10 @@
 import SwiftUI
 
 struct ContentView: View {
-    @AppStorage("user_name") private var userName: String = "Alex"
+    @AppStorage("user_name") private var userName: String = ""
     @AppStorage("local_only") private var localOnly = false
+    @AppStorage("has_completed_onboarding") private var hasCompletedOnboarding = false
+
     @StateObject private var viewModel = BriefingViewModel()
     @State private var selectedTab: Tab = .brief
     @State private var tabBarIconScales: [Tab: CGFloat] = [:]
@@ -95,6 +97,9 @@ struct ContentView: View {
             if let fetchedName = ContactsService.shared.fetchDeviceName() {
                 userName = fetchedName
             }
+        }
+        .fullScreenCover(isPresented: .constant(!hasCompletedOnboarding)) {
+            OnboardingView()
         }
     }
 }

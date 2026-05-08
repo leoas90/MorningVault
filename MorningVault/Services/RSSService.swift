@@ -1,27 +1,41 @@
 import Foundation
 
-/// RSS feed parser — uses FeedKit (on-device parsing)
-/// No user tracking, no analytics. Only fetches hardcoded feed URLs.
+/// RSS feed parser — fetches user-selected news sources
+/// No user tracking, no analytics.
 final class RSSService: ObservableObject {
     static let shared = RSSService()
 
     @Published var feeds: [RSSFeedData] = []
     @Published var lastError: String?
 
-    // Hardcoded feeds — no user-specific URLs stored
-    private let feedURLs: [String: String] = [
-        "Hacker News": "https://hnrss.org/frontpage",
-        "TechCrunch": "https://techcrunch.com/feed/",
-        "Ars Technica": "https://feeds.arstechnica.com/arstechnica/index"
+    /// URL map for available news sources
+    private let sourceURLs: [String: String] = [
+        "hacker-news": "https://hnrss.org/frontpage",
+        "techcrunch": "https://techcrunch.com/feed/",
+        "ars-technica": "https://feeds.arstechnica.com/arstechnica/index",
+        "bbc": "https://feeds.bbci.co.uk/news/rss.xml",
+        "reuters": "https://www.reutersagency.com/feed/",
+        "ap": "https://apnews.com/rss",
+        "npr": "https://feeds.npr.org/1001/rss.xml",
+        "the-verge": "https://www.theverge.com/rss/index.xml",
+        "wired": "https://www.wired.com/feed/rss",
+        "bloomberg": "https://feeds.bloomberg.com/markets/news.rss"
     ]
 
     // MARK: - Fetch All Feeds
 
     func fetchAllFeeds() async -> [RSSFeedData] {
+        let selectedIds = loadSelectedSources()
+        await fetchFeeds(ids: selectedIds)
+        return feeds
+    }
+
+    func fetchFeeds(ids: [String]) async -> [RSSFeedData] {
         await withTaskGroup(of: RSSFeedData?.self) { group in
-            for (name, urlString) in feedURLs {
+            for id in ids {
+                guard let urlString = sourceURLs[id] else { continue }
                 group.addTask {
-                    await self.fetchFeed(name: name, urlString: urlString)
+                    await self.fetchFeed(name: self.sourceDisplayName(for: id), urlString: urlString)
                 }
             }
 
@@ -31,8 +45,35 @@ final class RSSService: ObservableObject {
                     results.append(feed)
                 }
             }
+            await MainActor.run { feeds = results }
             return results
         }
+    }
+
+    private func loadSelectedSources() -> [String] {
+        let defaults = UserDefaults.standard
+        guard let data = defaults.data(forKey: "selected_news_sources"),
+              let decoded = try? JSONDecoder().decode([String].self, from: data) else {
+            // Default to hacker-news if nothing selected
+            return ["hacker-news"]
+        }
+        return decoded
+    }
+
+    private func sourceDisplayName(for id: String) -> String {
+        let names: [String: String] = [
+            "hacker-news": "Hacker News",
+            "techcrunch": "TechCrunch",
+            "ars-technica": "Ars Technica",
+            "bbc": "BBC News",
+            "reuters": "Reuters",
+            "ap": "Associated Press",
+            "npr": "NPR",
+            "the-verge": "The Verge",
+            "wired": "Wired",
+            "bloomberg": "Bloomberg"
+        ]
+        return names[id] ?? id.capitalized
     }
 
     // MARK: - Fetch Single Feed
@@ -70,13 +111,10 @@ final class RSSParser {
     }
 
     func parse() -> [RSSArticle] {
-        // Try RSS 2.0 first, then Atom
         if let articles = parseRSS2() { return articles }
         if let articles = parseAtom() { return articles }
         return []
     }
-
-    // MARK: - RSS 2.0
 
     private func parseRSS2() -> [RSSArticle]? {
         guard let xmlString = String(data: data, encoding: .utf8) else { return nil }
@@ -111,8 +149,6 @@ final class RSSParser {
         return articles
     }
 
-    // MARK: - Atom
-
     private func parseAtom() -> [RSSArticle]? {
         guard let xmlString = String(data: data, encoding: .utf8) else { return nil }
         guard xmlString.contains("<feed") else { return nil }
@@ -145,8 +181,6 @@ final class RSSParser {
 
         return articles
     }
-
-    // MARK: - Helpers
 
     private func extractTag(_ tag: String, from xml: String) -> String {
         let pattern = "<\(tag)[^>]*><!\\[CDATA\\[(.*?)\\]\\]></\(tag)>|<\(tag)[^>]*>(.*?)</\(tag)>"
