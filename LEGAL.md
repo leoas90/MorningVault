@@ -27,7 +27,7 @@ MorningVault is a privacy-first morning briefing application designed with data 
 
 ### Legal Flags (Open)
 - CoinGecko ToS: Free tier acceptable for personal use; paid plan recommended for distribution
-- Yahoo Finance scraping: No authorized API for third-party display — yfinance is a scraping library
+- Yahoo Finance scraping: No authorized API for third-party display — yfinance is a scraping library. STOCKS still use Yahoo Finance (⚠️). Replace with Finnhub or Alpha Vantage before App Store submission.
 - Both flags require legal sign-off before App Store submission
 
 ### Privacy Positioning
