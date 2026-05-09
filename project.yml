@@ -54,6 +54,7 @@ targets:
       - sdk: HealthKit.framework
       - sdk: EventKit.framework
       - sdk: CoreLocation.framework
+      - sdk: WeatherKit.framework
 
 schemes:
   MorningVault:
