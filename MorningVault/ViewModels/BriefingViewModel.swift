@@ -4,16 +4,14 @@ import FoundationModels
 
 /// Main briefing view model — orchestrates all data sources and AI generation.
 ///
-/// AI enhancement via two paths:
-/// - On-device: AIService (Foundation Models, iOS 26+, no network)
-/// - External: BriefingGeneratorService (Ollama on Mac Mini, used when on-device FM unavailable)
-///
-/// `localOnly` guard enforced: when enabled, no external AI calls (Ollama skipped)
+/// AI enhancement is delegated to `AIService`, which enforces:
+/// - On-device-only processing via Foundation Models (iOS 26+)
+/// - `localOnly` guard (no external AI routing when enabled)
+/// - Health data sanitization before entering FM prompts
 @MainActor
 final class BriefingViewModel: ObservableObject {
     @Published var briefingSections: [BriefingSection] = []
     @Published var isLoading = false
-    @Published var isGeneratingAI = false
     @Published var lastError: String?
     @Published var networkBadge: NetworkBadge = .local
     @Published var aiDaySummary: String? = nil
@@ -139,51 +137,26 @@ final class BriefingViewModel: ObservableObject {
 
     // MARK: - Generate AI-enhanced briefing
 
-    /// Full briefing generation: load data then enhance with AI.
-    /// Uses Ollama on Mac Mini (via BriefingGeneratorService) for AI enhancement.
-    /// Shows loading state during AI generation.
+    /// Full briefing generation: load data then enhance with Foundation Models AI.
+    /// Falls back gracefully when FM is unavailable (sets aiDaySummary = nil, no crash).
     func generateBriefing() async {
         isLoading = true
         defer { isLoading = false }
 
-        // Load all data sections first
         await loadData()
 
-        // Then generate AI summary via Ollama
-        // Skip if localOnly (no external AI) or no sections to process
-        guard !localOnly, !briefingSections.isEmpty else { return }
-
-        isGeneratingAI = true
-        if let summary = await BriefingGeneratorService.shared.generateBriefing(
-            from: briefingSections,
-            localOnly: localOnly
-        ) {
-            aiDaySummary = summary
+        // Enhance with Foundation Models AI (iOS 26+)
+        if #available(iOS 26.0, *) {
+            await enhanceWithAI()
         }
-        isGeneratingAI = false
     }
 
     // MARK: - AI Service delegation
 
     /// AI enhancement via AIService — always on-device, localOnly guard enforced.
-    /// Implemented per GATE-3-FOUNDATION-MODELS spec: chunking, structured output,
-    /// graceful degradation, <5s latency target on physical device.
+    /// Implemented per GATE 3 spec: chunking, structured output, graceful degradation.
     @available(iOS 26.0, *)
     private func enhanceWithAI() async {
-        guard let result = await AIService.shared.generateInsight(
-            from: briefingSections,
-            localOnly: localOnly
-        ) else {
-            aiDaySummary = nil
-            return
-        }
-        aiDaySummary = result.insight
-    }
-
-    /// Foundation Models entry point per SPEC.
-    /// Falls back gracefully when FM is unavailable (sets aiDaySummary = nil, no crash).
-    @available(iOS 26.0, *)
-    private func enhanceWithFoundationModels() async {
         guard let result = await AIService.shared.generateInsight(
             from: briefingSections,
             localOnly: localOnly
@@ -275,8 +248,8 @@ final class BriefingViewModel: ObservableObject {
     // MARK: - Symbol fetcher with cache fallback
 
     /// Fetches symbol price, falling back to cache on any live-fetch failure.
-    /// Always attempts live data first to get up-to-date prices; only shows
-    /// "market data unavailable" when both live fetch AND cache miss.
+    /// Always attempts live data first; only shows "unavailable" when both
+    /// live fetch AND cache miss.
     private func fetchSymbolWithCacheFallback(symbol: String) async -> SymbolData? {
         if let data = await fetchSymbolData(symbol: symbol) {
             // Live fetch succeeded — update cache
@@ -407,7 +380,7 @@ final class BriefingViewModel: ObservableObject {
     private func fetchStockData(symbol: String) async -> SymbolData? {
         // ⚠️ Yahoo Finance — legal flag still open for stocks.
         // Replace with Finnhub or Alpha Vantage before App Store submission.
-        // CoinGecko handles crypto with no flag.
+        // Crypto covered by CoinGecko with no flag.
         guard let url = URL(string: "https://query1.finance.yahoo.com/v8/finance/chart/\(symbol)?interval=1d&range=1d") else {
             return nil
         }
