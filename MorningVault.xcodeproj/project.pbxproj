@@ -20,6 +20,7 @@
 		53E7E780D00D137008B91CCECCFF3A8C /* CalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACAA8CF9C253BBAB993C7ABC92A771CE /* CalendarService.swift */; };
 		5C7528E145772D1ECF28C2858B3A3CF5 /* AnimatedComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F43942BE2B4BF54161D7B943D638132 /* AnimatedComponents.swift */; };
 		5C7C1B962872DAE98FA3FDF761B2C5F6 /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 428137D842E34AED7DAB84826932182B /* HealthKitService.swift */; };
+		5CBE2748388ADE6E3295BA67 /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C7339388E983DF29E008BF6 /* AIService.swift */; };
 		6F501F23D05B4A79F07762FB05A333A3 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E249A63C0B140CBBF820E5C4B7F50BC5 /* SettingsView.swift */; };
 		812FD8327BBAD37E4D2C6B37D911D374 /* WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96717330575D4D9806610694C3F4557C /* WeatherService.swift */; };
 		81FD66DB7B058CD91F68FCADA9DB5A72 /* RefreshControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A262E6202095BCC98035772CD6A3F37 /* RefreshControl.swift */; };
@@ -53,6 +54,7 @@
 		53A27C5D739FF263892E784539764E69 /* BriefingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingViewModel.swift; sourceTree = "<group>"; };
 		57398225F0C285023D3C56AC851A1A6B /* AlarmService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmService.swift; sourceTree = "<group>"; };
 		5764DBFB9577910F99CA7C1894B402F7 /* BuildView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuildView.swift; sourceTree = "<group>"; };
+		5C7339388E983DF29E008BF6 /* AIService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
 		5D4F604E0DBCADA9DF64936377284AC1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6091C9B0146CAF03D736103DA015F2FD /* TrackedSymbol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackedSymbol.swift; sourceTree = "<group>"; };
 		6376F2CF2B5439BE403B053DFE73E564 /* CoreLocation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreLocation.framework; path = System/Library/Frameworks/CoreLocation.framework; sourceTree = SDKROOT; };
@@ -203,6 +205,7 @@
 				428137D842E34AED7DAB84826932182B /* HealthKitService.swift */,
 				F22FA11BC4393AA0A34AC49709336FF1 /* RSSService.swift */,
 				96717330575D4D9806610694C3F4557C /* WeatherService.swift */,
+				5C7339388E983DF29E008BF6 /* AIService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -258,6 +261,7 @@
 				en,
 			);
 			mainGroup = 190857E00C249805B00715A3D8746D49;
+			productRefGroup = 4452B7F94AE6708DAAE632695B8F0EF1 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -308,6 +312,7 @@
 				DDE112C8EA70E2937D9D3200BB0BFB8B /* SourcesView.swift in Sources */,
 				DA1A730221F51EFEFE472370282D429A /* TrackedSymbol.swift in Sources */,
 				812FD8327BBAD37E4D2C6B37D911D374 /* WeatherService.swift in Sources */,
+				5CBE2748388ADE6E3295BA67 /* AIService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -402,7 +407,10 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				"INFOPLIST_KEY_UISupportedInterfaceOrientations~ipad" = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.yeziddr.morningvault.dev;
 				PRODUCT_NAME = MorningVault;
@@ -436,7 +444,10 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				"INFOPLIST_KEY_UISupportedInterfaceOrientations~ipad" = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.yeziddr.morningvault.dev;
 				PRODUCT_NAME = MorningVault;

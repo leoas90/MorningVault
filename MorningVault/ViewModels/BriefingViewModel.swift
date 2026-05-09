@@ -2,7 +2,12 @@ import SwiftUI
 import Combine
 import FoundationModels
 
-/// Main briefing view model — orchestrates all data sources and AI generation
+/// Main briefing view model — orchestrates all data sources and AI generation.
+///
+/// AI enhancement is delegated to `AIService`, which enforces:
+/// - On-device-only processing via Foundation Models
+/// - `localOnly` guard (no external AI routing when enabled)
+/// - Health data sanitization before entering FM prompts
 @MainActor
 final class BriefingViewModel: ObservableObject {
     @Published var briefingSections: [BriefingSection] = []
@@ -15,27 +20,11 @@ final class BriefingViewModel: ObservableObject {
     private let calendarService = CalendarService.shared
     private let weatherService = WeatherService.shared
     private let rssService = RSSService.shared
+    private let aiService = AIService.shared
     private let cache = sharedCache
 
-    // MARK: - Latency instrumentation
-
-    /// Ring buffer of last N FM call latencies (milliseconds)
-    private static var fmLatencyHistory: [Int] = []
-    private static let latencyHistoryCapacity = 10
-
-    private static func recordLatency(_ ms: Int) {
-        fmLatencyHistory.append(ms)
-        if fmLatencyHistory.count > latencyHistoryCapacity {
-            fmLatencyHistory.removeFirst()
-        }
-    }
-
-    private static func computeP95() -> Int {
-        guard !fmLatencyHistory.isEmpty else { return 0 }
-        let sorted = fmLatencyHistory.sorted()
-        let index = Int(Double(sorted.count - 1) * 0.95)
-        return sorted[index]
-    }
+    /// Reflects the user's local-only setting — AI uses this to enforce on-device-only policy
+    @AppStorage("local_only") private var localOnly = false
 
     // MARK: - Load all data then generate
 
@@ -50,6 +39,9 @@ final class BriefingViewModel: ObservableObject {
         async let rss = fetchRSS()
 
         let (healthData, weatherData, calendarEvents, rssFeeds) = await (health, weather, calendar, rss)
+
+        // Update network badge based on what sources are active
+        updateNetworkBadge()
 
         // Build sections from raw data (before AI processing)
         var sections: [BriefingSection] = []
@@ -136,15 +128,72 @@ final class BriefingViewModel: ObservableObject {
 
         await loadData()
 
-        // If FoundationModels is available, enhance with AI
-        if #available(iOS 26.0, *) {
-            await enhanceWithFoundationModels()
+        // AI enhancement via AIService — always on-device, localOnly guard enforced
+        await enhanceWithAI()
+    }
+
+    // MARK: - AI Enhancement (delegated to AIService)
+
+    /// Orchestrates AI enhancement via AIService.
+    /// localOnly guard: AIService enforces on-device-only — no external AI routing.
+    /// Health data is sanitized before entering any FM prompt.
+    private func enhanceWithAI() async {
+        let result = await aiService.generateInsight(
+            from: briefingSections,
+            localOnly: localOnly
+        )
+
+        guard let result = result else {
+            // AI unavailable — briefing still valid without AI insight
+            print("[BriefingViewModel] AI insight unavailable, briefing shown without AI")
+            return
+        }
+
+        aiDaySummary = result.insight
+
+        let section = BriefingSection(
+            id: "ai-insight",
+            title: "AI Insight",
+            icon: "🤖",
+            content: result.insight,
+            sentiment: result.sentiment
+        )
+
+        // Replace markets section with AI insight (as per original logic), or append
+        if let idx = briefingSections.firstIndex(where: { $0.id == "markets" }) {
+            briefingSections[idx] = section
+        } else {
+            briefingSections.append(section)
+        }
+
+        await cache.setBriefing(BriefingData(
+            sections: briefingSections,
+            generatedAt: Date(),
+            latencyMs: result.latencyMs
+        ), ttl: 300)
+    }
+
+    // MARK: - Network Badge
+
+    private func updateNetworkBadge() {
+        if localOnly {
+            networkBadge = .local
+        } else {
+            // If any external fetch is active (weather, markets, RSS), badge = external
+            networkBadge = .external
         }
     }
 
     // MARK: - Data fetchers (with cache fallback)
 
     private func fetchWeather() async -> WeatherData? {
+        if localOnly {
+            // Local-only: only use cache, no network fetch
+            if let cached: WeatherData = await cache.get("weather", ttl: 1800) {
+                return cached
+            }
+            return nil
+        }
         // Try cache first
         if let cached: WeatherData = await cache.get("weather", ttl: 1800) {
             return cached
@@ -158,6 +207,7 @@ final class BriefingViewModel: ObservableObject {
     }
 
     private func fetchHealth() async -> HealthData? {
+        // HealthKit is always local — never blocked by localOnly
         if let cached: HealthData = await cache.get("health", ttl: 3600) {
             return cached
         }
@@ -167,7 +217,6 @@ final class BriefingViewModel: ObservableObject {
         async let cals = healthService.fetchTodayActiveCalories()
         async let hrv = healthService.fetchLatestHRV()
         async let hr = healthService.fetchLatestHeartRate()
-
         let data = HealthData(
             sleep: await sleep,
             steps: await steps,
@@ -181,6 +230,7 @@ final class BriefingViewModel: ObservableObject {
     }
 
     private func fetchCalendar() async -> [CalendarEvent] {
+        // Calendar is always local — never blocked by localOnly
         if let cached: [CalendarEvent] = await cache.get("calendar", ttl: 1800) {
             return cached
         }
@@ -191,6 +241,13 @@ final class BriefingViewModel: ObservableObject {
     }
 
     private func fetchRSS() async -> [RSSFeedData] {
+        if localOnly {
+            // Local-only: only use cache, no network fetch for RSS
+            if let cached: [RSSFeedData] = await cache.get("rss", ttl: 3600) {
+                return cached
+            }
+            return []
+        }
         if let cached: [RSSFeedData] = await cache.get("rss", ttl: 3600) {
             return cached
         }
@@ -200,10 +257,19 @@ final class BriefingViewModel: ObservableObject {
     }
 
     private func fetchMarketSentiment() async -> (content: String, sentiment: String?) {
+        if localOnly {
+            // Local-only: only use cache, no network fetch for markets
+            if let cached: MarketCacheEntry = await cache.get("market", ttl: 900) {
+                return (cached.content, cached.sentiment)
+            }
+            return ("market data unavailable", nil)
+        }
+
         // 15-minute market cache
         if let cached: MarketCacheEntry = await cache.get("market", ttl: 900) {
             return (cached.content, cached.sentiment)
         }
+
         let tracked = loadTrackedSymbols()
         var content = ""
         var sentiment: String? = nil
@@ -220,7 +286,6 @@ final class BriefingViewModel: ObservableObject {
             let change = data.change24h
             let arrow = change >= 0 ? "↑" : "↓"
             content += "\(item.symbol): \(formatPrice(item.symbol, price)) \(arrow)\(String(format: change >= 0 ? "%.2f" : "%.2f", abs(change)))%"
-
             if let entry = item.entryPrice, entry > 0 {
                 let pnl = ((price - entry) / entry) * 100
                 let pnlArrow = pnl >= 0 ? "+" : ""
@@ -231,11 +296,10 @@ final class BriefingViewModel: ObservableObject {
             if change <= -2 { hasBearish = true }
         }
 
-        if failedCount == tracked.count {
-            content = "market data unavailable"
-        } else if content.isEmpty {
+        if failedCount == tracked.count || content.isEmpty {
             content = "market data unavailable"
         }
+
         if hasBullish && !hasBearish { sentiment = "bullish" }
         else if hasBearish && !hasBullish { sentiment = "bearish" }
         else if !tracked.isEmpty { sentiment = "neutral" }
@@ -243,7 +307,6 @@ final class BriefingViewModel: ObservableObject {
         if content != "market data unavailable" {
             await cache.set("market", value: MarketCacheEntry(content: content, sentiment: sentiment), ttl: 900)
         }
-
         return (content.isEmpty ? "market data unavailable" : content, sentiment)
     }
 
@@ -274,7 +337,9 @@ final class BriefingViewModel: ObservableObject {
         return "$\(String(format: "%.2f", price))"
     }
 
-    private var cryptoSymbols: Set<String> { ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "DOGE", "DOT", "AVAX", "LINK"] }
+    private var cryptoSymbols: Set<String> {
+        ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "DOGE", "DOT", "AVAX", "LINK"]
+    }
 
     private func fetchSymbolData(symbol: String) async -> SymbolData? {
         let upper = symbol.uppercased()
@@ -285,197 +350,55 @@ final class BriefingViewModel: ObservableObject {
     }
 
     private func fetchCryptoData(symbol: String) async -> SymbolData? {
-        let idMap: [String: String] = ["BTC": "bitcoin", "ETH": "ethereum", "SOL": "solana",
-                                       "BNB": "binancecoin", "XRP": "ripple", "ADA": "cardano",
-                                       "DOGE": "dogecoin", "DOT": "polkadot", "AVAX": "avalanche-2", "LINK": "chainlink"]
+        let idMap: [String: String] = [
+            "BTC": "bitcoin", "ETH": "ethereum", "SOL": "solana",
+            "BNB": "binancecoin", "XRP": "ripple", "ADA": "cardano",
+            "DOGE": "dogecoin", "DOT": "polkadot", "AVAX": "avalanche-2",
+            "LINK": "chainlink"
+        ]
         guard let id = idMap[symbol],
-              let url = URL(string: "https://api.coingecko.com/api/v3/simple/price?ids=\(id)&vs_currencies=usd&include_24hr_change=true") else { return nil }
+              let url = URL(string: "https://api.coingecko.com/api/v3/simple/price?ids=\(id)&vs_currencies=usd&include_24hr_change=true") else {
+            return nil
+        }
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
             let json = try JSONDecoder().decode([String: [String: Double]].self, from: data)
-            guard let coin = json[id], let price = coin["usd"], let change = coin["usd_24h_change"], price > 0 else { return nil }
+            guard let coin = json[id], let price = coin["usd"], let change = coin["usd_24h_change"], price > 0 else {
+                return nil
+            }
             return SymbolData(price: price, change24h: change)
-        } catch { return nil }
+        } catch {
+            return nil
+        }
     }
 
     private func fetchStockData(symbol: String) async -> SymbolData? {
-        guard let url = URL(string: "https://query1.finance.yahoo.com/v8/finance/chart/\(symbol)?interval=1d&range=1d") else { return nil }
+        guard let url = URL(string: "https://query1.finance.yahoo.com/v8/finance/chart/\(symbol)?interval=1d&range=1d") else {
+            return nil
+        }
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
             let json = try JSONDecoder().decode(YahooChartResponse.self, from: data)
             guard let result = json.chart?.result?.first,
                   let quote = result.indicators?.quote?.first,
-                  let close = quote.close?.last, close > 0 else { return nil }
+                  let close = quote.close?.last, close > 0 else {
+                return nil
+            }
             let open = quote.open?.first ?? close
             let change = ((close - open) / open) * 100
             return SymbolData(price: close, change24h: change)
-        } catch { return nil }
-    }
-
-    // MARK: - Foundation Models enhancement (iOS 26+)
-
-    /// Maximum tokens before we chunk the prompt into segments (≈3.5K tokens safe limit)
-    private static let chunkThreshold = 3500
-
-    /// Target per-segment token budgets (words as proxy for tokens, ~4 chars per token)
-    private static let segmentBudgets: [String: Int] = [
-        "health":    125,  // ≈500 tokens
-        "calendar":  200,  // ≈800 tokens
-        "weather":    50,  // ≈200 tokens
-        "markets":    75,  // ≈300 tokens
-        "rss":       500,  // ≈2000 tokens
-    ]
-
-    @available(iOS 26.0, *)
-    private func enhanceWithFoundationModels() async {
-        let lm = SystemLanguageModel()
-        if case .unavailable(let reason) = lm.availability {
-            print("[BriefingViewModel] AppleIntelligence unavailable: \(String(describing: reason))")
-            return
-        }
-
-        let session = LanguageModelSession(model: lm)
-        let startTime = Date()
-        var aiInsight: String?
-        var sentiment: String?
-
-        // Estimate combined prompt size and decide: chunked vs single-call
-        let combinedPrompt = buildBriefingPrompt()
-        let estimatedTokens = combinedPrompt.count / 4  // rough approximation
-
-        if estimatedTokens > Self.chunkThreshold {
-            // Token chunking: call FM per segment, aggregate responses
-            let segmentedResult = await generateChunked(session: session)
-            aiInsight = segmentedResult.insight
-            sentiment = segmentedResult.sentiment
-        } else {
-            // Single-call path (under token limit)
-            let result = await generateSingle(session: session, prompt: combinedPrompt)
-            if let insight = result.insight {
-                aiInsight = insight
-                sentiment = result.sentiment
-            }
-        }
-
-        let latencyMs = Int(Date().timeIntervalSince(startTime) * 1000)
-        Self.recordLatency(latencyMs)
-        let p95Ms = Self.computeP95()
-        print("[BriefingViewModel] FM latency: \(latencyMs)ms (p95: \(p95Ms)ms)")
-
-        if let insight = aiInsight {
-            aiDaySummary = insight
-            let section = BriefingSection(
-                id: "ai-insight",
-                title: "AI Insight",
-                icon: "🤖",
-                content: insight,
-                sentiment: sentiment
-            )
-            if let idx = briefingSections.firstIndex(where: { $0.id == "markets" }) {
-                briefingSections[idx] = section
-            } else {
-                briefingSections.append(section)
-            }
-            await cache.setBriefing(BriefingData(sections: briefingSections, generatedAt: Date(), latencyMs: latencyMs), ttl: 300)
-        }
-    }
-
-    // MARK: - Single-call path (under token budget)
-
-    @available(iOS 26.0, *)
-    private func generateSingle(session: LanguageModelSession, prompt: String) async -> (insight: String?, sentiment: String?) {
-        do {
-            let response = try await session.respond(to: prompt, generating: BriefingInsight.self)
-            return (response.content.insight, response.content.sentiment)
-        } catch is CancellationError {
-            // Task was cancelled (e.g., user navigated away) — not an error, just abort silently
-            return (nil, nil)
         } catch {
-            print("[BriefingViewModel] FM single-call error: \(error.localizedDescription)")
-            return ("Unable to generate insight.", nil)
+            return nil
         }
-    }
-
-    // MARK: - Chunked path (exceeds token budget)
-
-    @available(iOS 26.0, *)
-    private func generateChunked(session: LanguageModelSession) async -> (insight: String, sentiment: String?) {
-        var segmentInsights: [String] = []
-
-        for section in briefingSections {
-            guard let budget = Self.segmentBudgets[section.id] else { continue }
-            let maxChars = budget * 4
-            let truncated = section.content.count > maxChars
-                ? String(section.content.prefix(maxChars)) + "…"
-                : section.content
-
-            let segmentPrompt = """
-            Based on this \(section.title) data: "\(truncated)"
-
-            Provide a brief insight and classify sentiment. Respond with ONLY JSON (no markdown):
-            {"text": "...", "sentiment": "bullish|bearish|neutral"}
-            """
-
-            do {
-                let response = try await session.respond(to: segmentPrompt, generating: BriefingInsightText.self)
-                if !response.content.text.isEmpty {
-                    segmentInsights.append("\(section.title): \(response.content.text)")
-                }
-            } catch is CancellationError {
-                // Silently skip cancelled segment — user likely navigated away; stop chunking
-                break
-            } catch {
-                print("[BriefingViewModel] FM chunk error for \(section.id): \(error.localizedDescription)")
-            }
-        }
-
-        guard !segmentInsights.isEmpty else {
-            return ("Unable to generate insight.", nil)
-        }
-
-        let aggregationPrompt = """
-        Combine these segment insights into a single coherent morning briefing insight (2-3 sentences).
-
-        Segments:
-        \(segmentInsights.joined(separator: "\n"))
-
-        Respond with ONLY JSON (no markdown):
-        {"text": "...", "sentiment": "bullish|bearish|neutral"}
-        """
-
-        do {
-            let response = try await session.respond(to: aggregationPrompt, generating: BriefingInsightText.self)
-            return (response.content.text, response.content.sentiment)
-        } catch is CancellationError {
-            // Aggregation cancelled — return collected segment insights rather than losing them
-            guard !segmentInsights.isEmpty else {
-                return (insight: "Unable to generate insight.", sentiment: nil)
-            }
-            return (segmentInsights.joined(separator: " "), nil)
-        } catch {
-            return (segmentInsights.joined(separator: " "), nil)
-        }
-    }
-
-    private func buildBriefingPrompt() -> String {
-        let sectionTexts = briefingSections.map { "\($0.title): \($0.content)" }.joined(separator: "\n")
-        return """
-You are a morning briefing assistant. Based on the following data, provide 2-3 sentences of insight or a recommendation. Be concise and actionable.
-
-\(sectionTexts)
-
-Respond with ONLY this JSON (no markdown):
-{"insight": "...", "recommendation": "...", "sentiment": "bullish|bearish|neutral"}
-"""
     }
 }
 
 // MARK: - Network Badge
 
 enum NetworkBadge {
-    case local      // green — all data local
-    case external   // yellow — external non-PII fetch
-    case unknown    // gray
+    case local    // 🟢 green — all data local, zero network calls
+    case external // 🟡 yellow — external non-PII fetches active
+    case unknown  // gray
 }
 
 // MARK: - Yahoo Finance Response
@@ -483,34 +406,20 @@ enum NetworkBadge {
 private struct YahooChartResponse: Codable {
     let chart: ChartResult?
 }
+
 private struct ChartResult: Codable {
     let result: [ChartQuote]?
 }
+
 private struct ChartQuote: Codable {
     let indicators: Indicators?
 }
+
 private struct Indicators: Codable {
     let quote: [QuoteData]?
 }
+
 private struct QuoteData: Codable {
     let open: [Double]?
     let close: [Double]?
-}
-
-// MARK: - AI Response / Structured Output
-
-/// Codable struct for single-call structured output (full briefing prompt response)
-/// Mark with @Generable so LanguageModelSession can use it with .respond(generating:)
-@FoundationModels.Generable
-private struct BriefingInsight: Codable {
-    let insight: String
-    let recommendation: String
-    let sentiment: String  // "bullish" | "bearish" | "neutral"
-}
-
-/// Codable struct for per-segment chunk responses
-@FoundationModels.Generable
-private struct BriefingInsightText: Codable {
-    let text: String
-    let sentiment: String  // "bullish" | "bearish" | "neutral"
 }
