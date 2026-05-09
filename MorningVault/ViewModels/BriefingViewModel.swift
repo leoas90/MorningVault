@@ -272,6 +272,30 @@ final class BriefingViewModel: ObservableObject {
         return await assembleMarketContent(tracked: loadTrackedSymbols(), useCache: useCache)
     }
 
+    // MARK: - Symbol fetcher with cache fallback
+
+    /// Fetches symbol price, falling back to cache on any live-fetch failure.
+    /// Always attempts live data first to get up-to-date prices; only shows
+    /// "market data unavailable" when both live fetch AND cache miss.
+    private func fetchSymbolWithCacheFallback(symbol: String) async -> SymbolData? {
+        if let data = await fetchSymbolData(symbol: symbol) {
+            // Live fetch succeeded — update cache
+            await cache.setSymbolPrice(
+                symbol,
+                data: TTLCache.CachedSymbolData(
+                    price: data.price,
+                    change24h: data.change24h,
+                    timestamp: Date()
+                )
+            )
+            return data
+        }
+        // Live fetch failed (rate limit, network, parse) — try cache
+        return await cache.getSymbolPrice(symbol).map {
+            SymbolData(price: $0.price, change24h: $0.change24h)
+        }
+    }
+
     private func assembleMarketContent(
         tracked: [(symbol: String, entryPrice: Double?)],
         useCache: Bool
@@ -289,17 +313,7 @@ final class BriefingViewModel: ObservableObject {
                     SymbolData(price: $0.price, change24h: $0.change24h)
                 }
             } else {
-                priceData = await fetchSymbolData(symbol: item.symbol)
-                if let pd = priceData {
-                    await cache.setSymbolPrice(
-                        item.symbol,
-                        data: TTLCache.CachedSymbolData(
-                            price: pd.price,
-                            change24h: pd.change24h,
-                            timestamp: Date()
-                        )
-                    )
-                }
+                priceData = await fetchSymbolWithCacheFallback(symbol: item.symbol)
             }
 
             guard let data = priceData else { continue }
