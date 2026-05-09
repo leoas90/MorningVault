@@ -47,6 +47,14 @@ actor TTLCache {
         try? fileManager.createDirectory(at: cacheDir, withIntermediateDirectories: true)
     }
 
+    // MARK: - Per-symbol market cache (scalable — backend slot-in ready)
+
+    func getSymbolPrice(_ symbol: String) -> CachedSymbolData? { get("market:\(symbol)") }
+    func setSymbolPrice(_ symbol: String, data: CachedSymbolData, ttl: TimeInterval = 900) { set("market:\(symbol)", value: data, ttl: ttl) }
+
+    func getRSSFeed(_ feedId: String) -> RSSFeedData? { get("rss:\(feedId)") }
+    func setRSSFeed(_ feedId: String, data: RSSFeedData, ttl: TimeInterval = 3600) { set("rss:\(feedId)", value: data, ttl: ttl) }
+
     // MARK: - Typed convenience accessors
 
     func getWeather() -> WeatherData? { get("weather") }
@@ -81,6 +89,14 @@ actor TTLCache {
         func decode<T: Codable>(_ type: T.Type) -> T? {
             try? JSONDecoder().decode(T.self, from: data)
         }
+    }
+
+    // MARK: - Shared data models (scalable cache entries)
+
+    struct CachedSymbolData: Codable {
+        let price: Double
+        let change24h: Double
+        let timestamp: Date
     }
 
     private func cacheFile(_ key: String) -> URL {

@@ -16,15 +16,33 @@ final class BriefingViewModel: ObservableObject {
     @Published var networkBadge: NetworkBadge = .local
     @Published var aiDaySummary: String? = nil
 
+    @AppStorage("local_only") private var localOnly = false
+
     private let healthService = HealthKitService.shared
     private let calendarService = CalendarService.shared
     private let weatherService = WeatherService.shared
     private let rssService = RSSService.shared
-    private let aiService = AIService.shared
     private let cache = sharedCache
 
-    /// Reflects the user's local-only setting — AI uses this to enforce on-device-only policy
-    @AppStorage("local_only") private var localOnly = false
+    // MARK: - Latency instrumentation
+
+    /// Ring buffer of last N FM call latencies (milliseconds)
+    private static var fmLatencyHistory: [Int] = []
+    private static let latencyHistoryCapacity = 10
+
+    private static func recordLatency(_ ms: Int) {
+        fmLatencyHistory.append(ms)
+        if fmLatencyHistory.count > latencyHistoryCapacity {
+            fmLatencyHistory.removeFirst()
+        }
+    }
+
+    private static func computeP95() -> Int {
+        guard !fmLatencyHistory.isEmpty else { return 0 }
+        let sorted = fmLatencyHistory.sorted()
+        let index = Int(Double(sorted.count - 1) * 0.95)
+        return sorted[index]
+    }
 
     // MARK: - Load all data then generate
 
@@ -39,9 +57,6 @@ final class BriefingViewModel: ObservableObject {
         async let rss = fetchRSS()
 
         let (healthData, weatherData, calendarEvents, rssFeeds) = await (health, weather, calendar, rss)
-
-        // Update network badge based on what sources are active
-        updateNetworkBadge()
 
         // Build sections from raw data (before AI processing)
         var sections: [BriefingSection] = []
@@ -128,58 +143,28 @@ final class BriefingViewModel: ObservableObject {
 
         await loadData()
 
-        // AI enhancement via AIService — always on-device, localOnly guard enforced
-        await enhanceWithAI()
+        // If FoundationModels is available, enhance with AI
+        if #available(iOS 26.0, *) {
+            await enhanceWithAI()
+        }
     }
 
-    // MARK: - AI Enhancement (delegated to AIService)
+    // MARK: - AI Service delegation
 
-    /// Orchestrates AI enhancement via AIService.
-    /// localOnly guard: AIService enforces on-device-only — no external AI routing.
-    /// Health data is sanitized before entering any FM prompt.
+    /// AI enhancement via AIService — always on-device, localOnly guard enforced
+    @available(iOS 26.0, *)
     private func enhanceWithAI() async {
-        let result = await aiService.generateInsight(
+        guard let result = await AIService.shared.generateInsight(
             from: briefingSections,
             localOnly: localOnly
-        )
-
-        guard let result = result else {
-            // AI unavailable — briefing still valid without AI insight
-            print("[BriefingViewModel] AI insight unavailable, briefing shown without AI")
-            return
-        }
-
+        ) else { return }
         aiDaySummary = result.insight
-
-        let section = BriefingSection(
-            id: "ai-insight",
-            title: "AI Insight",
-            icon: "🤖",
-            content: result.insight,
-            sentiment: result.sentiment
-        )
-
-        // Replace markets section with AI insight (as per original logic), or append
-        if let idx = briefingSections.firstIndex(where: { $0.id == "markets" }) {
-            briefingSections[idx] = section
-        } else {
-            briefingSections.append(section)
-        }
-
-        await cache.setBriefing(BriefingData(
-            sections: briefingSections,
-            generatedAt: Date(),
-            latencyMs: result.latencyMs
-        ), ttl: 300)
     }
-
-    // MARK: - Network Badge
 
     private func updateNetworkBadge() {
         if localOnly {
             networkBadge = .local
         } else {
-            // If any external fetch is active (weather, markets, RSS), badge = external
             networkBadge = .external
         }
     }
@@ -188,27 +173,20 @@ final class BriefingViewModel: ObservableObject {
 
     private func fetchWeather() async -> WeatherData? {
         if localOnly {
-            // Local-only: only use cache, no network fetch
-            if let cached: WeatherData = await cache.get("weather", ttl: 1800) {
-                return cached
-            }
-            return nil
+            return await cache.getWeather()
         }
-        // Try cache first
-        if let cached: WeatherData = await cache.get("weather", ttl: 1800) {
+        if let cached: WeatherData = await cache.getWeather() {
             return cached
         }
-        // Fetch fresh
         let data = await weatherService.fetchWeather()
         if let data = data {
-            await cache.setWeather(data, ttl: 1800)
+            await cache.setWeather(data)
         }
         return data
     }
 
     private func fetchHealth() async -> HealthData? {
-        // HealthKit is always local — never blocked by localOnly
-        if let cached: HealthData = await cache.get("health", ttl: 3600) {
+        if let cached: HealthData = await cache.getHealth() {
             return cached
         }
         _ = await healthService.requestAuthorization()
@@ -217,6 +195,7 @@ final class BriefingViewModel: ObservableObject {
         async let cals = healthService.fetchTodayActiveCalories()
         async let hrv = healthService.fetchLatestHRV()
         async let hr = healthService.fetchLatestHeartRate()
+
         let data = HealthData(
             sleep: await sleep,
             steps: await steps,
@@ -225,63 +204,74 @@ final class BriefingViewModel: ObservableObject {
             heartRate: await hr,
             fetchedAt: Date()
         )
-        await cache.setHealth(data, ttl: 3600)
+        await cache.setHealth(data)
         return data
     }
 
     private func fetchCalendar() async -> [CalendarEvent] {
-        // Calendar is always local — never blocked by localOnly
-        if let cached: [CalendarEvent] = await cache.get("calendar", ttl: 1800) {
+        if let cached: [CalendarEvent] = await cache.getCalendar() {
             return cached
         }
         _ = await calendarService.requestAuthorization()
         let events = await calendarService.fetchTodayEvents()
-        await cache.setCalendar(events, ttl: 1800)
+        await cache.setCalendar(events)
         return events
     }
 
     private func fetchRSS() async -> [RSSFeedData] {
         if localOnly {
-            // Local-only: only use cache, no network fetch for RSS
-            if let cached: [RSSFeedData] = await cache.get("rss", ttl: 3600) {
-                return cached
-            }
-            return []
+            return await cache.getRSSFeeds() ?? []
         }
-        if let cached: [RSSFeedData] = await cache.get("rss", ttl: 3600) {
+        if let cached: [RSSFeedData] = await cache.getRSSFeeds() {
             return cached
         }
         let feeds = await rssService.fetchAllFeeds()
-        await cache.setRSSFeeds(feeds, ttl: 3600)
+        await cache.setRSSFeeds(feeds)
         return feeds
     }
 
+    // MARK: - Scalable per-symbol market fetch
+
+    /// Fetches market sentiment using per-symbol cache keys.
+    /// Each symbol is cached independently — backend slot-in ready.
     private func fetchMarketSentiment() async -> (content: String, sentiment: String?) {
-        if localOnly {
-            // Local-only: only use cache, no network fetch for markets
-            if let cached: MarketCacheEntry = await cache.get("market", ttl: 900) {
-                return (cached.content, cached.sentiment)
-            }
-            return ("market data unavailable", nil)
-        }
+        let useCache = localOnly
+        return await assembleMarketContent(tracked: loadTrackedSymbols(), useCache: useCache)
+    }
 
-        // 15-minute market cache
-        if let cached: MarketCacheEntry = await cache.get("market", ttl: 900) {
-            return (cached.content, cached.sentiment)
-        }
-
-        let tracked = loadTrackedSymbols()
+    private func assembleMarketContent(
+        tracked: [(symbol: String, entryPrice: Double?)],
+        useCache: Bool
+    ) async -> (content: String, sentiment: String?) {
         var content = ""
         var sentiment: String? = nil
         var hasBullish = false
         var hasBearish = false
-        var failedCount = 0
+        var allFailed = true
 
         for item in tracked {
-            guard let data = await fetchSymbolData(symbol: item.symbol) else {
-                failedCount += 1
-                continue
+            let priceData: SymbolData?
+            if useCache {
+                priceData = await cache.getSymbolPrice(item.symbol).map {
+                    SymbolData(price: $0.price, change24h: $0.change24h)
+                }
+            } else {
+                priceData = await fetchSymbolData(symbol: item.symbol)
+                if let pd = priceData {
+                    await cache.setSymbolPrice(
+                        item.symbol,
+                        data: TTLCache.CachedSymbolData(
+                            price: pd.price,
+                            change24h: pd.change24h,
+                            timestamp: Date()
+                        )
+                    )
+                }
             }
+
+            guard let data = priceData else { continue }
+            allFailed = false
+
             let price = data.price
             let change = data.change24h
             let arrow = change >= 0 ? "↑" : "↓"
@@ -292,11 +282,12 @@ final class BriefingViewModel: ObservableObject {
                 content += " | P&L: \(pnlArrow)\(String(format: "%.1f", pnl))%"
             }
             content += "\n"
+
             if change >= 2 { hasBullish = true }
             if change <= -2 { hasBearish = true }
         }
 
-        if failedCount == tracked.count || content.isEmpty {
+        if allFailed || content.isEmpty {
             content = "market data unavailable"
         }
 
@@ -304,15 +295,7 @@ final class BriefingViewModel: ObservableObject {
         else if hasBearish && !hasBullish { sentiment = "bearish" }
         else if !tracked.isEmpty { sentiment = "neutral" }
 
-        if content != "market data unavailable" {
-            await cache.set("market", value: MarketCacheEntry(content: content, sentiment: sentiment), ttl: 900)
-        }
         return (content.isEmpty ? "market data unavailable" : content, sentiment)
-    }
-
-    private struct MarketCacheEntry: Codable {
-        let content: String
-        let sentiment: String?
     }
 
     private struct SymbolData { let price: Double; let change24h: Double }
@@ -340,6 +323,8 @@ final class BriefingViewModel: ObservableObject {
     private var cryptoSymbols: Set<String> {
         ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "DOGE", "DOT", "AVAX", "LINK"]
     }
+
+    // MARK: - Symbol data fetchers
 
     private func fetchSymbolData(symbol: String) async -> SymbolData? {
         let upper = symbol.uppercased()
@@ -373,6 +358,9 @@ final class BriefingViewModel: ObservableObject {
     }
 
     private func fetchStockData(symbol: String) async -> SymbolData? {
+        // ⚠️ Yahoo Finance — legal flag still open for stocks.
+        // Replace with Finnhub or Alpha Vantage before App Store submission.
+        // CoinGecko handles crypto with no flag.
         guard let url = URL(string: "https://query1.finance.yahoo.com/v8/finance/chart/\(symbol)?interval=1d&range=1d") else {
             return nil
         }
