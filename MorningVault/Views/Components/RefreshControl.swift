@@ -49,34 +49,3 @@ struct RefreshControl: UIViewRepresentable {
     }
 }
 
-// MARK: - View Extension for Pull-to-Refresh
-
-extension View {
-    func customRefreshable(isRefreshing: Binding<Bool>, action: @escaping () async -> Void) -> some View {
-        self.modifier(RefreshModifier(isRefreshing: isRefreshing, action: action))
-    }
-}
-
-// MARK: - Refresh Modifier
-
-struct RefreshModifier: ViewModifier {
-    @Binding var isRefreshing: Bool
-    let action: () async -> Void
-
-    func body(content: Content) -> some View {
-        ScrollView {
-            content
-        }
-        .refreshable {
-            await action()
-        }
-        .overlay(alignment: .top) {
-            if isRefreshing {
-                ProgressView()
-                    .scaleEffect(1.2)
-                    .tint(Color.warmPrimaryAccent)
-                    .padding(.top, 4)
-            }
-        }
-    }
-}
