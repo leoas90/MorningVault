@@ -151,13 +151,29 @@ final class BriefingViewModel: ObservableObject {
 
     // MARK: - AI Service delegation
 
-    /// AI enhancement via AIService — always on-device, localOnly guard enforced
+    /// AI enhancement via AIService — always on-device, localOnly guard enforced.
+    /// Implemented per GATE-3-FOUNDATION-MODELS spec: chunking, structured output,
+    /// graceful degradation, <5s latency target on physical device.
     @available(iOS 26.0, *)
     private func enhanceWithAI() async {
         guard let result = await AIService.shared.generateInsight(
             from: briefingSections,
             localOnly: localOnly
         ) else { return }
+        aiDaySummary = result.insight
+    }
+
+    /// Foundation Models entry point per SPEC.
+    /// Falls back gracefully when FM is unavailable (sets aiDaySummary = nil, no crash).
+    @available(iOS 26.0, *)
+    private func enhanceWithFoundationModels() async {
+        guard let result = await AIService.shared.generateInsight(
+            from: briefingSections,
+            localOnly: localOnly
+        ) else {
+            aiDaySummary = nil
+            return
+        }
         aiDaySummary = result.insight
     }
 
