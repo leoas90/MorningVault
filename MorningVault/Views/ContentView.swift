@@ -211,7 +211,7 @@ struct BriefTabView: View {
                                 )
                         }
                     }
-                    .disabled(viewModel.isLoading || viewModel.isGeneratingAI || isRefreshing)
+                    .disabled(viewModel.isLoading || isRefreshing)
                 }
             }
             .refreshable {
@@ -241,18 +241,8 @@ struct BriefTabView: View {
                         .fontWeight(.bold)
                         .foregroundStyle(Color.warmTextPrimary)
 
-                    // AI generation indicator
-                    if viewModel.isGeneratingAI {
-                        HStack(spacing: 6) {
-                            ProgressView()
-                                .scaleEffect(0.7)
-                            Text("Generating AI summary...")
-                                .font(.caption)
-                                .foregroundStyle(Color.warmTextSecondary)
-                        }
-                        .padding(.top, 4)
-                    // AI Summary badge and text (after generation)
-                    } else if let summary = viewModel.aiDaySummary {
+                    // AI Summary badge and text
+                    if let summary = viewModel.aiDaySummary {
                         HStack(spacing: 8) {
                             BounceLabel(
                                 text: "AI Summary",

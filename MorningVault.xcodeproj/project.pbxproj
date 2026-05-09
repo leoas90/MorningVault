@@ -25,7 +25,6 @@
 		81FD66DB7B058CD91F68FCADA9DB5A72 /* RefreshControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A262E6202095BCC98035772CD6A3F37 /* RefreshControl.swift */; };
 		8C85495E8FA5A0EDAD5014BA3C2FA336 /* CacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B0C6160616AE04F2461D03800C4289D /* CacheService.swift */; };
 		91BFDA6A2A453BCE3CEF2C0D0C06C012 /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83D59911EA5A72F47B9005007972ED36 /* AIService.swift */; };
-		57646928317B48BFA494E4904CEA546A /* BriefingGeneratorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 073850511F9445DFAF9616A198453D9C /* BriefingGeneratorService.swift */; };
 		970EE2D8D6D8E5487C09136901BB2B2B /* DataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAF1AB9ADD648A1E241B6F5232265B4E /* DataModels.swift */; };
 		AB0A44290D97524B9315B26D9E8FA8C5 /* WeatherKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D2A9C53AC93866B046540ED0F1DCC77B /* WeatherKit.framework */; };
 		B9367B3F52CF6B8DF9A9E113EEDCE78D /* EventKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 88242292BC38B613DCF5E115D0D1DFA0 /* EventKit.framework */; };
@@ -62,7 +61,6 @@
 		6619476E0FF29E35D1B6F96A06C128EF /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		744744A7C6ACBF0C75D72E34FC959DF2 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		83D59911EA5A72F47B9005007972ED36 /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
-		073850511F9445DFAF9616A198453D9C /* BriefingGeneratorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingGeneratorService.swift; sourceTree = "<group>"; };
 		88242292BC38B613DCF5E115D0D1DFA0 /* EventKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = EventKit.framework; path = System/Library/Frameworks/EventKit.framework; sourceTree = SDKROOT; };
 		9103CFC9B5596A76F30F951E77124FF7 /* MarketsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketsView.swift; sourceTree = "<group>"; };
 		9444EE1AFE68E92E0B35D89CC62FB9B0 /* ContactsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsService.swift; sourceTree = "<group>"; };
@@ -205,7 +203,6 @@
 			isa = PBXGroup;
 			children = (
 				83D59911EA5A72F47B9005007972ED36 /* AIService.swift */,
-			073850511F9445DFAF9616A198453D9C /* BriefingGeneratorService.swift */,
 				57398225F0C285023D3C56AC851A1A6B /* AlarmService.swift */,
 				4B0C6160616AE04F2461D03800C4289D /* CacheService.swift */,
 				ACAA8CF9C253BBAB993C7ABC92A771CE /* CalendarService.swift */,
@@ -294,7 +291,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				91BFDA6A2A453BCE3CEF2C0D0C06C012 /* AIService.swift in Sources */,
-				57646928317B48BFA494E4904CEA546A /* BriefingGeneratorService.swift in Sources */,
 				42D0B5349BD15D38EE5865C08A5E93AF /* AlarmService.swift in Sources */,
 				5C7528E145772D1ECF28C2858B3A3CF5 /* AnimatedComponents.swift in Sources */,
 				152CB811BC57EAFCF06BA45D09D2B5B4 /* Animations.swift in Sources */,
