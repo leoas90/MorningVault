@@ -4,14 +4,16 @@ import FoundationModels
 
 /// Main briefing view model — orchestrates all data sources and AI generation.
 ///
-/// AI enhancement is delegated to `AIService`, which enforces:
-/// - On-device-only processing via Foundation Models
-/// - `localOnly` guard (no external AI routing when enabled)
-/// - Health data sanitization before entering FM prompts
+/// AI enhancement via two paths:
+/// - On-device: AIService (Foundation Models, iOS 26+, no network)
+/// - External: BriefingGeneratorService (Ollama on Mac Mini, used when on-device FM unavailable)
+///
+/// `localOnly` guard enforced: when enabled, no external AI calls (Ollama skipped)
 @MainActor
 final class BriefingViewModel: ObservableObject {
     @Published var briefingSections: [BriefingSection] = []
     @Published var isLoading = false
+    @Published var isGeneratingAI = false
     @Published var lastError: String?
     @Published var networkBadge: NetworkBadge = .local
     @Published var aiDaySummary: String? = nil
@@ -137,28 +139,28 @@ final class BriefingViewModel: ObservableObject {
 
     // MARK: - Generate AI-enhanced briefing
 
+    /// Full briefing generation: load data then enhance with AI.
+    /// Uses Ollama on Mac Mini (via BriefingGeneratorService) for AI enhancement.
+    /// Shows loading state during AI generation.
     func generateBriefing() async {
         isLoading = true
         defer { isLoading = false }
 
+        // Load all data sections first
         await loadData()
 
-        // If FoundationModels is available, enhance with AI
-        if #available(iOS 26.0, *) {
-            await enhanceWithAI()
-        }
-    }
+        // Then generate AI summary via Ollama
+        // Skip if localOnly (no external AI) or no sections to process
+        guard !localOnly, !briefingSections.isEmpty else { return }
 
-    // MARK: - AI Service delegation
-
-    /// AI enhancement via AIService — always on-device, localOnly guard enforced
-    @available(iOS 26.0, *)
-    private func enhanceWithAI() async {
-        guard let result = await AIService.shared.generateInsight(
+        isGeneratingAI = true
+        if let summary = await BriefingGeneratorService.shared.generateBriefing(
             from: briefingSections,
             localOnly: localOnly
-        ) else { return }
-        aiDaySummary = result.insight
+        ) {
+            aiDaySummary = summary
+        }
+        isGeneratingAI = false
     }
 
     private func updateNetworkBadge() {
