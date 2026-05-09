@@ -395,3 +395,107 @@ struct AnimatedSentimentBadge: View {
         }
     }
 }
+// MARK: - Custom Pull-to-Refresh (UIRefreshControl wrapper)
+
+struct CustomRefreshControl: UIViewRepresentable {
+    let onRefresh: () async -> Void
+    @Binding var isRefreshing: Bool
+
+    func makeUIView(context: Context) -> UIRefreshControl {
+        let control = UIRefreshControl()
+        control.tintColor = UIColor(Color.warmPrimaryAccent)
+
+        // Custom refresh view — bouncing sun icon
+        let customView = UIView(frame: CGRect(x: 0, y: 0, width: 30, height: 30))
+        let imageView = UIImageView(image: UIImage(systemName: "sun.max.fill"))
+        imageView.tintColor = UIColor(Color.warmPrimaryAccent)
+        imageView.contentMode = .scaleAspectFit
+        imageView.frame = CGRect(x: 0, y: 0, width: 30, height: 30)
+        customView.addSubview(imageView)
+        imageView.center = CGPoint(x: customView.bounds.midX, y: customView.bounds.midY)
+
+        control.addSubview(customView)
+        control.addTarget(context.coordinator, action: #selector(Coordinator.handleRefresh(_:)), for: .valueChanged)
+
+        return control
+    }
+
+    func updateUIView(_ uiView: UIRefreshControl, context: Context) {
+        if isRefreshing && !uiView.isRefreshing {
+            uiView.beginRefreshing()
+            context.coordinator.startBounceAnimation(in: uiView)
+        } else if !isRefreshing && uiView.isRefreshing {
+            uiView.endRefreshing()
+            context.coordinator.stopBounceAnimation(in: uiView)
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onRefresh: onRefresh, isRefreshing: $isRefreshing)
+    }
+
+    class Coordinator: NSObject {
+        let onRefresh: () async -> Void
+        @Binding var isRefreshing: Bool
+        private var bounceTimer: Timer?
+
+        init(onRefresh: @escaping () async -> Void, isRefreshing: Binding<Bool>) {
+            self.onRefresh = onRefresh
+            self._isRefreshing = isRefreshing
+        }
+
+        @objc func handleRefresh(_ control: UIRefreshControl) {
+            Task { @MainActor in
+                await onRefresh()
+                isRefreshing = false
+                control.endRefreshing()
+            }
+        }
+
+        func startBounceAnimation(in control: UIRefreshControl) {
+            guard let imageView = control.subviews.first?.subviews.compactMap({ $0 as? UIImageView }).first else { return }
+            var scale: CGFloat = 1.0
+            var growing = true
+            bounceTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] timer in
+                if growing {
+                    scale += 0.05
+                    if scale >= 1.2 { growing = false }
+                } else {
+                    scale -= 0.05
+                    if scale <= 0.9 { growing = true }
+                }
+                imageView.transform = CGAffineTransform(scaleX: scale, y: scale)
+                if self?.isRefreshing == false {
+                    self?.stopBounceAnimation(in: control)
+                    timer.invalidate()
+                }
+            }
+        }
+
+        func stopBounceAnimation(in control: UIRefreshControl) {
+            bounceTimer?.invalidate()
+            bounceTimer = nil
+            if let imageView = control.subviews.first?.subviews.compactMap({ $0 as? UIImageView }).first {
+                imageView.transform = .identity
+            }
+        }
+    }
+}
+
+// MARK: - View Extension for Pull-to-Refresh
+
+extension View {
+    func customRefreshable(isRefreshing: Binding<Bool>, action: @escaping () async -> Void) -> some View {
+        self.refreshable {
+            await action()
+        }
+        .overlay(alignment: .top) {
+            if isRefreshing.wrappedValue {
+                ProgressView()
+                    .scaleEffect(1.2)
+                    .tint(Color.warmPrimaryAccent)
+                    .padding(.top, 8)
+            }
+        }
+    }
+}

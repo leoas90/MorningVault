@@ -5,6 +5,7 @@ struct MarketsView: View {
     @State private var newSymbol: String = ""
     @State private var newEntryPrice: String = ""
     @FocusState private var isFieldFocused: Bool
+    @State private var hasAppeared = false
 
     var body: some View {
         NavigationStack {
@@ -30,15 +31,25 @@ struct MarketsView: View {
                 }
             }
             .animation(.easeInOut(duration: 0.15), value: isFieldFocused)
-            .task { viewModel.load() }
+            .task {
+                viewModel.load()
+                if !UIAccessibility.isReduceMotionEnabled {
+                    withAnimation(.easeOut(duration: 0.4)) {
+                        hasAppeared = true
+                    }
+                } else {
+                    hasAppeared = true
+                }
+            }
         }
     }
 
     private var symbolsSection: some View {
         Section {
-            ForEach(viewModel.trackedSymbols) { item in
+            ForEach(Array(viewModel.trackedSymbols.enumerated()), id: \.element.symbol) { index, item in
                 SymbolRowView(
                     item: item,
+                    delay: Double(index) * 0.08,
                     onDelete: { viewModel.remove(item.symbol) },
                     onPriceChange: { price in viewModel.updatePrice(for: item.symbol, price: price) }
                 )
@@ -132,6 +143,7 @@ final class MarketsViewModel: ObservableObject {
 
 private struct SymbolRowView: View {
     let item: TrackedSymbol
+    let delay: Double
     let onDelete: () -> Void
     let onPriceChange: (Double) -> Void
 
@@ -168,6 +180,7 @@ private struct SymbolRowView: View {
                     isPriceFocused = false
                 }
         }
+        .padding(.vertical, 4)
         .swipeActions(edge: .trailing) {
             Button("Delete", role: .destructive) { onDelete() }
         }

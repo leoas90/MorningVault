@@ -4,10 +4,10 @@ import SwiftUI
 
 struct BriefingSectionCard: View {
     let section: BriefingSection
+    var delay: Double = 0
 
     @State private var isExpanded = true
     @State private var hasAppeared = false
-    @State private var iconBounce = false
 
     private var sectionColor: Color {
         switch section.title.lowercased() {
@@ -23,7 +23,6 @@ struct BriefingSectionCard: View {
     }
 
     private var sectionIcon: String {
-        // Map section icons to system images
         let iconMap = [
             "🌤️": "cloud.sun",
             "💪": "heart.fill",
@@ -38,18 +37,16 @@ struct BriefingSectionCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Card header with tap to expand
             Button {
                 withAnimation(springAnimation) {
                     isExpanded.toggle()
                 }
             } label: {
                 HStack(spacing: 12) {
-                    // Animated section icon
                     SectionIcon(
                         systemName: sectionIcon,
                         color: sectionColor,
-                        delay: AppAnimation.cardStaggerDelay
+                        delay: delay
                     )
 
                     Text(section.title)
@@ -58,12 +55,10 @@ struct BriefingSectionCard: View {
 
                     Spacer()
 
-                    // Sentiment badge (bounces in)
                     if let sentiment = section.sentiment {
                         AnimatedSentimentBadge(sentiment: sentiment)
                     }
 
-                    // Chevron with rotation animation
                     Image(systemName: "chevron.right")
                         .font(.caption)
                         .foregroundStyle(Color.warmPrimaryAccent.opacity(0.5))
@@ -74,7 +69,6 @@ struct BriefingSectionCard: View {
             }
             .buttonStyle(.plain)
 
-            // Expandable content with spring animation
             if isExpanded {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(section.content)
@@ -94,19 +88,7 @@ struct BriefingSectionCard: View {
         .background(Color.warmSurface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: Color.warmTextPrimary.opacity(0.06), radius: 8, x: 0, y: 4)
-        .opacity(hasAppeared ? 1 : 0)
-        .offset(y: hasAppeared ? 0 : 20)
-        .onAppear {
-            if !UIAccessibility.isReduceMotionEnabled {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
-                    withAnimation(.easeOut(duration: AppAnimation.cardEntranceDuration)) {
-                        hasAppeared = true
-                    }
-                }
-            } else {
-                hasAppeared = true
-            }
-        }
+        .cardEntrance(delay: delay)
     }
 
     private var springAnimation: Animation {

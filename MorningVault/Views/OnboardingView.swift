@@ -40,9 +40,10 @@ struct OnboardingPageIndicator: View {
     var body: some View {
         HStack(spacing: 8) {
             ForEach(0..<total, id: \.self) { index in
-                Circle()
+                Capsule()
                     .fill(index == current ? Color.accentColor : Color.secondary.opacity(0.3))
-                    .frame(width: 8, height: 8)
+                    .frame(width: index == current ? 24 : 8, height: 8)
+                    .animation(.spring(response: 0.35, dampingFraction: 0.7), value: current)
             }
         }
     }

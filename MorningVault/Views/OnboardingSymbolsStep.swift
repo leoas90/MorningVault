@@ -6,6 +6,7 @@ struct OnboardingSymbolsStep: View {
     @AppStorage("tracked_symbols") private var trackedSymbolsData: Data = Data()
 
     @State private var selectedSymbols: Set<String> = []
+    @State private var hasAppeared = false
 
     private struct SymbolItem: Identifiable {
         let id: String
@@ -59,11 +60,13 @@ struct OnboardingSymbolsStep: View {
             .padding(.top, 48)
             .padding(.horizontal, 32)
             .padding(.bottom, 16)
+            .opacity(hasAppeared ? 1 : 0)
+            .offset(y: hasAppeared ? 0 : -12)
 
             // Symbol grid
             ScrollView {
                 VStack(spacing: 20) {
-                    ForEach(groupedSymbols, id: \.category) { group in
+                    ForEach(Array(groupedSymbols.enumerated()), id: \.element.category) { groupIdx, group in
                         VStack(alignment: .leading, spacing: 8) {
                             Text(group.category)
                                 .font(.caption)
@@ -75,11 +78,12 @@ struct OnboardingSymbolsStep: View {
                                 GridItem(.flexible()),
                                 GridItem(.flexible())
                             ], spacing: 8) {
-                                ForEach(group.symbols) { item in
+                                ForEach(Array(group.symbols.enumerated()), id: \.element.id) { chipIdx, item in
                                     SymbolChip(
                                         symbol: item.symbol,
                                         name: item.name,
-                                        isSelected: selectedSymbols.contains(item.id)
+                                        isSelected: selectedSymbols.contains(item.id),
+                                        delay: 0.4 + Double(groupIdx) * 0.15 + Double(chipIdx) * 0.04
                                     ) {
                                         toggleSymbol(item.id)
                                     }
@@ -96,10 +100,12 @@ struct OnboardingSymbolsStep: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.vertical, 8)
+                .opacity(hasAppeared ? 1 : 0)
 
             // Page indicator
             OnboardingPageIndicator(total: 3, current: 2)
                 .padding(.vertical, 12)
+                .opacity(hasAppeared ? 1 : 0)
 
             // Done button
             Button {
@@ -116,6 +122,17 @@ struct OnboardingSymbolsStep: View {
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
+            .opacity(hasAppeared ? 1 : 0)
+            .offset(y: hasAppeared ? 0 : 20)
+        }
+        .onAppear {
+            guard !UIAccessibility.isReduceMotionEnabled else {
+                hasAppeared = true
+                return
+            }
+            withAnimation(.easeOut(duration: 0.4)) {
+                hasAppeared = true
+            }
         }
     }
 
@@ -147,7 +164,10 @@ struct SymbolChip: View {
     let symbol: String
     let name: String
     let isSelected: Bool
+    let delay: Double
     let onTap: () -> Void
+
+    @State private var hasAppeared = false
 
     var body: some View {
         Button(action: onTap) {
@@ -164,8 +184,27 @@ struct SymbolChip: View {
             .background(isSelected ? Color.accentColor : Color(uiColor: .secondarySystemBackground))
             .foregroundStyle(isSelected ? .white : .primary)
             .clipShape(RoundedRectangle(cornerRadius: 10))
+            .scaleEffect(hasAppeared ? 1 : 0.7)
+            .opacity(hasAppeared ? 1 : 0)
         }
         .buttonStyle(.plain)
+        .onChange(of: isSelected) { _, newValue in
+            guard hasAppeared else { return }
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.6)) {
+                // chip tap feedback handled by scale
+            }
+        }
+        .onAppear {
+            guard !UIAccessibility.isReduceMotionEnabled else {
+                hasAppeared = true
+                return
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                    hasAppeared = true
+                }
+            }
+        }
     }
 }
 

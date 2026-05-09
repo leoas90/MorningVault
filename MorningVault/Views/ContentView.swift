@@ -175,7 +175,7 @@ struct BriefTabView: View {
                         .padding(.vertical, 40)
                     } else {
                         ForEach(Array(viewModel.briefingSections.enumerated()), id: \.element.id) { index, section in
-                            BriefingSectionCard(section: section)
+                            BriefingSectionCard(section: section, delay: Double(index) * AppAnimation.cardStaggerDelay)
                                 .padding(.horizontal, 20)
                                 .transition(.asymmetric(
                                     insertion: .opacity.combined(with: .move(edge: .bottom)),

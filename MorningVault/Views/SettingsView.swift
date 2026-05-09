@@ -13,6 +13,7 @@ struct SettingsView: View {
     @StateObject private var calendarService = CalendarService.shared
     @State private var showingPrivacyPolicy = false
     @FocusState private var isNameFieldFocused: Bool
+    @State private var hasAppeared = false
 
     private var currentTheme: AppTheme {
         get { AppTheme(rawValue: themeRaw) ?? .system }
@@ -201,6 +202,15 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
                     .background(Color(uiColor: .systemBackground))
+                }
+            }
+            .onAppear {
+                if !UIAccessibility.isReduceMotionEnabled {
+                    withAnimation(.easeOut(duration: 0.35)) {
+                        hasAppeared = true
+                    }
+                } else {
+                    hasAppeared = true
                 }
             }
         }

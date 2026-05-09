@@ -5,6 +5,7 @@ struct OnboardingSourcesStep: View {
 
     @State private var selectedSources: Set<String> = []
     @FocusState private var isSearchFocused: Bool
+    @State private var hasAppeared = false
 
     private let availableSources: [(id: String, name: String, description: String, icon: String)] = [
         ("hacker-news", "Hacker News", "Tech & startup news from the community", "chevron.left.forwardslash.chevron.right"),
@@ -33,16 +34,19 @@ struct OnboardingSourcesStep: View {
             .padding(.top, 48)
             .padding(.horizontal, 32)
             .padding(.bottom, 24)
+            .opacity(hasAppeared ? 1 : 0)
+            .offset(y: hasAppeared ? 0 : -12)
 
             // Source list
             ScrollView {
                 LazyVStack(spacing: 8) {
-                    ForEach(availableSources, id: \.id) { source in
+                    ForEach(Array(availableSources.enumerated()), id: \.element.id) { index, source in
                         SourceSelectionRow(
                             name: source.name,
                             description: source.description,
                             icon: source.icon,
-                            isSelected: selectedSources.contains(source.id)
+                            isSelected: selectedSources.contains(source.id),
+                            delay: Double(index) * 0.06
                         ) {
                             toggleSource(source.id)
                         }
@@ -56,6 +60,15 @@ struct OnboardingSourcesStep: View {
                 .padding(.vertical, 16)
 
             Spacer()
+        }
+        .onAppear {
+            guard !UIAccessibility.isReduceMotionEnabled else {
+                hasAppeared = true
+                return
+            }
+            withAnimation(.easeOut(duration: 0.4)) {
+                hasAppeared = true
+            }
         }
     }
 
@@ -82,7 +95,10 @@ struct SourceSelectionRow: View {
     let description: String
     let icon: String
     let isSelected: Bool
+    let delay: Double
     let onTap: () -> Void
+
+    @State private var hasAppeared = false
 
     var body: some View {
         Button(action: onTap) {
@@ -106,13 +122,28 @@ struct SourceSelectionRow: View {
 
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                    .scaleEffect(isSelected ? 1 : 0.85)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
             }
             .padding(.vertical, 12)
             .padding(.horizontal, 16)
             .background(Color(uiColor: .secondarySystemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12))
+            .opacity(hasAppeared ? 1 : 0)
+            .offset(y: hasAppeared ? 0 : 16)
         }
         .buttonStyle(.plain)
+        .onAppear {
+            guard !UIAccessibility.isReduceMotionEnabled else {
+                hasAppeared = true
+                return
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                withAnimation(.easeOut(duration: 0.3)) {
+                    hasAppeared = true
+                }
+            }
+        }
     }
 }
 
