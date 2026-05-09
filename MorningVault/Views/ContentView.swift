@@ -214,8 +214,18 @@ struct BriefTabView: View {
                     .disabled(viewModel.isLoading || isRefreshing)
                 }
             }
+            .overlay(alignment: .top) {
+                if isRefreshing {
+                    ProgressView()
+                        .scaleEffect(1.2)
+                        .tint(Color.warmPrimaryAccent)
+                        .padding(.top, 4)
+                }
+            }
             .refreshable {
+                isRefreshing = true
                 await viewModel.generateBriefing()
+                isRefreshing = false
             }
             .task {
                 await viewModel.loadData()
