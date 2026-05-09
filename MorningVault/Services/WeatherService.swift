@@ -3,7 +3,7 @@ import CoreLocation
 import MapKit
 
 /// WeatherKit service — approximate location only, no precise GPS stored/transmitted
-/// Uses wttr.in which requires no API key and accepts city/area queries
+/// Uses wttr.in ~city for city-level privacy-preserving weather queries
 final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     static let shared = WeatherService()
 
@@ -51,11 +51,9 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
         // Reverse geocode to city name only (no precise address)
         await reverseGeocodeToCity(location: location)
 
-        // Fetch weather using lat/lon (approximate, no street-level precision)
-        return await fetchWeatherByCoordinates(
-            lat: location.coordinate.latitude,
-            lon: location.coordinate.longitude
-        )
+        // Fetch weather using city name only (privacy: ~1km city-level approximation)
+        // wttr.in's ~ prefix gives city-level weather without precise lat/lon
+        return await fetchWeatherByCityName(city: approximateLocation)
     }
 
     private func reverseGeocodeToCity(location: CLLocation) async {
@@ -87,10 +85,12 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
         }
     }
 
-    // MARK: - Fetch by Coordinates (approximate — no street precision in API calls)
+    // MARK: - Fetch by City Name (privacy-preserving: ~1km approximation via wttr.in ~ prefix)
 
-    private func fetchWeatherByCoordinates(lat: Double, lon: Double) async -> WeatherData? {
-        let urlString = "https://wttr.in/\(lat),\(lon)?format=j1"
+    private func fetchWeatherByCityName(city: String) async -> WeatherData? {
+        guard !city.isEmpty, city != "Unknown" else { return await fetchWeatherByIP() }
+        let encodedCity = city.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? city
+        let urlString = "https://wttr.in/~\(encodedCity)?format=j1"
         guard let url = URL(string: urlString) else { return nil }
 
         do {

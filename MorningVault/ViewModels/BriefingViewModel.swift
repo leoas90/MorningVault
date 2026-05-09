@@ -200,16 +200,24 @@ final class BriefingViewModel: ObservableObject {
     }
 
     private func fetchMarketSentiment() async -> (content: String, sentiment: String?) {
+        // 15-minute market cache
+        if let cached: MarketCacheEntry = await cache.get("market", ttl: 900) {
+            return (cached.content, cached.sentiment)
+        }
         let tracked = loadTrackedSymbols()
         var content = ""
         var sentiment: String? = nil
         var hasBullish = false
         var hasBearish = false
+        var failedCount = 0
 
         for item in tracked {
-            let data = await fetchSymbolData(symbol: item.symbol)
-            guard let price = data?.price, price > 0 else { continue }
-            let change = data?.change24h ?? 0
+            guard let data = await fetchSymbolData(symbol: item.symbol) else {
+                failedCount += 1
+                continue
+            }
+            let price = data.price
+            let change = data.change24h
             let arrow = change >= 0 ? "↑" : "↓"
             content += "\(item.symbol): \(formatPrice(item.symbol, price)) \(arrow)\(String(format: change >= 0 ? "%.2f" : "%.2f", abs(change)))%"
 
@@ -219,16 +227,29 @@ final class BriefingViewModel: ObservableObject {
                 content += " | P&L: \(pnlArrow)\(String(format: "%.1f", pnl))%"
             }
             content += "\n"
-
             if change >= 2 { hasBullish = true }
             if change <= -2 { hasBearish = true }
         }
 
+        if failedCount == tracked.count {
+            content = "market data unavailable"
+        } else if content.isEmpty {
+            content = "market data unavailable"
+        }
         if hasBullish && !hasBearish { sentiment = "bullish" }
         else if hasBearish && !hasBullish { sentiment = "bearish" }
         else if !tracked.isEmpty { sentiment = "neutral" }
 
-        return (content.isEmpty ? "Market data unavailable" : content, sentiment)
+        if content != "market data unavailable" {
+            await cache.set("market", value: MarketCacheEntry(content: content, sentiment: sentiment), ttl: 900)
+        }
+
+        return (content.isEmpty ? "market data unavailable" : content, sentiment)
+    }
+
+    private struct MarketCacheEntry: Codable {
+        let content: String
+        let sentiment: String?
     }
 
     private struct SymbolData { let price: Double; let change24h: Double }
@@ -272,7 +293,7 @@ final class BriefingViewModel: ObservableObject {
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
             let json = try JSONDecoder().decode([String: [String: Double]].self, from: data)
-            guard let coin = json[id], let price = coin["usd"], let change = coin["usd_24h_change"] else { return nil }
+            guard let coin = json[id], let price = coin["usd"], let change = coin["usd_24h_change"], price > 0 else { return nil }
             return SymbolData(price: price, change24h: change)
         } catch { return nil }
     }
@@ -283,11 +304,11 @@ final class BriefingViewModel: ObservableObject {
             let (data, _) = try await URLSession.shared.data(from: url)
             let json = try JSONDecoder().decode(YahooChartResponse.self, from: data)
             guard let result = json.chart?.result?.first,
-                  let quote = result.indicators?.quote?.first else { return nil }
-            let price = quote.close?.last ?? 0
-            let open = quote.open?.first ?? price
-            let change = ((price - open) / open) * 100
-            return SymbolData(price: price, change24h: change)
+                  let quote = result.indicators?.quote?.first,
+                  let close = quote.close?.last, close > 0 else { return nil }
+            let open = quote.open?.first ?? close
+            let change = ((close - open) / open) * 100
+            return SymbolData(price: close, change24h: change)
         } catch { return nil }
     }
 
