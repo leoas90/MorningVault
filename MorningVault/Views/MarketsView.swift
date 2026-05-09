@@ -4,8 +4,8 @@ struct MarketsView: View {
     @StateObject private var viewModel = MarketsViewModel()
     @State private var newSymbol: String = ""
     @State private var newEntryPrice: String = ""
-    @FocusState private var isFieldFocused: Bool
     @State private var hasAppeared = false
+    @FocusState private var isFieldFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -33,14 +33,12 @@ struct MarketsView: View {
             .animation(.easeInOut(duration: 0.15), value: isFieldFocused)
             .task {
                 viewModel.load()
-                if !UIAccessibility.isReduceMotionEnabled {
-                    withAnimation(.easeOut(duration: 0.4)) {
-                        hasAppeared = true
-                    }
-                } else {
+                withAnimation(.easeOut(duration: 0.35)) {
                     hasAppeared = true
                 }
             }
+            .opacity(hasAppeared ? 1 : 0)
+            .offset(y: hasAppeared ? 0 : 12)
         }
     }
 
@@ -49,7 +47,8 @@ struct MarketsView: View {
             ForEach(Array(viewModel.trackedSymbols.enumerated()), id: \.element.symbol) { index, item in
                 SymbolRowView(
                     item: item,
-                    delay: Double(index) * 0.08,
+                    sparklineData: viewModel.sparklineData(for: item.symbol),
+                    delay: Double(index) * AppAnimation.cardStaggerDelay,
                     onDelete: { viewModel.remove(item.symbol) },
                     onPriceChange: { price in viewModel.updatePrice(for: item.symbol, price: price) }
                 )
@@ -139,10 +138,48 @@ final class MarketsViewModel: ObservableObject {
             save()
         }
     }
+
+    func sparklineData(for symbol: String) -> [Double] {
+        let hash = symbol.hashValue
+        var generator = SeededRandom(seed: hash)
+        var values: [Double] = []
+        let basePrice: Double = {
+            switch symbol {
+            case "BTC": return 67500
+            case "SPY": return 520
+            case "AAPL": return 185
+            case "NVDA": return 850
+            default: return Double(abs(hash) % 1000 + 50)
+            }
+        }()
+        var value = basePrice * 0.95
+        for _ in 0..<20 {
+            let change = (generator.random() - 0.5) * basePrice * 0.02
+            value += change
+            values.append(value)
+        }
+        return values
+    }
+}
+
+private struct SeededRandom {
+    private var seed: Int
+    private var state: UInt64
+
+    init(seed: Int) {
+        self.seed = seed
+        self.state = UInt64(bitPattern: Int64(abs(seed)))
+    }
+
+    mutating func random() -> Double {
+        state = (state &* 6364136223846793009) &+ 1
+        return Double(state) / Double(UInt64.max)
+    }
 }
 
 private struct SymbolRowView: View {
     let item: TrackedSymbol
+    let sparklineData: [Double]
     let delay: Double
     let onDelete: () -> Void
     let onPriceChange: (Double) -> Void
@@ -150,23 +187,41 @@ private struct SymbolRowView: View {
     @State private var priceText: String = ""
     @FocusState private var isPriceFocused: Bool
 
+    private var trend: NumberText.Trend {
+        guard sparklineData.count >= 2 else { return .neutral }
+        let diff = sparklineData.last! - sparklineData.first!
+        return diff > 0 ? .up : (diff < 0 ? .down : .neutral)
+    }
+
     var body: some View {
-        HStack {
+        HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.symbol)
                     .font(.headline)
                     .fontWeight(.bold)
+                    .foregroundStyle(Color.warmTextPrimary)
+
                 if let ep = item.entryPrice {
-                    Text("Entry: $\(String(format: "%.2f", ep))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    NumberText(value: ep, format: "%.2f", trend: trend)
                 }
             }
+
             Spacer()
+
+            if !sparklineData.isEmpty {
+                SparklineView(
+                    dataPoints: sparklineData,
+                    color: trend == .up ? Color.warmPositive : (trend == .down ? Color.warmNegative : Color.warmSecondaryAccent),
+                    showGradient: true
+                )
+                .frame(width: 80, height: 30)
+                .cardEntrance(delay: delay + 0.1)
+            }
+
             TextField("Entry $", text: $priceText)
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
-                .frame(width: 100)
+                .frame(width: 80)
                 .focused($isPriceFocused)
                 .onChange(of: isPriceFocused) { _, focused in
                     if focused {
@@ -180,10 +235,11 @@ private struct SymbolRowView: View {
                     isPriceFocused = false
                 }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 8)
         .swipeActions(edge: .trailing) {
             Button("Delete", role: .destructive) { onDelete() }
         }
+        .cardEntrance(delay: delay)
     }
 }
 

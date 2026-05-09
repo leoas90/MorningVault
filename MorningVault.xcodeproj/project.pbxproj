@@ -37,6 +37,7 @@
 		D0CFF94C345B226978EB3578 /* OnboardingNameStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34D319EDEE113573E0F06B7F /* OnboardingNameStep.swift */; };
 		0DA4D23EAB30922FDF497CB1 /* OnboardingSourcesStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 115703AF179160E87B3F0DB7 /* OnboardingSourcesStep.swift */; };
 		B54621C767FA06299AA43ACB /* OnboardingSymbolsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7D05124D6EE7B34FA2893A6 /* OnboardingSymbolsStep.swift */; };
+		REFRESHB1000000000000001 /* RefreshControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = REFRESHF1000000000000001 /* RefreshControl.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -73,6 +74,7 @@
 		34D319EDEE113573E0F06B7F /* OnboardingNameStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingNameStep.swift; sourceTree = "<group>"; };
 		115703AF179160E87B3F0DB7 /* OnboardingSourcesStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSourcesStep.swift; sourceTree = "<group>"; };
 		C7D05124D6EE7B34FA2893A6 /* OnboardingSymbolsStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSymbolsStep.swift; sourceTree = "<group>"; };
+		REFRESHF1000000000000001 /* RefreshControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefreshControl.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -103,6 +105,7 @@
 				34D319EDEE113573E0F06B7F /* OnboardingNameStep.swift */,
 				115703AF179160E87B3F0DB7 /* OnboardingSourcesStep.swift */,
 				C7D05124D6EE7B34FA2893A6 /* OnboardingSymbolsStep.swift */,
+				REFRESHC1000000000000001 /* RefreshControl.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
