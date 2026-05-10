@@ -8,6 +8,8 @@ final class RSSService: ObservableObject {
     @Published var feeds: [RSSFeedData] = []
     @Published var lastError: String?
 
+    private let rssCacheKey = "com.morningvault.rssCache"
+
     /// URL map for available news sources
     private let sourceURLs: [String: String] = [
         "hacker-news": "https://hnrss.org/frontpage",
@@ -22,16 +24,41 @@ final class RSSService: ObservableObject {
         "bloomberg": "https://feeds.bloomberg.com/markets/news.rss"
     ]
 
+    // MARK: - Cache
+
+    private func cacheFeeds(_ feeds: [RSSFeedData]) {
+        if let data = try? JSONEncoder().encode(feeds) {
+            UserDefaults.standard.set(data, forKey: rssCacheKey)
+        }
+    }
+
+    private func getCachedFeeds() -> [RSSFeedData] {
+        guard let data = UserDefaults.standard.data(forKey: rssCacheKey),
+              let feeds = try? JSONDecoder().decode([RSSFeedData].self, from: data) else {
+            return []
+        }
+        return feeds
+    }
+
     // MARK: - Fetch All Feeds
 
     func fetchAllFeeds() async -> [RSSFeedData] {
+        if UserDefaults.standard.bool(forKey: "local_only") {
+            return getCachedFeeds()
+        }
         let selectedIds = loadSelectedSources()
         await fetchFeeds(ids: selectedIds)
         return feeds
     }
 
     func fetchFeeds(ids: [String]) async -> [RSSFeedData] {
-        await withTaskGroup(of: RSSFeedData?.self) { group in
+        // Respect localOnly — no network calls if enabled
+        if UserDefaults.standard.bool(forKey: "local_only") {
+            let cached = getCachedFeeds()
+            if !cached.isEmpty { return cached }
+        }
+
+        let results: [RSSFeedData] = await withTaskGroup(of: RSSFeedData?.self) { group in
             for id in ids {
                 guard let urlString = sourceURLs[id] else { continue }
                 group.addTask {
@@ -45,9 +72,12 @@ final class RSSService: ObservableObject {
                     results.append(feed)
                 }
             }
-            await MainActor.run { feeds = results }
+            await MainActor.run { feeds = results
+                cacheFeeds(results)
+            }
             return results
         }
+        return results
     }
 
     private func loadSelectedSources() -> [String] {

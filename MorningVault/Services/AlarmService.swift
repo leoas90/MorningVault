@@ -20,19 +20,22 @@ final class AlarmService: ObservableObject {
     func requestAuthorization() async {
         do {
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
-            await updateAuthorizationState(granted: granted)
+            await refreshAuthorizationState()
         } catch {
-            lastError = error.localizedDescription
+            lastError = "Authorization failed: \(error.localizedDescription)"
         }
     }
 
-    private func updateAuthorizationState(granted: Bool) async {
+    func refreshAuthorizationState() async {
         let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
-        await MainActor.run { self.authorizationState = status }
+        await MainActor.run { authorizationState = status }
     }
 
-    // MARK: - Schedule Daily Briefing
+    // MARK: - Schedule
 
+    /// Schedule Mon-Fri morning briefing at `hour`:`minute`.
+    /// Uses separate UNCalendarNotificationTrigger per weekday — fires at system level,
+    /// not app level. Works even if the app has been killed.
     func scheduleBriefing(hour: Int, minute: Int) async {
         isScheduling = true
         defer { isScheduling = false }
@@ -56,17 +59,10 @@ final class AlarmService: ObservableObject {
         )
         center.setNotificationCategories([briefingCategory])
 
-        // Build trigger — weekdays only (Mon-Fri)
-        var dateComponents = DateComponents()
-        dateComponents.hour = hour
-        dateComponents.minute = minute
-        dateComponents.weekday = nil // We'll filter in the notification delivery
-
-        // Actually use a calendar trigger with weekdays set
-        let trigger = UNCalendarNotificationTrigger(
-            dateMatching: DateComponents(hour: hour, minute: minute, weekday: nil, weekdayOrdinal: nil),
-            repeats: false
-        )
+        // Build one trigger per weekday (Mon=2 … Fri=6)
+        // Each fires only on its own weekday — system-level enforcement,
+        // not app delegate, so works even after app kill.
+        let weekdayComponents: [Int] = [2, 3, 4, 5, 6] // Mon through Fri
 
         let content = UNMutableNotificationContent()
         content.title = "Morning Vault ☀️"
@@ -75,18 +71,25 @@ final class AlarmService: ObservableObject {
         content.categoryIdentifier = "BRIEFING"
         content.userInfo = ["deepLink": "morningvault://briefing"]
 
-        let request = UNNotificationRequest(
-            identifier: notificationIDKey,
-            content: content,
-            trigger: trigger
-        )
+        var scheduledIds: [String] = []
+        for wd in weekdayComponents {
+            let trigger = UNCalendarNotificationTrigger(
+                dateMatching: DateComponents(hour: hour, minute: minute, weekday: wd),
+                repeats: true
+            )
+            let id = "morning_brief_weekday_\(wd)"
+            let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+            do {
+                try await center.add(request)
+                scheduledIds.append(id)
+            } catch {
+                lastError = "Failed to schedule weekday \(wd): \(error.localizedDescription)"
+            }
+        }
 
-        do {
-            try await center.add(request)
+        if !scheduledIds.isEmpty {
             UserDefaults.standard.set(true, forKey: fallbackScheduledKey)
-            activeAlarms = [notificationIDKey]
-        } catch {
-            lastError = "Failed to schedule notification: \(error.localizedDescription)"
+            activeAlarms = scheduledIds
         }
     }
 
@@ -121,7 +124,7 @@ final class AlarmService: ObservableObject {
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)
 
         let request = UNNotificationRequest(
-            identifier: "test_briefing_notification",
+            identifier: "test_briefing_\(UUID().uuidString)",
             content: content,
             trigger: trigger
         )
@@ -132,41 +135,31 @@ final class AlarmService: ObservableObject {
     // MARK: - Cancel
 
     func cancelBriefingAlarm() async {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notificationIDKey, "test_briefing_notification"])
-        UserDefaults.standard.removeObject(forKey: fallbackScheduledKey)
-        activeAlarms = []
+        UNUserNotificationCenter.current().removePendingNotificationRequests(
+            withIdentifiers: ["morning_brief_weekday_2", "morning_brief_weekday_3",
+                               "morning_brief_weekday_4", "morning_brief_weekday_5",
+                               "morning_brief_weekday_6", notificationIDKey,
+                               "test_briefing_notification"]
+        )
+        await MainActor.run {
+            activeAlarms = []
+            UserDefaults.standard.set(false, forKey: fallbackScheduledKey)
+        }
     }
 
-    func cancelAll() {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notificationIDKey, "test_briefing_notification"])
-        UserDefaults.standard.removeObject(forKey: fallbackScheduledKey)
-        activeAlarms = []
-    }
+    // MARK: - Pending
 
-    // MARK: - Refresh
-
-    func refreshAlarms() async {
+    func refreshPendingAlarms() async {
         let pending = await UNUserNotificationCenter.current().pendingNotificationRequests()
-        await MainActor.run { self.activeAlarms = pending.map { $0.identifier } }
+        await MainActor.run {
+            activeAlarms = pending.map { $0.identifier }
+        }
     }
-}
 
-// Notification.Name values are defined in MorningVaultApp.swift
+    // MARK: - UNUserNotificationCenterDelegate Helper
 
-// MARK: - UNUserNotificationCenterDelegate Helper
-
-/// Call this from your App delegate or SceneDelegate to wire up the "View Brief" action
-func configureNotificationCategories() {
-    let viewBriefAction = UNNotificationAction(
-        identifier: "VIEW_BRIEF_ACTION",
-        title: "View Brief ☀️",
-        options: [.foreground]
-    )
-    let briefingCategory = UNNotificationCategory(
-        identifier: "BRIEFING",
-        actions: [viewBriefAction],
-        intentIdentifiers: [],
-        options: []
-    )
-    UNUserNotificationCenter.current().setNotificationCategories([briefingCategory])
+    /// Call from AppDelegate SceneDelegate — sets self as notification delegate.
+    func setupAsDelegate() {
+        UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
+    }
 }

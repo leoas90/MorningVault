@@ -70,22 +70,12 @@ final class AIService {
     /// Generate an AI-enhanced briefing insight from the given sections.
     ///
     /// - Parameter sections: The briefing sections to feed into the model.
-    /// - Parameter localOnly: When true, enforces strict on-device-only processing.
-    ///   FM is always on-device, but this flag prevents any fallback to external AI.
     /// - Returns: An `AIBriefingResult` with insight text, sentiment, and latency.
     ///
+    /// Uses on-device Foundation Models (iOS 26+) — always local, no external routing.
     /// Health data is sanitized before entering any prompt — raw biometric values
     /// are summarized into qualitative descriptors.
-    func generateInsight(
-        from sections: [BriefingSection],
-        localOnly: Bool
-    ) async -> AIBriefingResult? {
-        // GUARD: localOnly enforcement — FM is always on-device, but we log the flag
-        // and reject any hypothetical external routing.
-        if localOnly {
-            print("[AIService] localOnly=true — strictly on-device FM only, no external AI")
-        }
-
+    func generateInsight(from sections: [BriefingSection]) async -> AIBriefingResult? {
         guard #available(iOS 26.0, *) else {
             print("[AIService] iOS 26+ required for Foundation Models")
             lastError = "Foundation Models require iOS 26 or later."
@@ -145,14 +135,7 @@ final class AIService {
     }
 
     /// Generate market sentiment classification from market section content.
-    func classifyMarketSentiment(
-        marketContent: String,
-        localOnly: Bool
-    ) async -> MarketSentimentResult? {
-        if localOnly {
-            print("[AIService] localOnly=true — market sentiment on-device only")
-        }
-
+    func classifyMarketSentiment(marketContent: String) async -> MarketSentimentResult? {
         guard #available(iOS 26.0, *) else { return nil }
         guard isAvailable else { return nil }
 
@@ -256,17 +239,35 @@ final class AIService {
     /// Maximum tokens before we chunk the prompt into segments (≈3.5K tokens safe limit)
     private let chunkThreshold = 3500
 
-    /// Per-segment token budgets (words as proxy for tokens, ~4 chars per token)
+    /// Per-section token budgets (chars; ~4 chars per token)
+    /// Truncate each section BEFORE building the combined prompt.
     private let segmentBudgets: [String: Int] = [
-        "health": 125,    // ≈500 tokens
-        "calendar": 200,  // ≈800 tokens
-        "weather": 50,    // ≈200 tokens
-        "markets": 75,    // ≈300 tokens
-        "headlines": 500, // ≈2000 tokens
+        "health": 500,    // chars ≈125 tokens
+        "calendar": 800,   // chars ≈200 tokens
+        "weather": 200,   // chars ≈50 tokens
+        "markets": 300,    // chars ≈75 tokens
+        "headlines": 2000, // chars ≈500 tokens
     ]
+    private func truncateSections(_ sections: [BriefingSection]) -> [BriefingSection] {
+        return sections.map { section in
+            let budget = segmentBudgets[section.id] ?? section.content.count
+            if section.content.count > budget {
+                return BriefingSection(
+                    id: section.id,
+                    title: section.title,
+                    icon: section.icon,
+                    content: String(section.content.prefix(budget)) + "…",
+                    sentiment: section.sentiment
+                )
+            }
+            return section
+        }
+    }
 
     private func buildPrompt(from sections: [BriefingSection]) -> String {
-        let sectionTexts = sections.map { "\($0.title): \($0.content)" }.joined(separator: "\n")
+        // Truncate BEFORE passing to LLM
+        let truncatedSections = truncateSections(sections)
+        let sectionTexts = truncatedSections.map { "\($0.title): \($0.content)" }.joined(separator: "\n")
         return """
         You are a morning briefing assistant. Based on the following data, provide 2-3 sentences of insight or a recommendation. Be concise and actionable. Do NOT include any raw health metrics in your response — use qualitative language only.
 
@@ -295,7 +296,7 @@ final class AIService {
         } catch {
             print("[AIService] FM single-call error: \(error.localizedDescription)")
             lastError = error.localizedDescription
-            return ("Unable to generate AI insight. Your briefing is still available below.", nil)
+            return (nil, nil)
         }
     }
 
@@ -305,7 +306,7 @@ final class AIService {
     private func generateChunked(
         session: LanguageModelSession,
         sections: [BriefingSection]
-    ) async -> (insight: String, sentiment: String?) {
+    ) async -> (insight: String?, sentiment: String?) {
         var segmentInsights: [String] = []
 
         for section in sections {
@@ -334,7 +335,7 @@ final class AIService {
         }
 
         guard !segmentInsights.isEmpty else {
-            return ("Unable to generate AI insight.", nil)
+            return (nil, nil)
         }
 
         let aggregationPrompt = """

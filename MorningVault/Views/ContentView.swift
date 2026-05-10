@@ -184,10 +184,20 @@ struct BriefTabView: View {
                         }
                     }
 
+                    // AI summary placeholder when localOnly=true
+                    if localOnly && viewModel.aiDaySummary == nil {
+                        HStack(spacing: 8) {
+                            Image(systemName: "sparkles")
+                                .foregroundStyle(Color.warmAISummary)
+                            Text("AI summary disabled — enable live data in Settings to unlock.")
+                                .font(.caption)
+                                .foregroundStyle(Color.warmTextSecondary)
+                        }
+                        .padding(.horizontal, 20)
+                    }
+
                     // Privacy footer
                     privacyFooter
-                        .padding(.top, 8)
-                        .padding(.bottom, 24)
                 }
             }
             .background(Color.warmBackground.ignoresSafeArea())
@@ -259,11 +269,11 @@ struct BriefTabView: View {
 
                 Spacer()
 
-                // Network badge with local indicator
+                // Network badge — shows LIVE when external (Polygon.io/WeatherKit/RSS), LOCAL when cache-only
                 BounceLabel(
-                    text: "LOCAL",
-                    color: Color.warmLocalBadge,
-                    icon: "checkmark.shield"
+                    text: viewModel.networkBadge == .local ? "LOCAL" : "LIVE",
+                    color: viewModel.networkBadge == .local ? Color.warmLocalBadge : Color.warmExternalBadge,
+                    icon: viewModel.networkBadge == .local ? "checkmark.shield" : "network"
                 )
             }
         }

@@ -14,7 +14,7 @@ final class ContactsService {
         let genericNames = [
             "iphone", "ipad", "simulator", "mac",
             "mobile user", "user", "admin", "guest",
-            "iphone 17 pro", "iphone 17", "iphone 16"
+            "iphone 17 pro", "iphone 17 pro max", "iphone 16 pro", "iphone 16 pro max", "iphone 15 pro max"
         ]
         let lower = name.lowercased()
         if genericNames.contains(lower) {
@@ -22,9 +22,12 @@ final class ContactsService {
         }
 
         if !name.isEmpty {
+            // "O'Brien's iPhone" → "O'Brien" (split at "'s" suffix)
             // "Yezid's iPhone" → "Yezid"
-            if let apostropheIndex = name.firstIndex(of: "'") {
-                let firstName = String(name[..<apostropheIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if let aposIndex = name.firstIndex(of: "'"),
+               name.distance(from: aposIndex, to: name.endIndex) >= 2,
+               name[name.index(after: aposIndex)] == "s" {
+                let firstName = String(name[..<aposIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
                 if !firstName.isEmpty && firstName.count > 1 {
                     return firstName
                 }

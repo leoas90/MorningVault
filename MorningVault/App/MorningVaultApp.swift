@@ -55,6 +55,13 @@ struct MorningVaultApp: App {
         print("[MorningVaultApp] 6:55 AM precomputation triggered")
         schedulePrecomputation() // schedule next
 
+        // GATE 4 fix: respect localOnly — no network fetches in background when enabled
+        if UserDefaults.standard.bool(forKey: "local_only") {
+            print("[MorningVaultApp] localOnly=true — skipping precomputation network fetches")
+            task.setTaskCompleted(success: true)
+            return
+        }
+
         Task {
             let viewModel = BriefingViewModel()
             await viewModel.loadData()
@@ -97,6 +104,8 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
+        // Note: Mon-Fri filtering is now done at the trigger level (per-weekday
+        // UNCalendarNotificationTrigger). weekdayFilter in userInfo is no longer used.
         completionHandler([.banner, .sound])
     }
 

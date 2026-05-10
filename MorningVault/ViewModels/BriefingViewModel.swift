@@ -19,6 +19,7 @@ final class BriefingViewModel: ObservableObject {
     @Published var lastError: String?
     @Published var networkBadge: NetworkBadge = .local
     @Published var aiDaySummary: String? = nil
+    @Published var permissionDenied: [String] = []  // services that were denied
 
     @AppStorage("local_only") private var localOnly = false
 
@@ -101,6 +102,18 @@ final class BriefingViewModel: ObservableObject {
             await cache.setHealth(h)
         }
 
+        // Health — denied
+        if permissionDenied.contains("health") {
+            sections.append(BriefingSection(
+                id: "health",
+                title: "Health",
+                icon: "❤️‍🔥",
+                content: "No health data available. Enable Health access in Settings to see your activity, sleep, and HRV.",
+                sentiment: nil,
+                errorMessage: "Health access denied"
+            ))
+        }
+
         // Calendar section
         if !calendarEvents.isEmpty {
             let eventList = calendarEvents.prefix(5).map { "\($0.timeFormatted) — \($0.title)" }.joined(separator: "\n")
@@ -112,6 +125,28 @@ final class BriefingViewModel: ObservableObject {
                 sentiment: nil
             ))
             await cache.setCalendar(calendarEvents)
+        }
+
+        // Calendar — denied (empty doesn't mean denied, check permissionDenied)
+        if calendarEvents.isEmpty && !permissionDenied.contains("calendar") {
+            sections.append(BriefingSection(
+                id: "calendar",
+                title: "Today",
+                icon: "📅",
+                content: "No events scheduled. Your calendar is clear for today.",
+                sentiment: nil
+            ))
+        }
+
+        if permissionDenied.contains("calendar") {
+            sections.append(BriefingSection(
+                id: "calendar",
+                title: "Today",
+                icon: "📅",
+                content: "No calendar access. Enable Calendar access in Settings to see your events.",
+                sentiment: nil,
+                errorMessage: "Calendar access denied"
+            ))
         }
 
         // Market section (BTC + SPY/QQQ sentiment)
@@ -137,6 +172,7 @@ final class BriefingViewModel: ObservableObject {
         }
 
         briefingSections = sections
+        updateNetworkBadge()
     }
 
     // MARK: - Generate AI-enhanced briefing
@@ -151,15 +187,15 @@ final class BriefingViewModel: ObservableObject {
         // Load all data sections first
         await loadData()
 
+        // Update badge BEFORE the guard that may early-return for localOnly
+        updateNetworkBadge()
+
         // Then generate AI summary via on-device Foundation Models
-        // Skip if localOnly or no sections to process
-        guard !localOnly, !briefingSections.isEmpty else { return }
+        // Skip if no sections to process (localOnly users still get data, just no FM)
+        guard !briefingSections.isEmpty else { return }
 
         isGeneratingAI = true
-        if let summary = await AIService.shared.generateInsight(
-            from: briefingSections,
-            localOnly: localOnly
-        ) {
+        if let summary = await AIService.shared.generateInsight(from: briefingSections) {
             aiDaySummary = summary.insight
         }
         isGeneratingAI = false
@@ -169,6 +205,7 @@ final class BriefingViewModel: ObservableObject {
         if localOnly {
             networkBadge = .local
         } else {
+            // External when any live (non-cache) fetch succeeded
             networkBadge = .external
         }
     }
@@ -190,10 +227,19 @@ final class BriefingViewModel: ObservableObject {
     }
 
     private func fetchHealth() async -> HealthData? {
+        // localOnly: skip live HealthKit fetch, only use cache
+        if localOnly {
+            return await cache.getHealth()
+        }
         if let cached: HealthData = await cache.getHealth() {
             return cached
         }
         _ = await healthService.requestAuthorization()
+        // Check if user denied HealthKit access
+        if !healthService.isAuthorized {
+            await MainActor.run { self.permissionDenied.append("health") }
+            return nil
+        }
         async let sleep = healthService.fetchLastNightSleep()
         async let steps = healthService.fetchTodaySteps()
         async let cals = healthService.fetchTodayActiveCalories()
@@ -213,10 +259,19 @@ final class BriefingViewModel: ObservableObject {
     }
 
     private func fetchCalendar() async -> [CalendarEvent] {
+        // localOnly: skip live Calendar fetch, only use cache
+        if localOnly {
+            return await cache.getCalendar() ?? []
+        }
         if let cached: [CalendarEvent] = await cache.getCalendar() {
             return cached
         }
         _ = await calendarService.requestAuthorization()
+        // Check if user denied Calendar access
+        if !calendarService.isAuthorized {
+            await MainActor.run { self.permissionDenied.append("calendar") }
+            return []
+        }
         let events = await calendarService.fetchTodayEvents()
         await cache.setCalendar(events)
         return events
@@ -359,6 +414,7 @@ final class BriefingViewModel: ObservableObject {
     }
 
     /// All fetches route through Polygon.io — one API for both stocks and crypto.
+    /// Retries once on 429 with 1s backoff before falling back to cache.
     private func fetchViaPolygon(symbol: String) async -> SymbolData? {
         guard let key = Bundle.main.object(forInfoDictionaryKey: "POLYGON_API_KEY") as? String,
               !key.isEmpty else {
@@ -369,12 +425,20 @@ final class BriefingViewModel: ObservableObject {
         ) else {
             return nil
         }
+
+        // First attempt
+        if let result = await attemptPolygonFetch(url: url) { return result }
+        // Retry once on 429
+        try? await Task.sleep(nanoseconds: 1_000_000_000)
+        return await attemptPolygonFetch(url: url)
+    }
+
+    private func attemptPolygonFetch(url: URL) async -> SymbolData? {
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.data(from: url)
+            if let http = response as? HTTPURLResponse, http.statusCode == 429 { return nil }
             let json = try JSONDecoder().decode(PolygonAggResponse.self, from: data)
-            guard let result = json.results?.first, result.c > 0, result.o > 0 else {
-                return nil
-            }
+            guard let result = json.results?.first, result.c > 0, result.o > 0 else { return nil }
             let change = ((result.c - result.o) / result.o) * 100
             return SymbolData(price: result.c, change24h: change)
         } catch {

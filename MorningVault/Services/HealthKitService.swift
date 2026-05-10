@@ -149,10 +149,16 @@ final class HealthKitService: ObservableObject {
         let hrvType = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!
         let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
 
+
+        // HRV is measured during sleep — look back 3 days to find the most recent sleep session
+        let calendar = Calendar.current
+        let threeDaysAgo = calendar.date(byAdding: .day, value: -3, to: Date())!
+        let predicate = HKQuery.predicateForSamples(withStart: threeDaysAgo, end: Date(), options: .strictStartDate)
+
         return await withCheckedContinuation { continuation in
             let query = HKSampleQuery(
                 sampleType: hrvType,
-                predicate: nil,
+                predicate: predicate,
                 limit: 1,
                 sortDescriptors: [sort]
             ) { _, samples, error in

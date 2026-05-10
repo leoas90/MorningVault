@@ -97,6 +97,7 @@ struct BriefingSection: Codable, Identifiable {
     let icon: String
     let content: String
     let sentiment: String?  // "bullish", "bearish", "neutral", "positive", "negative", nil
+    var errorMessage: String?  // e.g. permission denied — shown as inline user-facing message
 }
 
 // MARK: - RSS Data

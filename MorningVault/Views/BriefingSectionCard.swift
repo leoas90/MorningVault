@@ -76,6 +76,25 @@ struct BriefingSectionCard: View {
                         .foregroundStyle(Color.warmTextSecondary)
                         .lineSpacing(4)
                         .padding(.top, 8)
+
+                    // Permission denied banner
+                    if section.errorMessage != nil {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                                .foregroundStyle(Color.warmNegative)
+                            Text(section.errorMessage ?? "")
+                                .font(.caption)
+                                .foregroundStyle(Color.warmNegative)
+                            Spacer()
+                            Text("Enable in Settings")
+                                .font(.caption2)
+                                .foregroundStyle(Color.warmTextSecondary)
+                        }
+                        .padding(10)
+                        .background(Color.warmNegative.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .transition(.asymmetric(

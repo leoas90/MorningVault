@@ -15,6 +15,8 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
     @Published var lastError: String?
     @Published var approximateLocation: String = "Unknown"
 
+    private let weatherCacheKey = "com.morningvault.weatherCache"
+
     override init() {
         super.init()
         locationManager.delegate = self
@@ -31,6 +33,11 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
     // MARK: - Fetch with Approximate Location
 
     func fetchWeather() async -> WeatherData? {
+        // Check localOnly mode first
+        if UserDefaults.standard.bool(forKey: "local_only") {
+            return getCachedWeather()
+        }
+
         // Request authorization if needed
         guard isAuthorized else {
             requestAuthorization()
@@ -53,7 +60,27 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
         await reverseGeocodeToCity(location: location)
 
         // Fetch weather using WeatherKit (privacy: no wttr.in call, no precise lat/lon in URL)
-        return await fetchWeatherByLocation(location)
+        let weather = await fetchWeatherByLocation(location)
+        if let weather = weather {
+            cacheWeather(weather)
+        }
+        return weather
+    }
+
+    // MARK: - Cache
+
+    private func cacheWeather(_ weather: WeatherData) {
+        if let data = try? JSONEncoder().encode(weather) {
+            UserDefaults.standard.set(data, forKey: weatherCacheKey)
+        }
+    }
+
+    private func getCachedWeather() -> WeatherData? {
+        guard let data = UserDefaults.standard.data(forKey: weatherCacheKey),
+              let weather = try? JSONDecoder().decode(WeatherData.self, from: data) else {
+            return nil
+        }
+        return weather
     }
 
     private func reverseGeocodeToCity(location: CLLocation) async {
@@ -90,7 +117,7 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
             let weather = try await WeatherKit.WeatherService.shared.weather(for: location)
             return parseWeatherKitResponse(weather)
         } catch {
-            lastError = error.localizedDescription
+            lastError = "WeatherKit unavailable: \(error.localizedDescription)"
             return nil
         }
     }

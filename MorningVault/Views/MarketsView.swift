@@ -140,8 +140,9 @@ final class MarketsViewModel: ObservableObject {
     }
 
     func sparklineData(for symbol: String) -> [Double] {
-        let hash = symbol.hashValue
-        var generator = SeededRandom(seed: hash)
+        // Mix symbol hash with day-of-year so the shape varies each day
+        let dayComponent = Int(Date().timeIntervalSince1970 / 86400)
+        var generator = SeededRandom(seed: symbol.hashValue ^ dayComponent)
         var values: [Double] = []
         let basePrice: Double = {
             switch symbol {
@@ -149,7 +150,7 @@ final class MarketsViewModel: ObservableObject {
             case "SPY": return 520
             case "AAPL": return 185
             case "NVDA": return 850
-            default: return Double(abs(hash) % 1000 + 50)
+            default: return Double(abs(symbol.hashValue) % 1000 + 50)
             }
         }()
         var value = basePrice * 0.95

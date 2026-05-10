@@ -25,6 +25,7 @@ extension Color {
     static var warmNegative: Color { Color(hex: "E07A5F") }
     static var warmAISummary: Color { Color(hex: "F4A261") }
     static var warmLocalBadge: Color { Color(hex: "81B29A") }
+    static var warmExternalBadge: Color { Color(hex: "F4A261") }
 }
 
 // MARK: - NumberText View (Animated value changes)
