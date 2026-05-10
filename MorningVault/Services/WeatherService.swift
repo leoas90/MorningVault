@@ -175,7 +175,7 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
 
     private func getCurrentLocation() async throws -> CLLocation {
         if locationManager.authorizationStatus == .notDetermined {
-            requestAuthorization()
+            await requestAuthorization()
         }
 
         return try await withCheckedThrowingContinuation { continuation in
