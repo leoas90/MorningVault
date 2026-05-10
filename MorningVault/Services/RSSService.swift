@@ -41,20 +41,22 @@ final class RSSService: ObservableObject {
             if !cached.isEmpty { return cached }
         }
 
-        var results: [RSSFeedData] = []
-        await withTaskGroup(of: RSSFeedData?.self) { group in
+        let results = await withTaskGroup(of: [RSSFeedData].self) { group in
             for id in ids {
                 guard let urlString = sourceURLs[id] else { continue }
                 group.addTask {
-                    await self.fetchFeed(name: self.sourceDisplayName(for: id), urlString: urlString)
+                    if let feed = await self.fetchFeed(name: self.sourceDisplayName(for: id), urlString: urlString) {
+                        return [feed]
+                    }
+                    return []
                 }
             }
 
+            var all: [RSSFeedData] = []
             for await result in group {
-                if let feed = result {
-                    results.append(feed)
-                }
+                all.append(contentsOf: result)
             }
+            return all
         }
 
         await MainActor.run {
