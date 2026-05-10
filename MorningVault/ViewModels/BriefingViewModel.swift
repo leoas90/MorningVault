@@ -437,8 +437,8 @@ final class BriefingViewModel: ObservableObject {
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
             if let http = response as? HTTPURLResponse, http.statusCode == 429 { return nil }
-            let json = try JSONDecoder().decode(PolygonAggResponse.self, from: data)
-            guard let result = json.results?.first, result.c > 0, result.o > 0 else { return nil }
+            guard let json = try? JSONDecoder().decode(PolygonAggResponse.self, from: data),
+                  let result = json.results?.first, result.c > 0, result.o > 0 else { return nil }
             let change = ((result.c - result.o) / result.o) * 100
             return SymbolData(price: result.c, change24h: change)
         } catch {
