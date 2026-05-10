@@ -26,8 +26,9 @@ MorningVault is a privacy-first morning briefing application designed with data 
 - **RSS**: No authentication, no user-specific tracking
 
 ### Legal Flags (Resolved)
-- CoinGecko ToS: Free tier acceptable for personal use; paid plan recommended for distribution. Commercial use allowed per CoinGecko terms.
-- Yahoo Finance scraping: ✅ RESOLVED — removed entirely. Replaced with Polygon.io for stocks. Polygon.io ToS explicitly permits commercial use. Free tier: 5 calls/min.
+- Yahoo Finance scraping: ✅ RESOLVED — removed entirely. Replaced with **Polygon.io** for all market data (stocks + crypto). Polygon.io ToS explicitly permits commercial use. Free tier: 5 calls/min. No branding required.
+- CoinGecko: ✅ REMOVED — no longer used. Polygon.io handles crypto (X:BTCUSD, X:ETHUSD, X:SOLUSD). Single API, single ToS, no legal ambiguity.
+- All market data now under one clean legal roof.
 - Both flags require legal sign-off before App Store submission
 
 ### Privacy Positioning
