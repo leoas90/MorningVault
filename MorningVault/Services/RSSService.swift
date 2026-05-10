@@ -24,9 +24,6 @@ final class RSSService: ObservableObject {
         "mit": "https://news.mit.edu/rss/research"
     ]
 
-    /// Sources with default enabled state
-    private let defaultEnabledSources = ["hacker-news"]
-
     // MARK: - Public API
 
     func fetchAllFeeds() async -> [RSSFeedData] {
@@ -44,7 +41,7 @@ final class RSSService: ObservableObject {
             if !cached.isEmpty { return cached }
         }
 
-        let collected: [RSSFeedData] = await withTaskGroup(of: RSSFeedData?.self) { group in
+        let fetched = await withTaskGroup(of: RSSFeedData?.self) { group in
             for id in ids {
                 guard let urlString = sourceURLs[id] else { continue }
                 group.addTask {
@@ -62,17 +59,16 @@ final class RSSService: ObservableObject {
         }
 
         await MainActor.run {
-            feeds = collected
-            cacheFeeds(collected)
+            feeds = fetched
+            cacheFeeds(fetched)
         }
-        return collected
+        return fetched
     }
 
     private func loadSelectedSources() -> [String] {
         let defaults = UserDefaults.standard
         guard let data = defaults.data(forKey: "selected_news_sources"),
               let decoded = try? JSONDecoder().decode([String].self, from: data) else {
-            // Default to hacker-news if nothing selected
             return ["hacker-news"]
         }
         return decoded
@@ -98,11 +94,9 @@ final class RSSService: ObservableObject {
 
     private func fetchFeed(name: String, urlString: String) async -> RSSFeedData? {
         guard let url = URL(string: urlString) else { return nil }
-
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
             let articles = parseFeed(data: data, sourceName: name)
-
             return RSSFeedData(
                 id: name.lowercased().replacingOccurrences(of: " ", with: "-"),
                 sourceName: name,
@@ -117,79 +111,46 @@ final class RSSService: ObservableObject {
 
     private func parseFeed(data: Data, sourceName: String) -> [RSSArticle] {
         guard let xmlString = String(data: data, encoding: .utf8) else { return [] }
-
-        // Try RSS2 first
-        if let articles = parseRSS2(xmlString, source: sourceName) {
-            return articles
-        }
-        // Fall back to Atom
-        if let articles = parseAtom(xmlString, source: sourceName) {
-            return articles
-        }
+        if let articles = parseRSS2(xmlString, source: sourceName) { return articles }
+        if let articles = parseAtom(xmlString, source: sourceName) { return articles }
         return []
     }
 
     private func parseRSS2(_ xml: String, source: String) -> [RSSArticle]? {
-        var articles: [RSSArticle] = []
-
-        // Use NSRegularExpression for better XML parsing
         guard let regex = try? NSRegularExpression(pattern: "<item>(.*?)</item>", options: [.dotMatchesLineSeparators]) else {
             return nil
         }
-
         let range = NSRange(xml.startIndex..., in: xml)
         let matches = regex.matches(in: xml, options: [], range: range)
-
+        var articles: [RSSArticle] = []
         for match in matches.prefix(10) {
             guard let itemRange = Range(match.range(at: 1), in: xml) else { continue }
             let itemXML = String(xml[itemRange])
-
             guard let title = extractTag("title", from: itemXML),
                   let link = extractTag("link", from: itemXML) else { continue }
-
             let pubDate = extractTag("pubDate", from: itemXML).flatMap { parseDate($0) }
             let summary = extractTag("description", from: itemXML).map { stripHTML($0) }
-
-            articles.append(RSSArticle(
-                id: link,
-                title: title,
-                url: link,
-                publishedAt: pubDate,
-                summary: summary
-            ))
+            articles.append(RSSArticle(id: link, title: title, url: link, publishedAt: pubDate, summary: summary))
         }
-
         return articles.isEmpty ? nil : articles
     }
 
     private func parseAtom(_ xml: String, source: String) -> [RSSArticle]? {
-        var articles: [RSSArticle] = []
-
         guard let regex = try? NSRegularExpression(pattern: "<entry>(.*?)</entry>", options: [.dotMatchesLineSeparators]) else {
             return nil
         }
-
         let range = NSRange(xml.startIndex..., in: xml)
         let matches = regex.matches(in: xml, options: [], range: range)
-
+        var articles: [RSSArticle] = []
         for match in matches.prefix(10) {
             guard let entryRange = Range(match.range(at: 1), in: xml) else { continue }
             let entryXML = String(xml[entryRange])
-
             guard let title = extractTag("title", from: entryXML) else { continue }
             let link = extractTag("link", from: entryXML) ?? extractAtomLink(entryXML)
             let pubDate = extractTag("published", from: entryXML).flatMap { parseDate($0) }
             let summary = extractTag("summary", from: entryXML).map { stripHTML($0) }
-
-            articles.append(RSSArticle(
-                id: link ?? UUID().uuidString,
-                title: title,
-                url: link ?? "",
-                publishedAt: pubDate,
-                summary: summary
-            ))
+            articles.append(RSSArticle(id: link ?? UUID().uuidString, title: title, url: link ?? "", publishedAt: pubDate, summary: summary))
         }
-
         return articles.isEmpty ? nil : articles
     }
 
@@ -197,7 +158,6 @@ final class RSSService: ObservableObject {
         let pattern = "<\(tag)><!\\[CDATA\\[([^\\]]*)\\]\\]></\(tag)>|<\(tag)>([^<]*)</\(tag)>"
         guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return nil }
         let range = NSRange(xml.startIndex..., in: xml)
-
         if let match = regex.firstMatch(in: xml, options: [], range: range) {
             for i in 1..<match.numberOfRanges {
                 if let r = Range(match.range(at: i), in: xml) {
@@ -212,7 +172,6 @@ final class RSSService: ObservableObject {
         let pattern = "<link[^>]*href=[\"']([^\"']*)[\"'][^>]*>"
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else { return nil }
         let range = NSRange(xml.startIndex..., in: xml)
-
         if let match = regex.firstMatch(in: xml, options: [], range: range),
            let r = Range(match.range(at: 1), in: xml) {
             return String(xml[r])
@@ -221,25 +180,14 @@ final class RSSService: ObservableObject {
     }
 
     private func parseDate(_ string: String) -> Date? {
-        let formatters: [DateFormatter] = {
-            let rfc822 = DateFormatter()
-            rfc822.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
-            rfc822.locale = Locale(identifier: "en_US_POSIX")
-
-            let iso8601 = DateFormatter()
-            iso8601.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-            iso8601.locale = Locale(identifier: "en_US_POSIX")
-
-            return [rfc822, iso8601]
-        }()
-
+        let rfc822 = DateFormatter()
+        rfc822.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+        rfc822.locale = Locale(identifier: "en_US_POSIX")
+        let iso8601 = DateFormatter()
+        iso8601.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+        iso8601.locale = Locale(identifier: "en_US_POSIX")
         let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
-        for formatter in formatters {
-            if let date = formatter.date(from: trimmed) {
-                return date
-            }
-        }
-        return nil
+        return rfc822.date(from: trimmed) ?? iso8601.date(from: trimmed)
     }
 
     private func stripHTML(_ html: String) -> String {

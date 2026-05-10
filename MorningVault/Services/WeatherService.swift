@@ -103,6 +103,7 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
             let geocoder = CLGeocoder()
             if let placemarks = try? await geocoder.reverseGeocodeLocation(location),
                let placemark = placemarks.first {
+                // deprecated 'placemark' — use addressRepresentations instead
                 let resolved = placemark.locality ?? placemark.administrativeArea ?? "Unknown"
                 approximateLocation = resolved
             }
