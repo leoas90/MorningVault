@@ -342,43 +342,24 @@ final class BriefingViewModel: ObservableObject {
         ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "DOGE", "DOT", "AVAX", "LINK"]
     }
 
-    // MARK: - Symbol data fetchers
+    // MARK: - Symbol data fetchers — Polygon.io unified (stocks + crypto)
 
+    /// Unified fetcher: all symbols via Polygon.io AGG API.
+    /// - Stocks: AAPL, SPY, QQQ → polygon ticker = raw symbol
+    /// - Crypto: BTC, ETH, SOL → polygon ticker = X:{SYMBOL}USD
     private func fetchSymbolData(symbol: String) async -> SymbolData? {
         let upper = symbol.uppercased()
+        // Crypto pairs need X: prefix and USD suffix on Polygon
         if cryptoSymbols.contains(upper) {
-            return await fetchCryptoData(symbol: upper)
+            let polygonSymbol = "X:\(upper)USD"
+            return await fetchViaPolygon(symbol: polygonSymbol)
         }
-        return await fetchStockData(symbol: upper)
+        // Stocks go through as-is
+        return await fetchViaPolygon(symbol: upper)
     }
 
-    private func fetchCryptoData(symbol: String) async -> SymbolData? {
-        let idMap: [String: String] = [
-            "BTC": "bitcoin", "ETH": "ethereum", "SOL": "solana",
-            "BNB": "binancecoin", "XRP": "ripple", "ADA": "cardano",
-            "DOGE": "dogecoin", "DOT": "polkadot", "AVAX": "avalanche-2",
-            "LINK": "chainlink"
-        ]
-        guard let id = idMap[symbol],
-              let url = URL(string: "https://api.coingecko.com/api/v3/simple/price?ids=\(id)&vs_currencies=usd&include_24hr_change=true") else {
-            return nil
-        }
-        do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            let json = try JSONDecoder().decode([String: [String: Double]].self, from: data)
-            guard let coin = json[id], let price = coin["usd"], let change = coin["usd_24h_change"], price > 0 else {
-                return nil
-            }
-            return SymbolData(price: price, change24h: change)
-        } catch {
-            return nil
-        }
-    }
-
-    private func fetchStockData(symbol: String) async -> SymbolData? {
-        // Polygon.io — explicit ToS for commercial use, real-time data, no branding required.
-        // Free tier: 5 calls/min. Scales via backend cache layer (per-symbol, 15-min TTL).
-        // API key stored in Info.plist (POLYGON_API_KEY).
+    /// All fetches route through Polygon.io — one API for both stocks and crypto.
+    private func fetchViaPolygon(symbol: String) async -> SymbolData? {
         guard let key = Bundle.main.object(forInfoDictionaryKey: "POLYGON_API_KEY") as? String,
               !key.isEmpty else {
             return nil
