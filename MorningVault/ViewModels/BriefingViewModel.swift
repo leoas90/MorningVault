@@ -376,27 +376,41 @@ final class BriefingViewModel: ObservableObject {
     }
 
     private func fetchStockData(symbol: String) async -> SymbolData? {
-        // ⚠️ Yahoo Finance — legal flag still open for stocks.
-        // Replace with Finnhub or Alpha Vantage before App Store submission.
-        // Crypto covered by CoinGecko with no flag.
-        guard let url = URL(string: "https://query1.finance.yahoo.com/v8/finance/chart/\(symbol)?interval=1d&range=1d") else {
+        // Polygon.io — explicit ToS for commercial use, real-time data, no branding required.
+        // Free tier: 5 calls/min. Scales via backend cache layer (per-symbol, 15-min TTL).
+        // API key stored in Info.plist (POLYGON_API_KEY).
+        guard let key = Bundle.main.object(forInfoDictionaryKey: "POLYGON_API_KEY") as? String,
+              !key.isEmpty else {
+            return nil
+        }
+        guard let url = URL(
+            string: "https://api.polygon.io/v2/aggs/ticker/\(symbol)/prev?adjusted=true&apiKey=\(key)"
+        ) else {
             return nil
         }
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
-            let json = try JSONDecoder().decode(YahooChartResponse.self, from: data)
-            guard let result = json.chart?.result?.first,
-                  let quote = result.indicators?.quote?.first,
-                  let close = quote.close?.last, close > 0 else {
+            let json = try JSONDecoder().decode(PolygonAggResponse.self, from: data)
+            guard let result = json.results?.first, result.c > 0, result.o > 0 else {
                 return nil
             }
-            let open = quote.open?.first ?? close
-            let change = ((close - open) / open) * 100
-            return SymbolData(price: close, change24h: change)
+            let change = ((result.c - result.o) / result.o) * 100
+            return SymbolData(price: result.c, change24h: change)
         } catch {
             return nil
         }
     }
+}
+
+// MARK: - Polygon.io Response
+
+private struct PolygonAggResponse: Codable {
+    let results: [PolygonAggResult]?
+}
+
+private struct PolygonAggResult: Codable {
+    let o: Double  // open
+    let c: Double  // close
 }
 
 // MARK: - Network Badge
@@ -405,27 +419,4 @@ enum NetworkBadge {
     case local    // 🟢 green — all data local, zero network calls
     case external // 🟡 yellow — external non-PII fetches active
     case unknown  // gray
-}
-
-// MARK: - Yahoo Finance Response
-
-private struct YahooChartResponse: Codable {
-    let chart: ChartResult?
-}
-
-private struct ChartResult: Codable {
-    let result: [ChartQuote]?
-}
-
-private struct ChartQuote: Codable {
-    let indicators: Indicators?
-}
-
-private struct Indicators: Codable {
-    let quote: [QuoteData]?
-}
-
-private struct QuoteData: Codable {
-    let open: [Double]?
-    let close: [Double]?
 }

@@ -25,6 +25,8 @@
 	<string>Approximate location only — for weather. No precise GPS stored or transmitted.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>MorningVault reads your health data — including sleep, steps, heart rate, and HRV — to include in your morning briefing. Data stays on your device and is never shared.</string>
+	<key>POLYGON_API_KEY</key>
+	<string>x9zFmCXzZkM4QLqQwWFHQA9M0A9pk9RN</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
