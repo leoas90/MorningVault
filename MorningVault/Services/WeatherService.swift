@@ -178,7 +178,7 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
             requestAuthorization()
         }
 
-        return try withCheckedThrowingContinuation { continuation in
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CLLocation, Error>) in
             self.locationContinuation = continuation
             locationManager.requestLocation()
         }
