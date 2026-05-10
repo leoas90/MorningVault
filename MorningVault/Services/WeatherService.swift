@@ -10,6 +10,7 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
 
     private let locationManager = CLLocationManager()
     private var locationContinuation: CheckedContinuation<CLLocation, Error>?
+    private var locationContinuationAuth: CheckedContinuation<Void, Never>?
 
     @Published var isAuthorized = false
     @Published var lastError: String?
@@ -168,6 +169,8 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
             isAuthorized = true
+            locationContinuationAuth?.resume()
+            locationContinuationAuth = nil
         default:
             isAuthorized = false
         }
@@ -175,7 +178,10 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
 
     private func getCurrentLocation() async throws -> CLLocation {
         if locationManager.authorizationStatus == .notDetermined {
-            requestAuthorization()
+            _ = await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                self.locationContinuationAuth = continuation
+                locationManager.requestWhenInUseAuthorization()
+            }
         }
 
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CLLocation, Error>) in
