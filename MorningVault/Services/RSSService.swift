@@ -1,7 +1,8 @@
 import Foundation
 
-/// RSS feed parser — fetches user-selected news sources
+/// RSS feed parser — fetches user-selected news sources.
 /// No user tracking, no analytics.
+/// Uses shared NewsSource enum as single source of truth for all source URLs.
 final class RSSService: ObservableObject {
     static let shared = RSSService()
 
@@ -10,31 +11,16 @@ final class RSSService: ObservableObject {
 
     private let rssCacheKey = "com.morningvault.rssCache"
 
-    /// URL map for available news sources
-    private let sourceURLs: [String: String] = [
-        "hacker-news": "https://hnrss.org/frontpage",
-        "techcrunch": "https://techcrunch.com/feed/",
-        "ars-technica": "https://feeds.arstechnica.com/arstechnica/index",
-        "bbc": "https://feeds.bbci.co.uk/news/rss.xml",
-        "reuters": "https://www.reutersagency.com/feed/",
-        "ap": "https://apnews.com/rss",
-        "npr": "https://feeds.npr.org/1001/rss.xml",
-        "the-verge": "https://www.theverge.com/rss/index.xml",
-        "wired": "https://www.wired.com/feed/rss",
-        "mit": "https://news.mit.edu/rss/research"
-    ]
-
     // MARK: - Public API
 
     func fetchAllFeeds() async -> [RSSFeedData] {
         if UserDefaults.standard.bool(forKey: "local_only") {
             return getCachedFeeds()
         }
-        _ = await fetchFeeds(ids: loadSelectedSources())
-        return feeds
+        return await fetchFeeds(sources: loadSelectedSources())
     }
 
-    func fetchFeeds(ids: [String]) async -> [RSSFeedData] {
+    func fetchFeeds(sources: [NewsSource]) async -> [RSSFeedData] {
         // Respect localOnly — no network calls if enabled
         if UserDefaults.standard.bool(forKey: "local_only") {
             let cached = getCachedFeeds()
@@ -42,19 +28,15 @@ final class RSSService: ObservableObject {
         }
 
         let results = await withTaskGroup(of: [RSSFeedData].self) { group in
-            for id in ids {
-                guard let urlString = sourceURLs[id] else { continue }
+            for source in sources {
                 group.addTask {
-                    if let feed = await self.fetchFeed(name: self.sourceDisplayName(for: id), urlString: urlString) {
-                        return [feed]
-                    }
-                    return []
+                    await self.fetchFeed(source: source)
                 }
             }
 
             var all: [RSSFeedData] = []
             for await result in group {
-                all.append(contentsOf: result)
+                if let feed = result { all.append(feed) }
             }
             return all
         }
@@ -66,41 +48,16 @@ final class RSSService: ObservableObject {
         return results
     }
 
-    private func loadSelectedSources() -> [String] {
-        let defaults = UserDefaults.standard
-        guard let data = defaults.data(forKey: "selected_news_sources"),
-              let decoded = try? JSONDecoder().decode([String].self, from: data) else {
-            return ["hacker-news"]
-        }
-        return decoded
-    }
-
-    private func sourceDisplayName(for id: String) -> String {
-        let names: [String: String] = [
-            "hacker-news": "Hacker News",
-            "techcrunch": "TechCrunch",
-            "ars-technica": "Ars Technica",
-            "bbc": "BBC News",
-            "reuters": "Reuters",
-            "ap": "Associated Press",
-            "npr": "NPR",
-            "the-verge": "The Verge",
-            "wired": "Wired",
-            "mit": "MIT News"
-        ]
-        return names[id] ?? id
-    }
-
     // MARK: - Fetch Single Feed
 
-    private func fetchFeed(name: String, urlString: String) async -> RSSFeedData? {
-        guard let url = URL(string: urlString) else { return nil }
+    private func fetchFeed(source: NewsSource) async -> RSSFeedData? {
+        guard let url = URL(string: source.feedURL) else { return nil }
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
-            let articles = parseFeed(data: data, sourceName: name)
+            let articles = parseFeed(data: data, sourceName: source.displayName)
             return RSSFeedData(
-                id: name.lowercased().replacingOccurrences(of: " ", with: "-"),
-                sourceName: name,
+                id: source.rawValue,
+                sourceName: source.displayName,
                 articles: articles
             )
         } catch {
@@ -170,12 +127,17 @@ final class RSSService: ObservableObject {
     }
 
     private func extractAtomLink(_ xml: String) -> String? {
+        // Match <link href="..." rel="alternate"...> — the alternate link for the entry
         let pattern = "<link[^>]*href=[\"']([^\"']*)[\"'][^>]*>"
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else { return nil }
         let range = NSRange(xml.startIndex..., in: xml)
-        if let match = regex.firstMatch(in: xml, options: [], range: range),
-           let r = Range(match.range(at: 1), in: xml) {
-            return String(xml[r])
+        // Find the first link (usually the alternate/canonical one)
+        let matches = regex.matches(in: xml, options: [], range: range)
+        for match in matches {
+            if let r = Range(match.range(at: 1), in: xml) {
+                let href = String(xml[r])
+                if !href.isEmpty { return href }
+            }
         }
         return nil
     }
@@ -198,6 +160,10 @@ final class RSSService: ObservableObject {
             .replacingOccurrences(of: "&lt;", with: "<")
             .replacingOccurrences(of: "&gt;", with: ">")
             .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#39;", with: "'")
+            .replacingOccurrences(of: "&apos;", with: "'")
+            .replacingOccurrences(of: "&eacute;", with: "é")
+            .replacingOccurrences(of: "&nbsp;", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 

@@ -8,6 +8,7 @@ struct ContentView: View {
     @StateObject private var viewModel = BriefingViewModel()
     @State private var selectedTab: Tab = .brief
     @State private var tabBarIconScales: [Tab: CGFloat] = [:]
+    @State private var showBriefingFromDeepLink = false
 
     enum Tab: String, CaseIterable {
         case brief = "Brief"
@@ -38,11 +39,6 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             // MARK: - Brief Tab
             BriefTabView(viewModel: viewModel, userName: userName, localOnly: localOnly)
-                .onChange(of: selectedTab) { oldTab, newTab in
-                    if newTab == Tab.brief {
-                        Task { await viewModel.loadData() }
-                    }
-                }
                 .tabItem {
                     TabIcon(
                         tab: Tab.brief,
@@ -97,9 +93,18 @@ struct ContentView: View {
             if let fetchedName = ContactsService.shared.fetchDeviceName() {
                 userName = fetchedName
             }
+            // Silent refresh: load from cache for instant display, background refresh follows
+            await viewModel.silentRefresh()
         }
         .fullScreenCover(isPresented: .constant(!hasCompletedOnboarding)) {
             OnboardingView()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .viewBriefingRequested)) { _ in
+            // User tapped "View Brief" notification — switch to Brief tab and refresh
+            selectedTab = .brief
+            Task {
+                await viewModel.silentRefresh()
+            }
         }
     }
 }

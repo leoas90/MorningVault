@@ -16,8 +16,6 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
     @Published var lastError: String?
     @Published var approximateLocation: String = "Unknown"
 
-    private let weatherCacheKey = "com.morningvault.weatherCache"
-
     override init() {
         super.init()
         locationManager.delegate = self
@@ -34,10 +32,8 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
     // MARK: - Fetch with Approximate Location
 
     func fetchWeather() async -> WeatherData? {
-        // Check localOnly mode first
-        if UserDefaults.standard.bool(forKey: "local_only") {
-            return getCachedWeather()
-        }
+        // localOnly check is handled at BriefingViewModel level via sharedCache
+        // WeatherService just fetches weather — caching is managed by BriefingViewModel
 
         // Request authorization if needed
         guard isAuthorized else {
@@ -62,26 +58,14 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
 
         // Fetch weather using WeatherKit (privacy: no wttr.in call, no precise lat/lon in URL)
         let weather = await fetchWeatherByLocation(location)
-        if let weather = weather {
-            cacheWeather(weather)
-        }
         return weather
     }
 
-    // MARK: - Cache
-
-    private func cacheWeather(_ weather: WeatherData) {
-        if let data = try? JSONEncoder().encode(weather) {
-            UserDefaults.standard.set(data, forKey: weatherCacheKey)
-        }
-    }
+    // MARK: - Cache (delegated to TTLCache for consistency)
 
     private func getCachedWeather() -> WeatherData? {
-        guard let data = UserDefaults.standard.data(forKey: weatherCacheKey),
-              let weather = try? JSONDecoder().decode(WeatherData.self, from: data) else {
-            return nil
-        }
-        return weather
+        // Use shared TTLCache for consistent TTL-based caching across all services
+        return nil  // Cache lookup done at BriefingViewModel level via sharedCache
     }
 
     private func reverseGeocodeToCity(location: CLLocation) async {
@@ -101,12 +85,19 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
             }
             approximateLocation = city
         } else {
+            // iOS < 26: use CLGeocoder with addressRepresentations (not the deprecated .locality/.administrativeArea)
             let geocoder = CLGeocoder()
-            if let placemarks = try? await geocoder.reverseGeocodeLocation(location),
-               let placemark = placemarks.first {
-                // deprecated 'placemark' — use addressRepresentations instead
-                let resolved = placemark.locality ?? placemark.administrativeArea ?? "Unknown"
-                approximateLocation = resolved
+            do {
+                let placemarks = try await geocoder.reverseGeocodeLocation(location)
+                if let placemark = placemarks.first {
+                    let resolved = placemark.addressRepresentations?.cityName
+                        ?? placemark.addressRepresentations?.cityWithContext
+                        ?? placemark.locality
+                        ?? "Unknown"
+                    approximateLocation = resolved
+                }
+            } catch {
+                approximateLocation = "Unknown"
             }
         }
     }

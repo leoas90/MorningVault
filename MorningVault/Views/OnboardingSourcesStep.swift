@@ -1,24 +1,8 @@
 import SwiftUI
 
 struct OnboardingSourcesStep: View {
-    @AppStorage("selected_news_sources") private var selectedSourcesData: Data = Data()
-
-    @State private var selectedSources: Set<String> = []
-    @FocusState private var isSearchFocused: Bool
+    @State private var selectedSources: Set<NewsSource> = []
     @State private var hasAppeared = false
-
-    private let availableSources: [(id: String, name: String, description: String, icon: String)] = [
-        ("hacker-news", "Hacker News", "Tech & startup news from the community", "chevron.left.forwardslash.chevron.right"),
-        ("techcrunch", "TechCrunch", "Startup and tech industry coverage", "dollarsign.circle"),
-        ("ars-technica", "Ars Technica", "In-depth tech science and policy", "atom"),
-        ("bbc", "BBC News", "World news and UK coverage", "globe"),
-        ("reuters", "Reuters", "Breaking news and financial updates", "bolt"),
-        ("ap", "Associated Press", "Reliable national and world news", "newspaper"),
-        ("npr", "NPR", "National public radio news", "waveform"),
-        ("the-verge", "The Verge", "Tech culture and product news", "desktopcomputer"),
-        ("wired", "Wired", "Tech magazine longform stories", "wifi"),
-        ("bloomberg", "Bloomberg", "Business and financial news", "chart.line.uptrend.xyaxis")
-    ]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -40,15 +24,15 @@ struct OnboardingSourcesStep: View {
             // Source list
             ScrollView {
                 LazyVStack(spacing: 8) {
-                    ForEach(Array(availableSources.enumerated()), id: \.element.id) { index, source in
+                    ForEach(Array(NewsSource.allCases.enumerated()), id: \.element.id) { index, source in
                         SourceSelectionRow(
-                            name: source.name,
+                            name: source.displayName,
                             description: source.description,
                             icon: source.icon,
-                            isSelected: selectedSources.contains(source.id),
+                            isSelected: selectedSources.contains(source),
                             delay: Double(index) * 0.06
                         ) {
-                            toggleSource(source.id)
+                            toggleSource(source)
                         }
                     }
                 }
@@ -72,19 +56,17 @@ struct OnboardingSourcesStep: View {
         }
     }
 
-    private func toggleSource(_ id: String) {
-        if selectedSources.contains(id) {
-            selectedSources.remove(id)
+    private func toggleSource(_ source: NewsSource) {
+        if selectedSources.contains(source) {
+            selectedSources.remove(source)
         } else {
-            selectedSources.insert(id)
+            selectedSources.insert(source)
         }
         saveSources()
     }
 
     private func saveSources() {
-        if let encoded = try? JSONEncoder().encode(Array(selectedSources)) {
-            selectedSourcesData = encoded
-        }
+        saveSelectedSources(Array(selectedSources))
     }
 }
 

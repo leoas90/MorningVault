@@ -1,14 +1,7 @@
 import SwiftUI
 
 struct SourcesView: View {
-    @AppStorage("selected_news_sources") private var selectedSourcesData: Data = Data()
-    @State private var sources: [RSSSource] = []
-
-    private struct RSSSource: Codable, Identifiable {
-        let id: String
-        let name: String
-        let url: String
-    }
+    @State private var sources: [NewsSource] = []
 
     var body: some View {
         List {
@@ -19,14 +12,16 @@ struct SourcesView: View {
                 } else {
                     ForEach(sources) { source in
                         HStack {
-                            Image(systemName: "newspaper")
+                            Image(systemName: source.icon)
                                 .foregroundStyle(Color.accentColor)
+                                .frame(width: 28)
                             VStack(alignment: .leading) {
-                                Text(source.name)
+                                Text(source.displayName)
                                     .font(.subheadline)
-                                Text(source.url)
+                                Text(source.feedURL)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
+                                    .lineLimit(1)
                             }
                         }
                     }
@@ -46,91 +41,40 @@ struct SourcesView: View {
     }
 
     private func loadSources() {
-        let sourceURLs: [String: String] = [
-            "hacker-news": "https://hnrss.org/frontpage",
-            "techcrunch": "https://techcrunch.com/feed/",
-            "ars-technica": "https://feeds.arstechnica.com/arstechnica/index",
-            "bbc": "https://feeds.bbci.co.uk/news/rss.xml",
-            "reuters": "https://www.reutersagency.com/feed/",
-            "ap": "https://apnews.com/rss",
-            "npr": "https://feeds.npr.org/1001/rss.xml",
-            "the-verge": "https://www.theverge.com/rss/index.xml",
-            "wired": "https://www.wired.com/feed/rss",
-            "bloomberg": "https://feeds.bloomberg.com/markets/news.rss"
-        ]
-
-        let displayNames: [String: String] = [
-            "hacker-news": "Hacker News",
-            "techcrunch": "TechCrunch",
-            "ars-technica": "Ars Technica",
-            "bbc": "BBC News",
-            "reuters": "Reuters",
-            "ap": "Associated Press",
-            "npr": "NPR",
-            "the-verge": "The Verge",
-            "wired": "Wired",
-            "bloomberg": "Bloomberg"
-        ]
-
-        if let data = try? JSONDecoder().decode([String].self, from: selectedSourcesData) {
-            sources = data.compactMap { id in
-                guard let url = sourceURLs[id] else { return nil }
-                return RSSSource(id: id, name: displayNames[id] ?? id.capitalized, url: url)
-            }
-        } else {
-            // Default to Hacker News
-            sources = [
-                RSSSource(id: "hacker-news", name: "Hacker News", url: sourceURLs["hacker-news"]!)
-            ]
-        }
+        sources = loadSelectedSources()
     }
 }
 
 // MARK: - Source Editor View
 
 struct SourceEditorView: View {
-    @AppStorage("selected_news_sources") private var selectedSourcesData: Data = Data()
     @Environment(\.dismiss) private var dismiss
-
-    private let allSources: [(id: String, name: String, description: String, icon: String)] = [
-        ("hacker-news", "Hacker News", "Tech & startup news", "chevron.left.forwardslash.chevron.right"),
-        ("techcrunch", "TechCrunch", "Startup coverage", "dollarsign.circle"),
-        ("ars-technica", "Ars Technica", "Deep tech & science", "atom"),
-        ("bbc", "BBC News", "World news", "globe"),
-        ("reuters", "Reuters", "Breaking news", "bolt"),
-        ("ap", "Associated Press", "National news", "newspaper"),
-        ("npr", "NPR", "Public radio", "waveform"),
-        ("the-verge", "The Verge", "Tech culture", "desktopcomputer"),
-        ("wired", "Wired", "Tech magazine", "wifi"),
-        ("bloomberg", "Bloomberg", "Business & finance", "chart.line.uptrend.xyaxis")
-    ]
-
-    @State private var selectedSources: Set<String> = []
+    @State private var selectedSources: Set<NewsSource> = []
 
     var body: some View {
         List {
-            ForEach(allSources, id: \.id) { source in
+            ForEach(NewsSource.allCases) { source in
                 Button {
-                    if selectedSources.contains(source.id) {
-                        selectedSources.remove(source.id)
+                    if selectedSources.contains(source) {
+                        selectedSources.remove(source)
                     } else {
-                        selectedSources.insert(source.id)
+                        selectedSources.insert(source)
                     }
                 } label: {
                     HStack {
                         Image(systemName: source.icon)
-                            .foregroundStyle(selectedSources.contains(source.id) ? Color.accentColor : .secondary)
+                            .foregroundStyle(selectedSources.contains(source) ? Color.accentColor : .secondary)
                             .frame(width: 28)
                         VStack(alignment: .leading) {
-                            Text(source.name)
+                            Text(source.displayName)
                                 .foregroundStyle(.primary)
                             Text(source.description)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Image(systemName: selectedSources.contains(source.id) ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(selectedSources.contains(source.id) ? Color.accentColor : .secondary)
+                        Image(systemName: selectedSources.contains(source) ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(selectedSources.contains(source) ? Color.accentColor : .secondary)
                     }
                 }
                 .buttonStyle(.plain)
@@ -147,15 +91,11 @@ struct SourceEditorView: View {
     }
 
     private func loadSelected() {
-        if let data = try? JSONDecoder().decode([String].self, from: selectedSourcesData) {
-            selectedSources = Set(data)
-        }
+        selectedSources = Set(loadSelectedSources())
     }
 
     private func saveAndDismiss() {
-        if let encoded = try? JSONEncoder().encode(Array(selectedSources)) {
-            selectedSourcesData = encoded
-        }
+        saveSelectedSources(Array(selectedSources))
         dismiss()
     }
 }

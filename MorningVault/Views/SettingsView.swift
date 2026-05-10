@@ -1,4 +1,5 @@
 import SwiftUI
+import Security
 
 struct SettingsView: View {
     @AppStorage("briefing_time") private var briefingTimeSeconds: Double = 7 * 3600  // default 7 AM
@@ -11,9 +12,13 @@ struct SettingsView: View {
     @AppStorage("user_name") private var userName: String = ""
     @StateObject private var healthService = HealthKitService.shared
     @StateObject private var calendarService = CalendarService.shared
+    @StateObject private var alarmService = AlarmService.shared
     @State private var showingPrivacyPolicy = false
     @State private var hasAppeared = false
     @FocusState private var isNameFieldFocused: Bool
+    @State private var polygonAPIKey: String = ""
+    @State private var showingAPIKeyAlert = false
+    @State private var apiKeySaveMessage: String = ""
 
     private var currentTheme: AppTheme {
         get { AppTheme(rawValue: themeRaw) ?? .system }
@@ -61,6 +66,9 @@ struct SettingsView: View {
 
                 // MARK: - Data Sources
                 dataSourcesSection
+
+                // MARK: - API Keys
+                apiKeysSection
 
                 // MARK: - Privacy
                 privacySection
@@ -174,6 +182,38 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - API Keys
+
+    private var apiKeysSection: some View {
+        Section("API Keys") {
+            HStack {
+                TextField("Polygon.io API Key", text: $polygonAPIKey)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .keyboardType(.asciiCapable)
+                Button("Save") {
+                    if KeychainHelper.set(polygonAPIKey, for: .polygonAPIKey) {
+                        apiKeySaveMessage = "API key saved securely."
+                    } else {
+                        apiKeySaveMessage = "Failed to save. Try again."
+                    }
+                    showingAPIKeyAlert = true
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color.warmPrimaryAccent)
+                .disabled(polygonAPIKey.isEmpty)
+            }
+            if !apiKeySaveMessage.isEmpty && !showingAPIKeyAlert {
+                Text(apiKeySaveMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Text("Required for live market data. Stored securely in Keychain.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
     // MARK: - Privacy
 
     private var privacySection: some View {
@@ -228,6 +268,26 @@ struct SettingsView: View {
                     Image(systemName: calendarService.isAuthorized ? "checkmark.circle.fill" : "exclamationmark.circle")
                         .foregroundStyle(calendarService.isAuthorized ? .green : .orange)
                 }
+            }
+
+            // Alarm status
+            HStack {
+                Label("Alarm", systemImage: "alarm")
+                Spacer()
+                if alarmService.activeAlarms.isEmpty {
+                    Text("Not scheduled")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("\(alarmService.activeAlarms.count) alarm(s) active")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                }
+            }
+            if let error = alarmService.lastError {
+                Text("Last error: \(error)")
+                    .font(.caption)
+                    .foregroundStyle(.red)
             }
         }
     }

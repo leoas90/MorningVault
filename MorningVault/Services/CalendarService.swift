@@ -79,13 +79,17 @@ final class CalendarService: ObservableObject {
 }
 
 // MARK: - CGColor Hex Support
-import CoreImage
+import UIKit
+
 extension CGColor {
     var hexString: String {
         guard let components = components, components.count >= 3 else { return "gray" }
-        let r = Int(components[0] * 255)
-        let g = Int(components[1] * 255)
-        let b = Int(components[2] * 255)
-        return String(format: "%02X%02X%02X", r, g, b)
+        guard let colorSpace = colorSpace else { return "gray" }
+
+        // Always convert through UIColor for reliable cross-color-space conversion
+        let uiColor = UIColor(cgColor: self)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        uiColor.getRed(&r, green: &g, blue: &b, alpha: &a)
+        return String(format: "%02X%02X%02X", Int(r * 255), Int(g * 255), Int(b * 255))
     }
 }

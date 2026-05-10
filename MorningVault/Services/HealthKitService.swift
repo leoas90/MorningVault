@@ -12,9 +12,18 @@ final class HealthKitService: ObservableObject {
 
     // MARK: - Authorization
 
+    /// Checks current authorization status without triggering a dialog.
+    /// Returns true only if health data is accessible and authorized.
+    func isAuthorizedForHealthData() -> Bool {
+        guard HKHealthStore.isHealthDataAvailable() else { return false }
+        let status = healthStore.authorizationStatus(for: HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!)
+        // HKAuthorizationStatus: .notDetermined(0), .sharingDenied(1), .sharingAuthorized(2)
+        return status == .sharingAuthorized
+    }
+
     func requestAuthorization() async -> Bool {
         guard HKHealthStore.isHealthDataAvailable() else {
-            lastError = "HealthKit not available on this device"
+            await MainActor.run { lastError = "HealthKit not available on this device" }
             return false
         }
 
@@ -28,10 +37,15 @@ final class HealthKitService: ObservableObject {
 
         do {
             try await healthStore.requestAuthorization(toShare: [], read: types)
-            await MainActor.run { isAuthorized = true }
-            return true
+            // Use synchronous authorization check after await to avoid Published race
+            let authorized = isAuthorizedForHealthData()
+            await MainActor.run { isAuthorized = authorized }
+            return authorized
         } catch {
-            await MainActor.run { lastError = error.localizedDescription }
+            await MainActor.run {
+                lastError = error.localizedDescription
+                isAuthorized = false
+            }
             return false
         }
     }

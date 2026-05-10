@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import FoundationModels
+import Security
 
 /// On-device AI briefing generator for MorningVault.
 ///
@@ -22,6 +23,10 @@ final class BriefingViewModel: ObservableObject {
     @Published var permissionDenied: [String] = []  // services that were denied
 
     @AppStorage("local_only") private var localOnly = false
+    @AppStorage("health_enabled") private var healthEnabled = true
+    @AppStorage("calendar_enabled") private var calendarEnabled = true
+    @AppStorage("weather_enabled") private var weatherEnabled = true
+    @AppStorage("headlines_enabled") private var headlinesEnabled = true
 
     private let healthService = HealthKitService.shared
     private let calendarService = CalendarService.shared
@@ -89,6 +94,9 @@ final class BriefingViewModel: ObservableObject {
             }
             if let hrv = h.hrv {
                 healthContent += "HRV: \(Int(hrv))ms. "
+            }
+            if let hr = h.heartRate {
+                healthContent += "Resting HR: \(Int(hr)) bpm. "
             }
             if !healthContent.isEmpty {
                 sections.append(BriefingSection(
@@ -199,6 +207,42 @@ final class BriefingViewModel: ObservableObject {
             aiDaySummary = summary.insight
         }
         isGeneratingAI = false
+
+        // Persist full briefing to cache so app can display instantly when opened from notification
+        await cacheBriefing()
+    }
+
+    /// Silent refresh — loads from cache first (instant), then does a live refresh in background.
+    /// Use on app launch / deep-link open for instant briefing display.
+    func silentRefresh() async {
+        // Load from cache for instant display
+        await loadFromCache()
+
+        // If no cached data, do a live load
+        if briefingSections.isEmpty {
+            await loadData()
+        }
+    }
+
+    /// Persist current briefing to TTLCache for fast app launch.
+    private func cacheBriefing() async {
+        guard !briefingSections.isEmpty else { return }
+        let briefingData = BriefingData(
+            sections: briefingSections,
+            generatedAt: Date(),
+            latencyMs: 0
+        )
+        await cache.setBriefing(briefingData)
+    }
+
+    /// Load briefing from TTLCache (instant, no network).
+    private func loadFromCache() async {
+        if let cached: BriefingData = await cache.getBriefing() {
+            briefingSections = cached.sections
+            // AI summary lives in BriefingViewModel.aiDaySummary, not in BriefingData
+            // Re-derive from sections if available
+            updateNetworkBadge()
+        }
     }
 
     private func updateNetworkBadge() {
@@ -213,6 +257,8 @@ final class BriefingViewModel: ObservableObject {
     // MARK: - Data fetchers (with cache fallback)
 
     private func fetchWeather() async -> WeatherData? {
+        // Respect weather_enabled setting
+        guard weatherEnabled else { return nil }
         if localOnly {
             return await cache.getWeather()
         }
@@ -227,6 +273,8 @@ final class BriefingViewModel: ObservableObject {
     }
 
     private func fetchHealth() async -> HealthData? {
+        // Respect health_enabled setting
+        guard healthEnabled else { return nil }
         // localOnly: skip live HealthKit fetch, only use cache
         if localOnly {
             return await cache.getHealth()
@@ -259,6 +307,8 @@ final class BriefingViewModel: ObservableObject {
     }
 
     private func fetchCalendar() async -> [CalendarEvent] {
+        // Respect calendar_enabled setting
+        guard calendarEnabled else { return [] }
         // localOnly: skip live Calendar fetch, only use cache
         if localOnly {
             return await cache.getCalendar() ?? []
@@ -278,6 +328,8 @@ final class BriefingViewModel: ObservableObject {
     }
 
     private func fetchRSS() async -> [RSSFeedData] {
+        // Respect headlines_enabled setting
+        guard headlinesEnabled else { return [] }
         if localOnly {
             return await cache.getRSSFeeds() ?? []
         }
@@ -416,8 +468,9 @@ final class BriefingViewModel: ObservableObject {
     /// All fetches route through Polygon.io — one API for both stocks and crypto.
     /// Retries once on 429 with 1s backoff before falling back to cache.
     private func fetchViaPolygon(symbol: String) async -> SymbolData? {
-        guard let key = Bundle.main.object(forInfoDictionaryKey: "POLYGON_API_KEY") as? String,
+        guard let key = KeychainHelper.get(.polygonAPIKey),
               !key.isEmpty else {
+            print("[BriefingViewModel] Polygon API key not found in Keychain. Set it in Settings.")
             return nil
         }
         guard let url = URL(

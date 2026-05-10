@@ -16,7 +16,18 @@ struct MarketsView: View {
             }
             .navigationTitle("Markets")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { EditButton() }
+            .toolbar {
+                EditButton()
+                if viewModel.isLoadingPrices {
+                    ProgressView()
+                } else {
+                    Button {
+                        Task { await viewModel.fetchLivePrices() }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                }
+            }
             .safeAreaInset(edge: .bottom) {
                 if isFieldFocused {
                     HStack {
@@ -36,6 +47,8 @@ struct MarketsView: View {
                 withAnimation(.easeOut(duration: 0.35)) {
                     hasAppeared = true
                 }
+                // Fetch live prices on appear
+                await viewModel.fetchLivePrices()
             }
             .opacity(hasAppeared ? 1 : 0)
             .offset(y: hasAppeared ? 0 : 12)
@@ -48,6 +61,7 @@ struct MarketsView: View {
                 SymbolRowView(
                     item: item,
                     sparklineData: viewModel.sparklineData(for: item.symbol),
+                    isEstimated: viewModel.isEstimated(for: item.symbol),
                     delay: Double(index) * AppAnimation.cardStaggerDelay,
                     onDelete: { viewModel.remove(item.symbol) },
                     onPriceChange: { price in viewModel.updatePrice(for: item.symbol, price: price) }
@@ -105,6 +119,10 @@ struct MarketsView: View {
 @MainActor
 final class MarketsViewModel: ObservableObject {
     @Published var trackedSymbols: [TrackedSymbol] = []
+    @Published var prices: [String: (price: Double, change: Double)] = [:]  // symbol → (price, change24h%)
+    @Published var isLoadingPrices = false
+
+    // MARK: - Load symbols
 
     func load() {
         let data = UserDefaults.standard.data(forKey: "tracked_symbols") ?? Data()
@@ -129,6 +147,7 @@ final class MarketsViewModel: ObservableObject {
 
     func remove(_ symbol: String) {
         trackedSymbols.removeAll { $0.symbol == symbol }
+        prices.removeValue(forKey: symbol)
         save()
     }
 
@@ -139,13 +158,82 @@ final class MarketsViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Fetch live prices from Polygon.io
+
+    func fetchLivePrices() async {
+        guard let apiKey = KeychainHelper.get(.polygonAPIKey), !apiKey.isEmpty else {
+            print("[MarketsViewModel] No Polygon API key — prices unavailable")
+            return
+        }
+
+        isLoadingPrices = true
+        defer { isLoadingPrices = false }
+
+        await withTaskGroup(of: (String, Double, Double)?.self) { group in
+            for symbol in trackedSymbols.map({ $0.symbol }) {
+                group.addTask {
+                    if let data = await self.fetchPolygonPrev(symbol: symbol, apiKey: apiKey) {
+                        return (symbol, data.price, data.change)
+                    }
+                    return nil
+                }
+            }
+            for await result in group {
+                if let (symbol, price, change) = result {
+                    prices[symbol] = (price, change)
+                }
+            }
+        }
+    }
+
+    private func fetchPolygonPrev(symbol: String, apiKey: String) async -> (price: Double, change: Double)? {
+        let upper = symbol.uppercased()
+        let polygonSymbol = cryptoSymbols.contains(upper) ? "X:\(upper)USD" : upper
+
+        guard let url = URL(string: "https://api.polygon.io/v2/aggs/ticker/\(polygonSymbol)/prev?adjusted=true&apiKey=\(apiKey)") else {
+            return nil
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            if let http = response as? HTTPURLResponse, http.statusCode == 429 { return nil }
+
+            guard let json = try? JSONDecoder().decode(PolygonAggResponse.self, from: data),
+                  let result = json.results.first, result.c > 0, result.o > 0 else {
+                return nil
+            }
+            let change = ((result.c - result.o) / result.o) * 100
+            return (result.c, change)
+        } catch {
+            return nil
+        }
+    }
+
+    private struct PolygonAggResponse: Codable {
+        let results: [PolygonAggResult]
+    }
+
+    private struct PolygonAggResult: Codable {
+        let o: Double
+        let c: Double
+    }
+
+    private var cryptoSymbols: Set<String> {
+        ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "DOGE", "DOT", "AVAX", "LINK"]
+    }
+
+    // MARK: - Sparkline — seeded demo, shown when no live price available
+
     func sparklineData(for symbol: String) -> [Double] {
-        // Mix symbol hash with day-of-year so the shape varies each day
+        // If we have a live price, don't show fake sparkline — return empty
+        guard prices[symbol] == nil else { return [] }
+
+        // Demo sparkline: mix symbol hash with day-of-year so shape varies daily
         let dayComponent = Int(Date().timeIntervalSince1970 / 86400)
         var generator = SeededRandom(seed: symbol.hashValue ^ dayComponent)
         var values: [Double] = []
         let basePrice: Double = {
-            switch symbol {
+            switch symbol.uppercased() {
             case "BTC": return 67500
             case "SPY": return 520
             case "AAPL": return 185
@@ -160,6 +248,11 @@ final class MarketsViewModel: ObservableObject {
             values.append(value)
         }
         return values
+    }
+
+    /// True when showing estimated/demo sparkline data (no live price available)
+    func isEstimated(for symbol: String) -> Bool {
+        return prices[symbol] == nil
     }
 }
 
@@ -181,17 +274,23 @@ private struct SeededRandom {
 private struct SymbolRowView: View {
     let item: TrackedSymbol
     let sparklineData: [Double]
+    let isEstimated: Bool
     let delay: Double
     let onDelete: () -> Void
     let onPriceChange: (Double) -> Void
 
     @State private var priceText: String = ""
+    @State private var pressScale: CGFloat = 1.0
     @FocusState private var isPriceFocused: Bool
 
     private var trend: NumberText.Trend {
         guard sparklineData.count >= 2 else { return .neutral }
         let diff = sparklineData.last! - sparklineData.first!
         return diff > 0 ? .up : (diff < 0 ? .down : .neutral)
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
     var body: some View {
@@ -203,37 +302,58 @@ private struct SymbolRowView: View {
                     .foregroundStyle(Color.warmTextPrimary)
 
                 if let ep = item.entryPrice {
-                    NumberText(value: ep, format: "%.2f", trend: trend)
+                    Text("Entry: $\(String(format: "%.2f", ep))")
+                        .font(.caption)
+                        .foregroundStyle(Color.warmTextSecondary)
                 }
             }
 
             Spacer()
 
+            // Live price + change OR demo sparkline
             if !sparklineData.isEmpty {
-                SparklineView(
-                    dataPoints: sparklineData,
-                    color: trend == .up ? Color.warmPositive : (trend == .down ? Color.warmNegative : Color.warmSecondaryAccent),
-                    showGradient: true
-                )
-                .frame(width: 80, height: 30)
-                .cardEntrance(delay: delay + 0.1)
+                VStack(alignment: .trailing, spacing: 2) {
+                    SparklineView(
+                        dataPoints: sparklineData,
+                        color: trend == .up ? Color.warmPositive : (trend == .down ? Color.warmNegative : Color.warmSecondaryAccent),
+                        showGradient: true
+                    )
+                    .frame(width: 80, height: 30)
+                    .cardEntrance(delay: delay + 0.1)
+                    if isEstimated {
+                        Text("demo")
+                            .font(.system(size: 8))
+                            .foregroundStyle(Color.warmTextSecondary.opacity(0.6))
+                    }
+                }
             }
 
+            // Entry price input
             TextField("Entry $", text: $priceText)
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
                 .frame(width: 80)
                 .focused($isPriceFocused)
+                .scaleEffect(pressScale)
+                .toolbar {
+                    ToolbarItem(placement: .keyboard) {
+                        HStack {
+                            Spacer()
+                            Button("Done") {
+                                let val = Double(priceText)
+                                if let v = val, v > 0 {
+                                    onPriceChange(v)
+                                }
+                                isPriceFocused = false
+                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                            }
+                        }
+                    }
+                }
                 .onChange(of: isPriceFocused) { _, focused in
                     if focused {
                         priceText = item.entryPrice == nil ? "" : String(format: "%.2f", item.entryPrice!)
                     }
-                }
-                .onSubmit {
-                    if let val = Double(priceText) {
-                        onPriceChange(val)
-                    }
-                    isPriceFocused = false
                 }
         }
         .padding(.vertical, 8)
@@ -241,6 +361,19 @@ private struct SymbolRowView: View {
             Button("Delete", role: .destructive) { onDelete() }
         }
         .cardEntrance(delay: delay)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                        pressScale = 0.98
+                    }
+                }
+                .onEnded { _ in
+                    withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                        pressScale = 1.0
+                    }
+                }
+        )
     }
 }
 

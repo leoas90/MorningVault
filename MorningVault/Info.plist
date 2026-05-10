@@ -27,8 +27,7 @@
 	<string>MorningVault reads your health data — including sleep, steps, heart rate, and HRV — to include in your morning briefing. Data stays on your device and is never shared.</string>
 	<key>com.apple.developer.ios.user-data-access</key>
 	<string>MorningVault requires user data access for health and calendar integration.</string>
-	<key>POLYGON_API_KEY</key>
-	<string>x9zFmCXzZkM4QLqQwWFHQA9M0A9pk9RN</string>
+	
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

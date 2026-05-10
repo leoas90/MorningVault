@@ -168,6 +168,7 @@ struct SymbolChip: View {
     let onTap: () -> Void
 
     @State private var hasAppeared = false
+    @State private var pressScale: CGFloat = 1.0
 
     var body: some View {
         Button(action: onTap) {
@@ -184,16 +185,24 @@ struct SymbolChip: View {
             .background(isSelected ? Color.accentColor : Color(uiColor: .secondarySystemBackground))
             .foregroundStyle(isSelected ? .white : .primary)
             .clipShape(RoundedRectangle(cornerRadius: 10))
-            .scaleEffect(hasAppeared ? 1 : 0.7)
+            .scaleEffect(hasAppeared ? pressScale : 0.7)
             .opacity(hasAppeared ? 1 : 0)
         }
         .buttonStyle(.plain)
-        .onChange(of: isSelected) { _, newValue in
-            guard hasAppeared else { return }
-            withAnimation(.spring(response: 0.25, dampingFraction: 0.6)) {
-                // chip tap feedback handled by scale
-            }
-        }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    guard hasAppeared else { return }
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.6)) {
+                        pressScale = 0.97
+                    }
+                }
+                .onEnded { _ in
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
+                        pressScale = 1.0
+                    }
+                }
+        )
         .onAppear {
             guard !UIAccessibility.isReduceMotionEnabled else {
                 hasAppeared = true

@@ -181,9 +181,12 @@ final class AIService {
         // Replace raw HRV values (e.g., "HRV: 42ms") with qualitative bands
         if let hrvRange = content.range(of: "HRV: \\d+ms?", options: .regularExpression) {
             let hrvSubstring = String(content[hrvRange])
-            // Extract the numeric value
-            if let digits = hrvSubstring.components(separatedBy: CharacterSet.decimalDigits.inverted)
-                .compactMap({ Int($0) }).first {
+            // Extract the numeric value using regex capture group
+            let digitsPattern = "HRV: (\\d+)ms?"
+            if let regex = try? NSRegularExpression(pattern: digitsPattern),
+               let match = regex.firstMatch(in: hrvSubstring, range: NSRange(hrvSubstring.startIndex..., in: hrvSubstring)),
+               let range = Range(match.range(at: 1), in: hrvSubstring) {
+                let digits = Int(hrvSubstring[range]) ?? 0
                 let band: String
                 if digits < 20 { band = "low" }
                 else if digits < 40 { band = "moderate" }
@@ -214,8 +217,11 @@ final class AIService {
         // Replace exact step counts with activity bands
         if let stepsRange = content.range(of: "Today: \\d+ steps", options: .regularExpression) {
             let stepsSubstring = String(content[stepsRange])
-            if let digits = stepsSubstring.components(separatedBy: CharacterSet.decimalDigits.inverted)
-                .compactMap({ Int($0) }).first {
+            let digitsPattern = "Today: (\\d+) steps"
+            if let regex = try? NSRegularExpression(pattern: digitsPattern),
+               let match = regex.firstMatch(in: stepsSubstring, range: NSRange(stepsSubstring.startIndex..., in: stepsSubstring)),
+               let range = Range(match.range(at: 1), in: stepsSubstring) {
+                let digits = Int(stepsSubstring[range]) ?? 0
                 let band: String
                 if digits < 3000 { band = "low activity" }
                 else if digits < 7000 { band = "moderate activity" }
