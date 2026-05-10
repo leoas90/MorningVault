@@ -21,33 +21,19 @@ final class RSSService: ObservableObject {
         "npr": "https://feeds.npr.org/1001/rss.xml",
         "the-verge": "https://www.theverge.com/rss/index.xml",
         "wired": "https://www.wired.com/feed/rss",
-        "bloomberg": "https://feeds.bloomberg.com/markets/news.rss"
+        "mit": "https://news.mit.edu/rss/research"
     ]
 
-    // MARK: - Cache
+    /// Sources with default enabled state
+    private let defaultEnabledSources = ["hacker-news"]
 
-    private func cacheFeeds(_ feeds: [RSSFeedData]) {
-        if let data = try? JSONEncoder().encode(feeds) {
-            UserDefaults.standard.set(data, forKey: rssCacheKey)
-        }
-    }
-
-    private func getCachedFeeds() -> [RSSFeedData] {
-        guard let data = UserDefaults.standard.data(forKey: rssCacheKey),
-              let feeds = try? JSONDecoder().decode([RSSFeedData].self, from: data) else {
-            return []
-        }
-        return feeds
-    }
-
-    // MARK: - Fetch All Feeds
+    // MARK: - Public API
 
     func fetchAllFeeds() async -> [RSSFeedData] {
         if UserDefaults.standard.bool(forKey: "local_only") {
             return getCachedFeeds()
         }
-        let selectedIds = loadSelectedSources()
-        await fetchFeeds(ids: selectedIds)
+        _ = await fetchFeeds(ids: loadSelectedSources())
         return feeds
     }
 
@@ -58,7 +44,7 @@ final class RSSService: ObservableObject {
             if !cached.isEmpty { return cached }
         }
 
-        let results: [RSSFeedData] = await withTaskGroup(of: RSSFeedData?.self) { group in
+        let collected: [RSSFeedData] = await withTaskGroup(of: RSSFeedData?.self) { group in
             for id in ids {
                 guard let urlString = sourceURLs[id] else { continue }
                 group.addTask {
@@ -72,12 +58,14 @@ final class RSSService: ObservableObject {
                     results.append(feed)
                 }
             }
-            await MainActor.run { feeds = results
-                cacheFeeds(results)
-            }
             return results
         }
-        return results
+
+        await MainActor.run {
+            feeds = collected
+            cacheFeeds(collected)
+        }
+        return collected
     }
 
     private func loadSelectedSources() -> [String] {
@@ -101,9 +89,9 @@ final class RSSService: ObservableObject {
             "npr": "NPR",
             "the-verge": "The Verge",
             "wired": "Wired",
-            "bloomberg": "Bloomberg"
+            "mit": "MIT News"
         ]
-        return names[id] ?? id.capitalized
+        return names[id] ?? id
     }
 
     // MARK: - Fetch Single Feed
@@ -113,161 +101,170 @@ final class RSSService: ObservableObject {
 
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
-            return parseFeed(name: name, data: data)
+            let articles = parseFeed(data: data, sourceName: name)
+
+            return RSSFeedData(
+                id: name.lowercased().replacingOccurrences(of: " ", with: "-"),
+                sourceName: name,
+                articles: articles
+            )
         } catch {
-            await MainActor.run { lastError = "Failed to fetch \(name): \(error.localizedDescription)" }
             return nil
         }
     }
 
-    // MARK: - Parse RSS/Atom
+    // MARK: - XML Parsing
 
-    private func parseFeed(name: String, data: Data) -> RSSFeedData {
-        let parser = RSSParser(data: data)
-        let articles = parser.parse()
-        return RSSFeedData(id: name.lowercased().replacingOccurrences(of: " ", with: "-"),
-                           sourceName: name,
-                           articles: articles)
-    }
-}
+    private func parseFeed(data: Data, sourceName: String) -> [RSSArticle] {
+        guard let xmlString = String(data: data, encoding: .utf8) else { return [] }
 
-// MARK: - Simple on-device RSS/Atom Parser
-
-final class RSSParser {
-    private let data: Data
-
-    init(data: Data) {
-        self.data = data
-    }
-
-    func parse() -> [RSSArticle] {
-        if let articles = parseRSS2() { return articles }
-        if let articles = parseAtom() { return articles }
+        // Try RSS2 first
+        if let articles = parseRSS2(xmlString, source: sourceName) {
+            return articles
+        }
+        // Fall back to Atom
+        if let articles = parseAtom(xmlString, source: sourceName) {
+            return articles
+        }
         return []
     }
 
-    private func parseRSS2() -> [RSSArticle]? {
-        guard let xmlString = String(data: data, encoding: .utf8) else { return nil }
-        guard xmlString.contains("<rss") else { return nil }
-
+    private func parseRSS2(_ xml: String, source: String) -> [RSSArticle]? {
         var articles: [RSSArticle] = []
-        let itemPattern = #"<item>(.*?)</item>"#
-        guard let regex = try? NSRegularExpression(pattern: itemPattern, options: [.dotMatchesLineSeparators]) else { return nil }
-        let range = NSRange(xmlString.startIndex..., in: xmlString)
-        let matches = regex.matches(in: xmlString, options: [], range: range)
 
-        for match in matches.prefix(10) {
-            guard let itemRange = Range(match.range(at: 1), in: xmlString) else { continue }
-            let itemXML = String(xmlString[itemRange])
-
-            let title = extractTag("title", from: itemXML)
-            let link = extractTag("link", from: itemXML)
-            let description = extractTag("description", from: itemXML)
-            let pubDate = extractTag("pubDate", from: itemXML)
-
-            guard !title.isEmpty else { continue }
-
-            articles.append(RSSArticle(
-                id: link.hashValue.description,
-                title: cleanHTML(title),
-                url: link,
-                publishedAt: parseDate(pubDate),
-                summary: cleanHTML(description).prefix(200).description
-            ))
+        // Use NSRegularExpression for better XML parsing
+        guard let regex = try? NSRegularExpression(pattern: "<item>(.*?)</item>", options: [.dotMatchesLineSeparators]) else {
+            return nil
         }
 
-        return articles
-    }
-
-    private func parseAtom() -> [RSSArticle]? {
-        guard let xmlString = String(data: data, encoding: .utf8) else { return nil }
-        guard xmlString.contains("<feed") else { return nil }
-
-        var articles: [RSSArticle] = []
-        let entryPattern = #"<entry>(.*?)</entry>"#
-        guard let regex = try? NSRegularExpression(pattern: entryPattern, options: [.dotMatchesLineSeparators]) else { return nil }
-        let range = NSRange(xmlString.startIndex..., in: xmlString)
-        let matches = regex.matches(in: xmlString, options: [], range: range)
-
-        for match in matches.prefix(10) {
-            guard let entryRange = Range(match.range(at: 1), in: xmlString) else { continue }
-            let entryXML = String(xmlString[entryRange])
-
-            let title = extractTag("title", from: entryXML)
-            let link = extractAtomLink(from: entryXML)
-            let summary = extractTag("summary", from: entryXML)
-            let updated = extractTag("updated", from: entryXML)
-
-            guard !title.isEmpty else { continue }
-
-            articles.append(RSSArticle(
-                id: link.hashValue.description,
-                title: cleanHTML(title),
-                url: link,
-                publishedAt: parseDate(updated),
-                summary: cleanHTML(summary).prefix(200).description
-            ))
-        }
-
-        return articles
-    }
-
-    private func extractTag(_ tag: String, from xml: String) -> String {
-        let pattern = "<\(tag)[^>]*><!\\[CDATA\\[(.*?)\\]\\]></\(tag)>|<\(tag)[^>]*>(.*?)</\(tag)>"
-        let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
         let range = NSRange(xml.startIndex..., in: xml)
-        if let match = regex?.firstMatch(in: xml, options: [], range: range) {
+        let matches = regex.matches(in: xml, options: [], range: range)
+
+        for match in matches.prefix(10) {
+            guard let itemRange = Range(match.range(at: 1), in: xml) else { continue }
+            let itemXML = String(xml[itemRange])
+
+            guard let title = extractTag("title", from: itemXML),
+                  let link = extractTag("link", from: itemXML) else { continue }
+
+            let pubDate = extractTag("pubDate", from: itemXML).flatMap { parseDate($0) }
+            let summary = extractTag("description", from: itemXML).map { stripHTML($0) }
+
+            articles.append(RSSArticle(
+                id: link,
+                title: title,
+                url: link,
+                publishedAt: pubDate,
+                summary: summary
+            ))
+        }
+
+        return articles.isEmpty ? nil : articles
+    }
+
+    private func parseAtom(_ xml: String, source: String) -> [RSSArticle]? {
+        var articles: [RSSArticle] = []
+
+        guard let regex = try? NSRegularExpression(pattern: "<entry>(.*?)</entry>", options: [.dotMatchesLineSeparators]) else {
+            return nil
+        }
+
+        let range = NSRange(xml.startIndex..., in: xml)
+        let matches = regex.matches(in: xml, options: [], range: range)
+
+        for match in matches.prefix(10) {
+            guard let entryRange = Range(match.range(at: 1), in: xml) else { continue }
+            let entryXML = String(xml[entryRange])
+
+            guard let title = extractTag("title", from: entryXML) else { continue }
+            let link = extractTag("link", from: entryXML) ?? extractAtomLink(entryXML)
+            let pubDate = extractTag("published", from: entryXML).flatMap { parseDate($0) }
+            let summary = extractTag("summary", from: entryXML).map { stripHTML($0) }
+
+            articles.append(RSSArticle(
+                id: link ?? UUID().uuidString,
+                title: title,
+                url: link ?? "",
+                publishedAt: pubDate,
+                summary: summary
+            ))
+        }
+
+        return articles.isEmpty ? nil : articles
+    }
+
+    private func extractTag(_ tag: String, from xml: String) -> String? {
+        let pattern = "<\(tag)><!\\[CDATA\\[([^\\]]*)\\]\\]></\(tag)>|<\(tag)>([^<]*)</\(tag)>"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return nil }
+        let range = NSRange(xml.startIndex..., in: xml)
+
+        if let match = regex.firstMatch(in: xml, options: [], range: range) {
             for i in 1..<match.numberOfRanges {
                 if let r = Range(match.range(at: i), in: xml) {
                     return String(xml[r]).trimmingCharacters(in: .whitespacesAndNewlines)
                 }
             }
         }
-        return ""
+        return nil
     }
 
-    private func extractAtomLink(from xml: String) -> String {
-        let pattern = ##"<link[^>]*href=["']([^"']+)["'][^>]*>"##
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return "" }
+    private func extractAtomLink(_ xml: String) -> String? {
+        let pattern = "<link[^>]*href=[\"']([^\"']*)[\"'][^>]*>"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else { return nil }
         let range = NSRange(xml.startIndex..., in: xml)
+
         if let match = regex.firstMatch(in: xml, options: [], range: range),
            let r = Range(match.range(at: 1), in: xml) {
             return String(xml[r])
         }
-        return ""
+        return nil
     }
 
-    private func cleanHTML(_ text: String) -> String {
-        text.replacingOccurrences(of: #"<[^>]+>"# , with: "", options: .regularExpression)
+    private func parseDate(_ string: String) -> Date? {
+        let formatters: [DateFormatter] = {
+            let rfc822 = DateFormatter()
+            rfc822.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+            rfc822.locale = Locale(identifier: "en_US_POSIX")
+
+            let iso8601 = DateFormatter()
+            iso8601.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+            iso8601.locale = Locale(identifier: "en_US_POSIX")
+
+            return [rfc822, iso8601]
+        }()
+
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        for formatter in formatters {
+            if let date = formatter.date(from: trimmed) {
+                return date
+            }
+        }
+        return nil
+    }
+
+    private func stripHTML(_ html: String) -> String {
+        html.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "&nbsp;", with: " ")
             .replacingOccurrences(of: "&amp;", with: "&")
             .replacingOccurrences(of: "&lt;", with: "<")
             .replacingOccurrences(of: "&gt;", with: ">")
             .replacingOccurrences(of: "&quot;", with: "\"")
-            .replacingOccurrences(of: "&#8216;", with: "'")
-            .replacingOccurrences(of: "&#8217;", with: "'")
-            .replacingOccurrences(of: "&#39;", with: "'")
-            .replacingOccurrences(of: "&nbsp;", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func parseDate(_ string: String) -> Date? {
-        let formatters: [DateFormatter] = [
-            {
-                let f = DateFormatter()
-                f.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
-                f.locale = Locale(identifier: "en_US_POSIX")
-                return f
-            }(),
-            {
-                let f = DateFormatter()
-                f.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-                f.locale = Locale(identifier: "en_US_POSIX")
-                return f
-            }()
-        ]
-        for f in formatters {
-            if let d = f.date(from: string) { return d }
+    // MARK: - Cache
+
+    private func getCachedFeeds() -> [RSSFeedData] {
+        guard let data = UserDefaults.standard.data(forKey: rssCacheKey),
+              let feeds = try? JSONDecoder().decode([RSSFeedData].self, from: data) else {
+            return []
         }
-        return nil
+        return feeds
+    }
+
+    private func cacheFeeds(_ feeds: [RSSFeedData]) {
+        if let encoded = try? JSONEncoder().encode(feeds) {
+            UserDefaults.standard.set(encoded, forKey: rssCacheKey)
+        }
     }
 }

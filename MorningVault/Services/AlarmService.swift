@@ -19,7 +19,7 @@ final class AlarmService: ObservableObject {
 
     func requestAuthorization() async {
         do {
-            let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
+            _ = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
             await refreshAuthorizationState()
         } catch {
             lastError = "Authorization failed: \(error.localizedDescription)"

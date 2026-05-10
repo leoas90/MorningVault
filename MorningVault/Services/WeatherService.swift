@@ -86,26 +86,25 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
     private func reverseGeocodeToCity(location: CLLocation) async {
         if #available(iOS 26.0, *) {
             guard let request = MKReverseGeocodingRequest(location: location) else { return }
-            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                request.getMapItems { [weak self] mapItems, error in
-                    defer { continuation.resume() }
-                    guard let self = self, let item = mapItems?.first else { return }
-                    let city = item.addressRepresentations?.cityName
-                        ?? item.addressRepresentations?.cityWithContext
-                        ?? item.placemark.locality
-                        ?? item.placemark.administrativeArea
-                        ?? "Unknown"
-                    Task { @MainActor in
-                        self.approximateLocation = city
+            let city: String = await withCheckedContinuation { (continuation: CheckedContinuation<String, Never>) in
+                request.getMapItems { mapItems, error in
+                    guard let item = mapItems?.first else {
+                        continuation.resume(returning: "Unknown")
+                        return
                     }
+                    let resolved = item.addressRepresentations?.cityName
+                        ?? item.addressRepresentations?.cityWithContext
+                        ?? "Unknown"
+                    continuation.resume(returning: resolved)
                 }
             }
+            approximateLocation = city
         } else {
             let geocoder = CLGeocoder()
             if let placemarks = try? await geocoder.reverseGeocodeLocation(location),
                let placemark = placemarks.first {
-                let city = placemark.locality ?? placemark.administrativeArea ?? "Unknown"
-                await MainActor.run { self.approximateLocation = city }
+                let resolved = placemark.locality ?? placemark.administrativeArea ?? "Unknown"
+                approximateLocation = resolved
             }
         }
     }
