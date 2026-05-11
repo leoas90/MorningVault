@@ -55,6 +55,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Resolve SPM dependencies
+        run: xcodebuild -project MorningVault.xcodeproj -scheme MorningVault -resolvePackageDependencies
+
       - name: Create directory for private key
         run: mkdir -p ~/.appstoreconnect/private_keys
 
@@ -71,7 +74,10 @@ jobs:
             -scheme MorningVault \
             -configuration Release \
             -archivePath build/MorningVault.xcarchive \
-            archive CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+            archive \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
 
       - name: Upload to TestFlight
         env:
