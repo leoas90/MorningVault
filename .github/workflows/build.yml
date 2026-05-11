@@ -3,6 +3,7 @@ name: Build
 on:
   push:
     branches: [main, master]
+    tags: ['*']
   pull_request:
     branches: [main, master]
 
@@ -46,7 +47,7 @@ jobs:
   testflight:
     runs-on: macos-14
     needs: build
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/')
 
     steps:
       - name: Select Xcode
