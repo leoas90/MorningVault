@@ -93,6 +93,7 @@ struct OnboardingNameStep: View {
 
             Spacer()
         }
+        .dismissKeyboardOnTap()
         .onTapGesture {
             isTextFieldFocused = false
         }

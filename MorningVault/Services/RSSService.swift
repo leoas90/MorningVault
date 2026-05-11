@@ -27,7 +27,7 @@ final class RSSService: ObservableObject {
             if !cached.isEmpty { return cached }
         }
 
-        let results = await withTaskGroup(of: [RSSFeedData].self) { group in
+        let results = await withTaskGroup(of: RSSFeedData?.self) { group in
             for source in sources {
                 group.addTask {
                     await self.fetchFeed(source: source)

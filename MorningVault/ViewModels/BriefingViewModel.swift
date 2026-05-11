@@ -20,7 +20,10 @@ final class BriefingViewModel: ObservableObject {
     @Published var lastError: String?
     @Published var networkBadge: NetworkBadge = .local
     @Published var aiDaySummary: String? = nil
+    @Published var meetingPrep: MeetingPrep? = nil
     @Published var permissionDenied: [String] = []  // services that were denied
+
+    private let meetingPrepService = MeetingPrepService.shared
 
     @AppStorage("local_only") private var localOnly = false
     @AppStorage("health_enabled") private var healthEnabled = true
@@ -33,6 +36,8 @@ final class BriefingViewModel: ObservableObject {
     private let weatherService = WeatherService.shared
     private let rssService = RSSService.shared
     private let cache = sharedCache
+
+    private let voiceBriefingService = VoiceBriefingService.shared
 
     // MARK: - Latency instrumentation
 
@@ -169,18 +174,44 @@ final class BriefingViewModel: ObservableObject {
 
         // RSS headlines
         if !rssFeeds.isEmpty {
-            let headlines = rssFeeds.flatMap { $0.articles }.prefix(5).map { "• \($0.title)" }.joined(separator: "\n")
-            sections.append(BriefingSection(
+            let allArticles = rssFeeds.flatMap { $0.articles }
+            let unreadCount = NewsReadStateTracker.shared.unreadCount(in: rssFeeds)
+            let headlines = allArticles.prefix(5).map { "• \($0.title)" }.joined(separator: "\n")
+            let section = BriefingSection(
                 id: "headlines",
-                title: "Headlines",
+                title: unreadCount > 0 ? "Headlines (\(unreadCount) new)" : "Headlines",
                 icon: "📰",
                 content: headlines,
-                sentiment: nil
-            ))
+                sentiment: nil,
+                rssFeed: RSSFeedData(id: "headlines", sourceName: "News", articles: Array(allArticles))
+            )
+            sections.append(section)
         }
 
-        briefingSections = sections
+        // Apply template-based priority to each section, then sort
+        let templateRaw = UserDefaults.standard.string(forKey: "briefing_template") ?? BriefingTemplate.standard.rawValue
+        let template = BriefingTemplate(rawValue: templateRaw) ?? .standard
+        for i in sections.indices {
+            sections[i].priority = template.sectionPriority(for: sections[i].id)
+        }
+        // Sort: enabled sections first (ascending priority), then by template order
+        let enabledSections = sections.filter { isSectionEnabled($0.id) }.sorted { $0.priority < $1.priority }
+        let disabledSections = sections.filter { !isSectionEnabled($0.id) }.sorted { $0.priority < $1.priority }
+
+        briefingSections = enabledSections + disabledSections
         updateNetworkBadge()
+    }
+
+    /// Returns true if a section's data source toggle is enabled.
+    private func isSectionEnabled(_ sectionId: String) -> Bool {
+        switch sectionId {
+        case "health":    return healthEnabled
+        case "calendar":  return calendarEnabled
+        case "weather":   return weatherEnabled
+        case "headlines": return headlinesEnabled
+        case "markets":   return true  // markets section always shown if data available
+        default:          return true
+        }
     }
 
     // MARK: - Generate AI-enhanced briefing
@@ -210,6 +241,17 @@ final class BriefingViewModel: ObservableObject {
 
         // Persist full briefing to cache so app can display instantly when opened from notification
         await cacheBriefing()
+
+        // Load meeting prep (Feature #1) — skip if first meeting > 2 hours away
+        meetingPrep = await meetingPrepService.prepareMeetingPrep()
+
+        // Archive briefing for history (Feature 11)
+        await briefingArchive.archiveBriefing(
+            sections: briefingSections,
+            aiSummary: aiDaySummary,
+            mood: nil,  // Mood set separately via MorningMoodView
+            highlights: []
+        )
     }
 
     /// Silent refresh — loads from cache first (instant), then does a live refresh in background.
@@ -283,8 +325,10 @@ final class BriefingViewModel: ObservableObject {
             return cached
         }
         _ = await healthService.requestAuthorization()
-        // Check if user denied HealthKit access
-        if !healthService.isAuthorized {
+        // Give HealthKit a moment to update published state, then check via async method
+        try? await Task.sleep(nanoseconds: 500_000_000)
+        let authorized = await healthService.isAuthorizedForHealthData()
+        if !authorized {
             await MainActor.run { self.permissionDenied.append("health") }
             return nil
         }
@@ -451,70 +495,120 @@ final class BriefingViewModel: ObservableObject {
 
     // MARK: - Symbol data fetchers — Polygon.io unified (stocks + crypto)
 
-    /// Unified fetcher: all symbols via Polygon.io AGG API.
-    /// - Stocks: AAPL, SPY, QQQ → polygon ticker = raw symbol
-    /// - Crypto: BTC, ETH, SOL → polygon ticker = X:{SYMBOL}USD
+    /// Unified fetcher: all symbols via the MorningVault backend proxy.
+    /// Backend handles Polygon.io call + server-side caching.
+    /// Falls back to local cache if backend is unreachable.
     private func fetchSymbolData(symbol: String) async -> SymbolData? {
-        let upper = symbol.uppercased()
-        // Crypto pairs need X: prefix and USD suffix on Polygon
-        if cryptoSymbols.contains(upper) {
-            let polygonSymbol = "X:\(upper)USD"
-            return await fetchViaPolygon(symbol: polygonSymbol)
+        // Try backend first
+        if let data = await fetchFromBackend(symbol: symbol) {
+            return data
         }
-        // Stocks go through as-is
-        return await fetchViaPolygon(symbol: upper)
+        // Fallback to local cache
+        return await cache.getSymbolPrice(symbol).map {
+            SymbolData(price: $0.price, change24h: $0.change24h)
+        }
+    }
+
+    /// Calls the MorningVault backend proxy for market data.
+    /// Backend -> Polygon.io (paid tier) + server-side cache.
+    private func fetchFromBackend(symbol: String) async -> SymbolData? {
+        guard let baseURL = UserDefaults.standard.string(forKey: "market_backend_url"),
+              !baseURL.isEmpty,
+              let url = URL(string: "\(baseURL)/market/\(symbol.uppercased())") else {
+            // Backend URL not configured — fall back to local cache
+            return nil
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
+            let decoder = JSONDecoder()
+            let market = try decoder.decode(BackendMarketResponse.self, from: data)
+            // Cache the fresh data server-side
+            Task { await cache.setSymbolPrice(symbol, data: TTLCache.CachedSymbolData(
+                price: market.price, change24h: market.change24h, timestamp: Date())) }
+            return SymbolData(price: market.price, change24h: market.change24h)
+        } catch {
+            return nil
+        }
     }
 
     /// All fetches route through Polygon.io — one API for both stocks and crypto.
     /// Retries once on 429 with 1s backoff before falling back to cache.
     private func fetchViaPolygon(symbol: String) async -> SymbolData? {
-        guard let key = KeychainHelper.get(.polygonAPIKey),
-              !key.isEmpty else {
-            print("[BriefingViewModel] Polygon API key not found in Keychain. Set it in Settings.")
-            return nil
-        }
-        guard let url = URL(
-            string: "https://api.polygon.io/v2/aggs/ticker/\(symbol)/prev?adjusted=true&apiKey=\(key)"
-        ) else {
-            return nil
-        }
-
-        // First attempt
-        if let result = await attemptPolygonFetch(url: url) { return result }
-        // Retry once on 429
-        try? await Task.sleep(nanoseconds: 1_000_000_000)
-        return await attemptPolygonFetch(url: url)
+        // Deprecated: backend now calls Polygon.io directly.
+        // This stub exists only to avoid "unused function" warnings during migration.
+        // Will be removed once backend integration is verified in production.
+        return nil
     }
 
     private func attemptPolygonFetch(url: URL) async -> SymbolData? {
-        do {
-            let (data, response) = try await URLSession.shared.data(from: url)
-            if let http = response as? HTTPURLResponse, http.statusCode == 429 { return nil }
-            guard let json = try? JSONDecoder().decode(PolygonAggResponse.self, from: data),
-                  let result = json.results.first, result.c > 0, result.o > 0 else { return nil }
-            let change = ((result.c - result.o) / result.o) * 100
-            return SymbolData(price: result.c, change24h: change)
-        } catch {
-            return nil
-        }
+        return nil
     }
 }
 
-// MARK: - Polygon.io Response
+// MARK: - Backend + Network types
 
-private struct PolygonAggResponse: Codable {
-    let results: [PolygonAggResult]
+/// Response shape from the MorningVault backend /market/{symbol} endpoint.
+private struct BackendMarketResponse: Codable {
+    let symbol: String
+    let price: Double
+    let change24h: Double
+    let cached: Bool
+    let error: String?
 }
 
-private struct PolygonAggResult: Codable {
-    let o: Double  // open
-    let c: Double  // close
-}
-
-// MARK: - Network Badge
-
+/// Network badge — shows data freshness to user.
 enum NetworkBadge {
-    case local    // 🟢 green — all data local, zero network calls
-    case external // 🟡 yellow — external non-PII fetches active
-    case unknown  // gray
+    case local      // Served from cache (no live fetch)
+    case external   // Served from live external source (backend → Polygon)
+    case none       // No data loaded yet
+}
+
+// MARK: - Voice Briefing
+
+extension BriefingViewModel {
+    /// Generates an audio briefing from current sections.
+    /// Compiles weather, top 3 markets, calendar, and meeting prep summary into conversational text,
+    /// then uses VoiceBriefingService to speak it.
+    /// Returns a temp file URL if audio file generation is supported, otherwise nil.
+    func generateAudioBriefing() async -> URL? {
+        // Collect key sections for voice briefing
+        var voiceSections: [BriefingSection] = []
+
+        // Weather (first if available)
+        if let weatherSection = briefingSections.first(where: { $0.id == "weather" }) {
+            voiceSections.append(weatherSection)
+        }
+
+        // Markets (top section)
+        if let marketsSection = briefingSections.first(where: { $0.id == "markets" }) {
+            voiceSections.append(marketsSection)
+        }
+
+        // Calendar
+        if let calendarSection = briefingSections.first(where: { $0.id == "calendar" }) {
+            voiceSections.append(calendarSection)
+        }
+
+        // Health (if present)
+        if let healthSection = briefingSections.first(where: { $0.id == "health" }) {
+            voiceSections.append(healthSection)
+        }
+
+        guard !voiceSections.isEmpty else { return nil }
+
+        // Use the voice briefing service to generate audio
+        return await voiceBriefingService.generateAudioBriefing(from: voiceSections)
+    }
+
+    /// Speaks the briefing aloud using the warm voice.
+    func speakBriefingAloud() {
+        voiceBriefingService.speakBriefing(sections: briefingSections)
+    }
+
+    /// Stops any current voice briefing playback.
+    func stopVoiceBriefing() {
+        voiceBriefingService.stop()
+    }
 }

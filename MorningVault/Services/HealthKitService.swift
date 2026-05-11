@@ -16,9 +16,23 @@ final class HealthKitService: ObservableObject {
     /// Returns true only if health data is accessible and authorized.
     func isAuthorizedForHealthData() -> Bool {
         guard HKHealthStore.isHealthDataAvailable() else { return false }
-        let status = healthStore.authorizationStatus(for: HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!)
-        // HKAuthorizationStatus: .notDetermined(0), .sharingDenied(1), .sharingAuthorized(2)
-        return status == .sharingAuthorized
+        // For read access, authorizationStatus(for:) returns sharing status which is separate.
+        // Instead, verify by checking if we can actually execute a query without error.
+        // Quick sync check using semaphore — this method IS synchronous-safe.
+        let semaphore = DispatchSemaphore(value: 0)
+        var queryAuthorized = false
+        let stepType = HKObjectType.quantityType(forIdentifier: .stepCount)!
+        let query = HKStatisticsQuery(
+            quantityType: stepType,
+            quantitySamplePredicate: nil,
+            options: .cumulativeSum
+        ) { _, result, error in
+            queryAuthorized = (error == nil && result != nil)
+            semaphore.signal()
+        }
+        healthStore.execute(query)
+        _ = semaphore.wait(timeout: .now() + 2)
+        return queryAuthorized
     }
 
     func requestAuthorization() async -> Bool {

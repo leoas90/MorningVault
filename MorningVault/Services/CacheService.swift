@@ -88,7 +88,7 @@ actor TTLCache {
 
         func decode<T: Codable>(_ type: T.Type) -> T? {
             guard let decoded = try? JSONDecoder().decode(T.self, from: data) else {
-                print("[TTLCache] Failed to decode \(type) from cache — data may be corrupted")
+                // DEBUG: print("[TTLCache] Failed to decode \(type) from cache — data may be corrupted")
                 return nil
             }
             return decoded

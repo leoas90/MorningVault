@@ -34,7 +34,7 @@ struct MorningVaultApp: App {
     // MARK: - Deep Link Handling
 
     private func handleDeepLink(_ url: URL) {
-        print("[MorningVaultApp] Deep link: \(url)")
+        // DEBUG: print("[MorningVaultApp] Deep link: \(url)")
         if url.scheme == "morningvault" {
             NotificationCenter.default.post(name: .viewBriefingRequested, object: nil)
         }
@@ -52,12 +52,12 @@ struct MorningVaultApp: App {
     }
 
     private func handlePrecomputation(task: BGAppRefreshTask) {
-        print("[MorningVaultApp] 6:55 AM precomputation triggered")
+        // DEBUG: print("[MorningVaultApp] 6:55 AM precomputation triggered")
         schedulePrecomputation() // schedule next
 
         // GATE 4 fix: respect localOnly — no network fetches in background when enabled
         if UserDefaults.standard.bool(forKey: "local_only") {
-            print("[MorningVaultApp] localOnly=true — skipping precomputation network fetches")
+            // DEBUG: print("[MorningVaultApp] localOnly=true — skipping precomputation network fetches")
             task.setTaskCompleted(success: true)
             return
         }
@@ -87,9 +87,9 @@ struct MorningVaultApp: App {
 
         do {
             try BGTaskScheduler.shared.submit(request)
-            print("[MorningVaultApp] Precomputation scheduled for \(next6_55)")
+            // DEBUG: print("[MorningVaultApp] Precomputation scheduled for \(next6_55)")
         } catch {
-            print("[MorningVaultApp] Failed to schedule precomputation: \(error)")
+            // DEBUG: print("[MorningVaultApp] Failed to schedule precomputation: \(error)")
         }
     }
 }

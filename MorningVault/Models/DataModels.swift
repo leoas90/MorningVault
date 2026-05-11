@@ -98,6 +98,9 @@ struct BriefingSection: Codable, Identifiable {
     let content: String
     let sentiment: String?  // "bullish", "bearish", "neutral", "positive", "negative", nil
     var errorMessage: String?  // e.g. permission denied — shown as inline user-facing message
+    var priority: Int = 999  // lower = higher priority; controls display order in briefing (default 999)
+    /// Optional RSS feed data for the headlines section — enables Inbox Zero article rows
+    var rssFeed: RSSFeedData?
 }
 
 // MARK: - RSS Data
@@ -116,3 +119,86 @@ struct RSSArticle: Codable, Identifiable {
     let summary: String?
 }
 
+// MARK: - News Article State (Inbox Zero for News)
+
+/// Per-article read/later/skip state for Inbox Zero workflow.
+enum NewsArticleState: String, Codable {
+    case unread   // default — article is new
+    case read     // user has read it
+    case later    // saved for later reading
+    case skipped  // user skipped this article
+}
+
+/// Tracks individual article states for Inbox Zero.
+struct ArticleReadState: Codable, Identifiable {
+    var id: String { articleId }
+    let articleId: String
+    var state: NewsArticleState
+    var markedAt: Date
+
+    init(articleId: String, state: NewsArticleState) {
+        self.articleId = articleId
+        self.state = state
+        self.markedAt = Date()
+    }
+}
+
+/// Tracks read state for all articles across all feeds.
+/// Persisted to UserDefaults as JSON.
+final class NewsReadStateTracker: ObservableObject {
+    static let shared = NewsReadStateTracker()
+
+    @Published private(set) var states: [String: NewsArticleState] = [:]
+
+    private let key = "com.morningvault.articleStates"
+
+    private init() { load() }
+
+    // MARK: - Public API
+
+    func state(for articleId: String) -> NewsArticleState {
+        states[articleId] ?? .unread
+    }
+
+    func mark(_ articleId: String, as newState: NewsArticleState) {
+        states[articleId] = newState
+        save()
+    }
+
+    func markRead(_ articleId: String)    { mark(articleId, as: .read) }
+    func markLater(_ articleId: String)   { mark(articleId, as: .later) }
+    func markSkipped(_ articleId: String) { mark(articleId, as: .skipped) }
+    func markUnread(_ articleId: String)  { mark(articleId, as: .unread) }
+
+    /// Returns true if there are any unread articles in the given feeds.
+    func hasUnread(in feeds: [RSSFeedData]) -> Bool {
+        feeds.flatMap(\.articles).contains { state(for: $0.id) == .unread }
+    }
+
+    /// Returns the count of unread articles across all feeds.
+    func unreadCount(in feeds: [RSSFeedData]) -> Int {
+        feeds.flatMap(\.articles).filter { state(for: $0.id) == .unread }.count
+    }
+
+    /// Clears all states to reset Inbox Zero.
+    func resetAll() {
+        states.removeAll()
+        save()
+    }
+
+    // MARK: - Persistence
+
+    private func load() {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let decoded = try? JSONDecoder().decode([String: NewsArticleState].self, from: data) else {
+            return
+        }
+        states = decoded
+    }
+
+    private func save() {
+        if let encoded = try? JSONEncoder().encode(states) {
+            UserDefaults.standard.set(encoded, forKey: key)
+        }
+    }
+}

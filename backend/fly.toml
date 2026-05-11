@@ -1,0 +1,24 @@
+app = "morningvault-market-api"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false   # Keep warm to avoid cold-start latency
+  auto_start_machines = true
+  min_machines_running = 1     # Keep 1 instance warm (free tier: 3 shared VMs)
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  count = 1
+
+[[mounts]]
+  source = "market_cache"
+  destination = "/app/.cache"

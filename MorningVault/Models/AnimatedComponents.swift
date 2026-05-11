@@ -17,10 +17,12 @@ extension Color {
 
     static var warmBackground: Color { Color(hex: "FBF9F7") }
     static var warmSurface: Color { Color(hex: "FFFFFF") }
+    static var warmCardBackground: Color { Color(hex: "FFFFFF") }
     static var warmPrimaryAccent: Color { Color(hex: "E07A5F") }
     static var warmSecondaryAccent: Color { Color(hex: "81B29A") }
     static var warmTextPrimary: Color { Color(hex: "3D405B") }
     static var warmTextSecondary: Color { Color(hex: "8D8D8D") }
+    static var warmDivider: Color { Color(hex: "E8E4E0") }
     static var warmPositive: Color { Color(hex: "81B29A") }
     static var warmNegative: Color { Color(hex: "E07A5F") }
     static var warmAISummary: Color { Color(hex: "F4A261") }

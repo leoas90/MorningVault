@@ -84,7 +84,7 @@ import UIKit
 extension CGColor {
     var hexString: String {
         guard let components = components, components.count >= 3 else { return "gray" }
-        guard let colorSpace = colorSpace else { return "gray" }
+        guard colorSpace != nil else { return "gray" }
 
         // Always convert through UIColor for reliable cross-color-space conversion
         let uiColor = UIColor(cgColor: self)

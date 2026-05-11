@@ -13,14 +13,14 @@ struct ContentView: View {
     enum Tab: String, CaseIterable {
         case brief = "Brief"
         case markets = "Markets"
-        case sources = "Sources"
+        case history = "History"
         case settings = "Settings"
 
         var icon: String {
             switch self {
             case .brief: return "sun.max"
             case .markets: return "chart.line.uptrend.xyaxis"
-            case .sources: return "newspaper"
+            case .history: return "clock.arrow.circlepath"
             case .settings: return "gearshape"
             }
         }
@@ -29,7 +29,7 @@ struct ContentView: View {
             switch self {
             case .brief: return "sun.max.fill"
             case .markets: return "chart.line.uptrend.xyaxis"
-            case .sources: return "newspaper.fill"
+            case .history: return "clock.arrow.circlepath"
             case .settings: return "gearshape.fill"
             }
         }
@@ -61,18 +61,18 @@ struct ContentView: View {
             }
             .tag(Tab.markets)
 
-            // MARK: - Sources Tab
+            // MARK: - History Tab
             NavigationStack {
-                SourcesView()
+                BriefingHistoryView()
             }
             .tabItem {
                 TabIcon(
-                    tab: Tab.sources,
-                    isSelected: selectedTab == Tab.sources,
+                    tab: Tab.history,
+                    isSelected: selectedTab == Tab.history,
                     scales: $tabBarIconScales
                 )
             }
-            .tag(Tab.sources)
+            .tag(Tab.history)
 
             // MARK: - Settings Tab
             NavigationStack {
@@ -89,10 +89,8 @@ struct ContentView: View {
         }
         .tint(Color.warmPrimaryAccent)
         .task {
-            // Try to read the user's name from their Me card / device
-            if let fetchedName = ContactsService.shared.fetchDeviceName() {
-                userName = fetchedName
-            }
+            // Try to read the user's name from their Me card / device (off main thread)
+            let fetchedName = await ContactsService.shared.fetchDeviceName()
             // Silent refresh: load from cache for instant display, background refresh follows
             await viewModel.silentRefresh()
         }
@@ -146,20 +144,19 @@ struct BriefTabView: View {
 
     @State private var isRefreshing = false
     @State private var headerHasAppeared = false
+    @State private var showMoodPicker = false
+    @State private var showShareSheet = false
+    @State private var selectedMood: MoodType? = nil
+    @State private var isVoicePlaying = false
 
     private var greetingText: String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        switch hour {
-        case 0..<12: return "Good morning"
-        case 12..<17: return "Good afternoon"
-        default: return "Good evening"
-        }
+        contextualSignal.currentTimeGreeting
     }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
+                LazyVStack(spacing: 16) {
                     // Header with greeting
                     headerSection
                         .padding(.horizontal, 20)
@@ -170,7 +167,7 @@ struct BriefTabView: View {
                         LoadingStateView()
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 40)
-                    } else if viewModel.briefingSections.isEmpty {
+                    } else if viewModel.briefingSections.isEmpty && viewModel.meetingPrep == nil {
                         EmptyStateView(
                             title: "Set Your Alarm",
                             message: "Configure your briefing time in Settings to get started.",
@@ -180,6 +177,7 @@ struct BriefTabView: View {
                         .padding(.vertical, 40)
                     } else {
                         ForEach(Array(viewModel.briefingSections.enumerated()), id: \.element.id) { index, section in
+                            // Use enumerated index for stagger delay
                             BriefingSectionCard(section: section, delay: Double(index) * AppAnimation.cardStaggerDelay)
                                 .padding(.horizontal, 20)
                                 .transition(.asymmetric(
@@ -187,6 +185,26 @@ struct BriefTabView: View {
                                     removal: .opacity.combined(with: .move(edge: .top))
                                 ))
                         }
+
+                        // Meeting Prep card (Feature #1) — shown after briefing sections
+                        if let prep = viewModel.meetingPrep {
+                            MeetingPrepCard(prep: Binding(
+                                get: { prep },
+                                set: { viewModel.meetingPrep = $0 }
+                            ))
+                            .padding(.horizontal, 20)
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .move(edge: .bottom)),
+                                removal: .opacity.combined(with: .move(edge: .top))
+                            ))
+                        }
+
+                        // Audio Play Button — appears after sections
+                        AudioPlayButton(sections: viewModel.briefingSections) { audioService in
+                            // Audio service is ready — listen button shown above privacy footer
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
                     }
 
                     // AI summary placeholder when localOnly=true
@@ -209,24 +227,63 @@ struct BriefTabView: View {
             .navigationTitle("Morning Vault")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        Task {
-                            isRefreshing = true
-                            await viewModel.generateBriefing()
-                            isRefreshing = false
-                        }
+                        showMoodPicker = true
                     } label: {
-                        ZStack {
-                            Image(systemName: "arrow.clockwise")
-                                .rotationEffect(.degrees(isRefreshing ? 360 : 0))
-                                .animation(
-                                    isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default,
-                                    value: isRefreshing
-                                )
-                        }
+                        Image(systemName: "face.smiling")
+                            .foregroundStyle(Color.warmPrimaryAccent)
                     }
-                    .disabled(viewModel.isLoading || isRefreshing)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    HStack(spacing: 16) {
+                        Button {
+                            if isVoicePlaying {
+                                viewModel.stopVoiceBriefing()
+                                isVoicePlaying = false
+                            } else {
+                                viewModel.speakBriefingAloud()
+                                isVoicePlaying = true
+                            }
+                        } label: {
+                            ZStack {
+                                Image(systemName: isVoicePlaying ? "speaker.wave.3.fill" : "speaker.wave.2")
+                                    .foregroundStyle(isVoicePlaying ? Color.warmPrimaryAccent : Color.warmTextSecondary)
+                                if isVoicePlaying {
+                                    Text("Playing...")
+                                        .font(.caption2)
+                                        .foregroundStyle(Color.warmPrimaryAccent)
+                                        .offset(y: 16)
+                                }
+                            }
+                        }
+                        .disabled(!UserDefaults.standard.bool(forKey: "voice_briefing_enabled"))
+
+                        Button {
+                            showShareSheet = true
+                        } label: {
+                            Image(systemName: "square.and.arrow.up")
+                                .foregroundStyle(Color.warmPrimaryAccent)
+                        }
+
+                        Button {
+                            Task {
+                                isRefreshing = true
+                                await viewModel.generateBriefing()
+                                isRefreshing = false
+                            }
+                        } label: {
+                            ZStack {
+                                Image(systemName: "arrow.clockwise")
+                                    .rotationEffect(.degrees(isRefreshing ? 360 : 0))
+                                    .animation(
+                                        isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default,
+                                        value: isRefreshing
+                                    )
+                            }
+                        }
+                        .disabled(viewModel.isLoading || isRefreshing)
+                    }
                 }
             }
             .refreshable {
@@ -239,6 +296,17 @@ struct BriefTabView: View {
                 if !refreshing {
                     // Reset refresh indicator when done
                 }
+            }
+            .sheet(isPresented: $showMoodPicker) {
+                MorningMoodView(selectedMood: $selectedMood)
+            }
+            .sheet(isPresented: $showShareSheet) {
+                BriefingShareView(
+                    sections: viewModel.briefingSections,
+                    aiSummary: viewModel.aiDaySummary,
+                    highlights: [],
+                    mood: selectedMood
+                )
             }
             .task {
                 await viewModel.loadData()

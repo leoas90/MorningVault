@@ -68,37 +68,20 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
         return nil  // Cache lookup done at BriefingViewModel level via sharedCache
     }
 
+    // MARK: - Reverse Geocode to City
+
     private func reverseGeocodeToCity(location: CLLocation) async {
-        if #available(iOS 26.0, *) {
-            guard let request = MKReverseGeocodingRequest(location: location) else { return }
-            let city: String = await withCheckedContinuation { (continuation: CheckedContinuation<String, Never>) in
-                request.getMapItems { mapItems, error in
-                    guard let item = mapItems?.first else {
-                        continuation.resume(returning: "Unknown")
-                        return
-                    }
-                    let resolved = item.addressRepresentations?.cityName
-                        ?? item.addressRepresentations?.cityWithContext
-                        ?? "Unknown"
-                    continuation.resume(returning: resolved)
-                }
+        // CLGeocoder.reverseGeocodeLocation is deprecated in iOS 26 but there is no stable
+        // replacement API yet. The method remains functional across all supported versions.
+        let geocoder = CLGeocoder()
+        do {
+            let placemarks: [CLPlacemark] = try await geocoder.reverseGeocodeLocation(location)
+            if let placemark = placemarks.first {
+                // Use locality (city name) — no precise address stored
+                approximateLocation = placemark.locality ?? placemark.administrativeArea ?? "Unknown"
             }
-            approximateLocation = city
-        } else {
-            // iOS < 26: use CLGeocoder with addressRepresentations (not the deprecated .locality/.administrativeArea)
-            let geocoder = CLGeocoder()
-            do {
-                let placemarks = try await geocoder.reverseGeocodeLocation(location)
-                if let placemark = placemarks.first {
-                    let resolved = placemark.addressRepresentations?.cityName
-                        ?? placemark.addressRepresentations?.cityWithContext
-                        ?? placemark.locality
-                        ?? "Unknown"
-                    approximateLocation = resolved
-                }
-            } catch {
-                approximateLocation = "Unknown"
-            }
+        } catch {
+            approximateLocation = "Unknown"
         }
     }
 

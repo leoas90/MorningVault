@@ -16,8 +16,7 @@ struct SettingsView: View {
     @State private var showingPrivacyPolicy = false
     @State private var hasAppeared = false
     @FocusState private var isNameFieldFocused: Bool
-    @State private var polygonAPIKey: String = ""
-    @State private var showingAPIKeyAlert = false
+        @State private var showingAPIKeyAlert = false
     @State private var apiKeySaveMessage: String = ""
 
     private var currentTheme: AppTheme {
@@ -64,11 +63,11 @@ struct SettingsView: View {
                 // MARK: - Appearance
                 appearanceSection
 
+                // MARK: - Voice
+                voiceSection
+
                 // MARK: - Data Sources
                 dataSourcesSection
-
-                // MARK: - API Keys
-                apiKeysSection
 
                 // MARK: - Privacy
                 privacySection
@@ -105,6 +104,7 @@ struct SettingsView: View {
             }
             .cardEntrance(delay: 0.0)
         }
+        .dismissKeyboardOnTap()
     }
 
     // MARK: - Personalization
@@ -164,6 +164,26 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Voice
+
+    private var voiceSection: some View {
+        Section("Voice") {
+            Toggle(isOn: Binding(
+                get: { UserDefaults.standard.bool(forKey: "voice_briefing_enabled") },
+                set: { UserDefaults.standard.set($0, forKey: "voice_briefing_enabled") }
+            )) {
+                Label("Voice Briefing", systemImage: "speaker.wave.2")
+            }
+            .tint(Color.warmPrimaryAccent)
+
+            if UserDefaults.standard.bool(forKey: "voice_briefing_enabled") {
+                Text("Tap the 🔊 Listen button in the briefing view to hear your morning update.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     // MARK: - Data Sources
 
     private var dataSourcesSection: some View {
@@ -184,35 +204,7 @@ struct SettingsView: View {
 
     // MARK: - API Keys
 
-    private var apiKeysSection: some View {
-        Section("API Keys") {
-            HStack {
-                TextField("Polygon.io API Key", text: $polygonAPIKey)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .keyboardType(.asciiCapable)
-                Button("Save") {
-                    if KeychainHelper.set(polygonAPIKey, for: .polygonAPIKey) {
-                        apiKeySaveMessage = "API key saved securely."
-                    } else {
-                        apiKeySaveMessage = "Failed to save. Try again."
-                    }
-                    showingAPIKeyAlert = true
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.warmPrimaryAccent)
-                .disabled(polygonAPIKey.isEmpty)
-            }
-            if !apiKeySaveMessage.isEmpty && !showingAPIKeyAlert {
-                Text(apiKeySaveMessage)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Text("Required for live market data. Stored securely in Keychain.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-    }
+
 
     // MARK: - Privacy
 
@@ -254,8 +246,8 @@ struct SettingsView: View {
                 HStack {
                     Label("HealthKit", systemImage: "heart.text.square")
                     Spacer()
-                    Image(systemName: healthService.isAuthorized ? "checkmark.circle.fill" : "exclamationmark.circle")
-                        .foregroundStyle(healthService.isAuthorized ? .green : .orange)
+                    Image(systemName: healthService.isAuthorizedForHealthData() ? "checkmark.circle.fill" : "exclamationmark.circle")
+                        .foregroundStyle(healthService.isAuthorizedForHealthData() ? .green : .orange)
                 }
             }
 

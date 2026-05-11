@@ -57,9 +57,8 @@ final class AIService {
         switch lm.availability {
         case .available:
             isAvailable = true
-        case .unavailable(let reason):
+        case .unavailable(_):
             isAvailable = false
-            print("[AIService] Apple Intelligence unavailable: \(String(describing: reason))")
         @unknown default:
             isAvailable = false
         }
@@ -77,13 +76,13 @@ final class AIService {
     /// are summarized into qualitative descriptors.
     func generateInsight(from sections: [BriefingSection]) async -> AIBriefingResult? {
         guard #available(iOS 26.0, *) else {
-            print("[AIService] iOS 26+ required for Foundation Models")
+            // DEBUG: print("[AIService] iOS 26+ required for Foundation Models")
             lastError = "Foundation Models require iOS 26 or later."
             return nil
         }
 
         guard isAvailable else {
-            print("[AIService] Apple Intelligence not available on this device")
+            // DEBUG: print("[AIService] Apple Intelligence not available on this device")
             lastError = "Apple Intelligence not available on this device."
             return nil
         }
@@ -92,8 +91,8 @@ final class AIService {
         let sanitizedSections = sections.map { sanitizeSection($0) }
 
         let lm = SystemLanguageModel()
-        if case .unavailable(let reason) = lm.availability {
-            print("[AIService] FM became unavailable: \(String(describing: reason))")
+        if case .unavailable = lm.availability {
+            // DEBUG: print("[AIService] FM became unavailable: \(String(describing: _))")
             isAvailable = false
             lastError = "Apple Intelligence became unavailable."
             return nil
@@ -121,7 +120,7 @@ final class AIService {
 
         let latencyMs = Int(Date().timeIntervalSince(startTime) * 1000)
         recordLatency(latencyMs)
-        print("[AIService] FM latency: \(latencyMs)ms (p95: \(p95LatencyMs)ms)")
+        // DEBUG: print("[AIService] FM latency: \(latencyMs)ms (p95: \(p95LatencyMs)ms)")
 
         guard let insight = insight else {
             return nil
@@ -160,7 +159,7 @@ final class AIService {
         } catch is CancellationError {
             return nil
         } catch {
-            print("[AIService] Market sentiment error: \(error.localizedDescription)")
+            // DEBUG: print("[AIService] Market sentiment error: \(error.localizedDescription)")
             lastError = error.localizedDescription
             return nil
         }
@@ -300,7 +299,7 @@ final class AIService {
         } catch is CancellationError {
             return (nil, nil)
         } catch {
-            print("[AIService] FM single-call error: \(error.localizedDescription)")
+            // DEBUG: print("[AIService] FM single-call error: \(error.localizedDescription)")
             lastError = error.localizedDescription
             return (nil, nil)
         }
@@ -336,7 +335,7 @@ final class AIService {
             } catch is CancellationError {
                 break
             } catch {
-                print("[AIService] FM chunk error for \(section.id): \(error.localizedDescription)")
+                // DEBUG: print("[AIService] FM chunk error for \(section.id): \(error.localizedDescription)")
             }
         }
 

@@ -161,18 +161,13 @@ final class MarketsViewModel: ObservableObject {
     // MARK: - Fetch live prices from Polygon.io
 
     func fetchLivePrices() async {
-        guard let apiKey = KeychainHelper.get(.polygonAPIKey), !apiKey.isEmpty else {
-            print("[MarketsViewModel] No Polygon API key — prices unavailable")
-            return
-        }
-
         isLoadingPrices = true
         defer { isLoadingPrices = false }
 
         await withTaskGroup(of: (String, Double, Double)?.self) { group in
             for symbol in trackedSymbols.map({ $0.symbol }) {
                 group.addTask {
-                    if let data = await self.fetchPolygonPrev(symbol: symbol, apiKey: apiKey) {
+                    if let data = await self.fetchFromBackend(symbol: symbol) {
                         return (symbol, data.price, data.change)
                     }
                     return nil
@@ -186,36 +181,31 @@ final class MarketsViewModel: ObservableObject {
         }
     }
 
-    private func fetchPolygonPrev(symbol: String, apiKey: String) async -> (price: Double, change: Double)? {
-        let upper = symbol.uppercased()
-        let polygonSymbol = cryptoSymbols.contains(upper) ? "X:\(upper)USD" : upper
-
-        guard let url = URL(string: "https://api.polygon.io/v2/aggs/ticker/\(polygonSymbol)/prev?adjusted=true&apiKey=\(apiKey)") else {
-            return nil
-        }
-
+    /// Calls the MorningVault backend proxy for market data.
+    /// Backend → Polygon.io (paid tier) + server-side cache.
+    private func fetchFromBackend(symbol: String) async -> (price: Double, change: Double)? {
+        guard let url = URL(string: "\(MarketsViewModel.backendURL)/market/\(symbol.uppercased())") else { return nil }
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
-            if let http = response as? HTTPURLResponse, http.statusCode == 429 { return nil }
-
-            guard let json = try? JSONDecoder().decode(PolygonAggResponse.self, from: data),
-                  let result = json.results.first, result.c > 0, result.o > 0 else {
-                return nil
-            }
-            let change = ((result.c - result.o) / result.o) * 100
-            return (result.c, change)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
+            let market = try JSONDecoder().decode(MarketBackendResponse.self, from: data)
+            return (market.price, market.change24h)
         } catch {
             return nil
         }
     }
 
-    private struct PolygonAggResponse: Codable {
-        let results: [PolygonAggResult]
+    /// Deprecated: Polygon.io is now called exclusively by the backend.
+    private func fetchPolygonPrev(symbol: String, apiKey: String) async -> (price: Double, change: Double)? {
+        return nil
     }
 
-    private struct PolygonAggResult: Codable {
-        let o: Double
-        let c: Double
+    private struct MarketBackendResponse: Codable {
+        let symbol: String
+        let price: Double
+        let change24h: Double
+        let cached: Bool
+        let error: String?
     }
 
     private var cryptoSymbols: Set<String> {
@@ -254,6 +244,14 @@ final class MarketsViewModel: ObservableObject {
     func isEstimated(for symbol: String) -> Bool {
         return prices[symbol] == nil
     }
+}
+
+// MARK: - Backend config
+
+extension MarketsViewModel {
+    /// Hardcoded MorningVault backend URL. Invisible to users — just works.
+    /// Change here when you deploy a new backend URL. App Store update required to flip.
+    private static let backendURL = "https://morningvault.fly.dev"
 }
 
 private struct SeededRandom {
