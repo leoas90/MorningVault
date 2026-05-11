@@ -20,21 +20,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Cache SPM dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/Library/Developer/Xcode/DerivedData
-          key: ${{ runner.os }}-spm-derived-${{ hashFiles('**/project.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-spm-derived-
+      - name: List available simulators
+        run: xcrun simctl list devices available | grep -E "iPhone" | head -10
 
       - name: Build iOS
         run: |
           xcodebuild -project MorningVault.xcodeproj \
             -scheme MorningVault \
             -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
-            build
+            -destination 'platform=iOS Simulator,id=3AA4FC23-17DE-49CF-8D07-DECAFCDD7323' \
+            build 2>&1 | tee build.log
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
 
   archive:
     runs-on: macos-14
