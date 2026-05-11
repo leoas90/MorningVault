@@ -244,14 +244,6 @@ final class BriefingViewModel: ObservableObject {
 
         // Load meeting prep (Feature #1) — skip if first meeting > 2 hours away
         meetingPrep = await meetingPrepService.prepareMeetingPrep()
-
-        // Archive briefing for history (Feature 11)
-        await briefingArchive.archiveBriefing(
-            sections: briefingSections,
-            aiSummary: aiDaySummary,
-            mood: nil,  // Mood set separately via MorningMoodView
-            highlights: []
-        )
     }
 
     /// Silent refresh — loads from cache first (instant), then does a live refresh in background.
@@ -291,8 +283,8 @@ final class BriefingViewModel: ObservableObject {
         if localOnly {
             networkBadge = .local
         } else {
-            // External when any live (non-cache) fetch succeeded
-            networkBadge = .external
+            // Online — live external sources active (weather/markets/RSS)
+            networkBadge = .online
         }
     }
 
@@ -560,8 +552,9 @@ private struct BackendMarketResponse: Codable {
 
 /// Network badge — shows data freshness to user.
 enum NetworkBadge {
-    case local      // Served from cache (no live fetch)
-    case external   // Served from live external source (backend → Polygon)
+    case local      // 🟢 LOCAL — localOnly mode, no external calls
+    case online     // 🟡 ONLINE — normal mode, live data from weather/markets/RSS
+    case email      // ⚠️ EMAIL — email/integration routing active (opt-in)
     case none       // No data loaded yet
 }
 

@@ -104,7 +104,6 @@ struct SettingsView: View {
             }
             .cardEntrance(delay: 0.0)
         }
-        .dismissKeyboardOnTap()
     }
 
     // MARK: - Personalization

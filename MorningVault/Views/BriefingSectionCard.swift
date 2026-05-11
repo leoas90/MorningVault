@@ -302,11 +302,7 @@ struct ArticleRowView: View {
                     } label: {
                         Label("Save for Later", systemImage: "bookmark")
                     }
-                    Button {
-                        saveToPocket(article: article)
-                    } label: {
-                        Label("Save to Pocket", systemImage: "square.and.arrow.down")
-                    }
+
                     Button {
                         onSkip()
                     } label: {
@@ -353,14 +349,6 @@ struct ArticleRowView: View {
         )
     }
 
-    private func saveToPocket(article: RSSArticle) {
-        Task {
-            let success = await laterService.addToPocket(url: article.url, title: article.title)
-            if success {
-                onLater()
-            }
-        }
-    }
 }
 
 // MARK: - Notification Names

@@ -197,10 +197,27 @@ async def get_market_batch(symbols: str = Query(..., description="Comma-separate
 
 @app.get("/health")
 async def health():
+    """Liveness probe — Fly.io uses this to determine if container is alive."""
+    return {"status": "ok"}
+
+
+@app.get("/ready")
+async def ready():
+    """Readiness probe — returns 200 when server is ready to accept traffic."""
     return {
-        "status": "ok",
+        "status": "ready",
         "polygon_key_configured": bool(POLYGON_API_KEY),
         "cache_dir": str(CACHE_DIR),
+    }
+
+
+@app.get("/")
+async def root():
+    """Landing page — API name and version."""
+    return {
+        "name": "MorningVault Market API",
+        "version": "1.0.0",
+        "endpoints": ["/market/{symbol}", "/market/batch", "/health", "/ready"],
     }
 
 

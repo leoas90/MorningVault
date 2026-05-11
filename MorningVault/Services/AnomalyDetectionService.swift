@@ -89,7 +89,7 @@ final class AnomalyDetectionService {
         var timeSlots: [String: [CalendarEvent]] = [:]
 
         for event in todayEvents {
-            let key = timeSlotKey(for: event.startTime)
+            let key = timeSlotKey(for: event.startDate)
             timeSlots[key, default: []].append(event)
         }
 
@@ -100,11 +100,8 @@ final class AnomalyDetectionService {
             }
         }
 
-        // Check for new events added since yesterday
-        let yesterdayAdded = todayEvents.filter { $0.createdAt != nil && isRecent($0.createdAt!) }
-        if !yesterdayAdded.isEmpty {
-            messages.append("\(yesterdayAdded.count) new event(s) added to your calendar")
-        }
+        // Note: new event detection requires calendar change tracking
+        // CalendarService would need to track event creation dates
 
         return messages
     }

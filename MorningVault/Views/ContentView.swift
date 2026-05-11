@@ -8,19 +8,18 @@ struct ContentView: View {
     @StateObject private var viewModel = BriefingViewModel()
     @State private var selectedTab: Tab = .brief
     @State private var tabBarIconScales: [Tab: CGFloat] = [:]
-    @State private var showBriefingFromDeepLink = false
+    @State private var showShareSheet = false
+    @State private var isVoicePlaying = false
 
     enum Tab: String, CaseIterable {
         case brief = "Brief"
         case markets = "Markets"
-        case history = "History"
         case settings = "Settings"
 
         var icon: String {
             switch self {
             case .brief: return "sun.max"
             case .markets: return "chart.line.uptrend.xyaxis"
-            case .history: return "clock.arrow.circlepath"
             case .settings: return "gearshape"
             }
         }
@@ -29,7 +28,6 @@ struct ContentView: View {
             switch self {
             case .brief: return "sun.max.fill"
             case .markets: return "chart.line.uptrend.xyaxis"
-            case .history: return "clock.arrow.circlepath"
             case .settings: return "gearshape.fill"
             }
         }
@@ -38,15 +36,21 @@ struct ContentView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             // MARK: - Brief Tab
-            BriefTabView(viewModel: viewModel, userName: userName, localOnly: localOnly)
-                .tabItem {
-                    TabIcon(
-                        tab: Tab.brief,
-                        isSelected: selectedTab == Tab.brief,
-                        scales: $tabBarIconScales
-                    )
-                }
-                .tag(Tab.brief)
+            BriefTabView(
+                viewModel: viewModel,
+                userName: userName,
+                localOnly: localOnly,
+                isVoicePlaying: $isVoicePlaying,
+                showShareSheet: $showShareSheet
+            )
+            .tabItem {
+                TabIcon(
+                    tab: Tab.brief,
+                    isSelected: selectedTab == Tab.brief,
+                    scales: $tabBarIconScales
+                )
+            }
+            .tag(Tab.brief)
 
             // MARK: - Markets Tab
             NavigationStack {
@@ -60,19 +64,6 @@ struct ContentView: View {
                 )
             }
             .tag(Tab.markets)
-
-            // MARK: - History Tab
-            NavigationStack {
-                BriefingHistoryView()
-            }
-            .tabItem {
-                TabIcon(
-                    tab: Tab.history,
-                    isSelected: selectedTab == Tab.history,
-                    scales: $tabBarIconScales
-                )
-            }
-            .tag(Tab.history)
 
             // MARK: - Settings Tab
             NavigationStack {
@@ -89,16 +80,13 @@ struct ContentView: View {
         }
         .tint(Color.warmPrimaryAccent)
         .task {
-            // Try to read the user's name from their Me card / device (off main thread)
             let fetchedName = await ContactsService.shared.fetchDeviceName()
-            // Silent refresh: load from cache for instant display, background refresh follows
             await viewModel.silentRefresh()
         }
         .fullScreenCover(isPresented: .constant(!hasCompletedOnboarding)) {
             OnboardingView()
         }
         .onReceive(NotificationCenter.default.publisher(for: .viewBriefingRequested)) { _ in
-            // User tapped "View Brief" notification — switch to Brief tab and refresh
             selectedTab = .brief
             Task {
                 await viewModel.silentRefresh()
@@ -141,16 +129,42 @@ struct BriefTabView: View {
     @ObservedObject var viewModel: BriefingViewModel
     let userName: String
     let localOnly: Bool
+    @Binding var isVoicePlaying: Bool
+    @Binding var showShareSheet: Bool
 
     @State private var isRefreshing = false
     @State private var headerHasAppeared = false
-    @State private var showMoodPicker = false
-    @State private var showShareSheet = false
-    @State private var selectedMood: MoodType? = nil
-    @State private var isVoicePlaying = false
 
     private var greetingText: String {
-        contextualSignal.currentTimeGreeting
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 5..<12: return "Good morning"
+        case 12..<17: return "Good afternoon"
+        case 17..<21: return "Good evening"
+        default: return "Hello"
+        }
+    }
+
+    private func networkBadgeText() -> String {
+        switch viewModel.networkBadge {
+        case .local: return "LOCAL"
+        case .online: return "LIVE"
+        case .email: return "EMAIL"
+        case .none: return ""
+        }
+    }
+
+    private func networkBadgeColor() -> Color {
+        switch viewModel.networkBadge {
+        case .local: return Color.warmLocalBadge
+        case .online: return Color.warmExternalBadge
+        case .email: return .orange
+        case .none: return .clear
+        }
+    }
+
+    private var networkBadgeIcon: String {
+        viewModel.networkBadge == .local ? "checkmark.shield" : "network"
     }
 
     var body: some View {
@@ -177,7 +191,6 @@ struct BriefTabView: View {
                         .padding(.vertical, 40)
                     } else {
                         ForEach(Array(viewModel.briefingSections.enumerated()), id: \.element.id) { index, section in
-                            // Use enumerated index for stagger delay
                             BriefingSectionCard(section: section, delay: Double(index) * AppAnimation.cardStaggerDelay)
                                 .padding(.horizontal, 20)
                                 .transition(.asymmetric(
@@ -198,13 +211,6 @@ struct BriefTabView: View {
                                 removal: .opacity.combined(with: .move(edge: .top))
                             ))
                         }
-
-                        // Audio Play Button — appears after sections
-                        AudioPlayButton(sections: viewModel.briefingSections) { audioService in
-                            // Audio service is ready — listen button shown above privacy footer
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 8)
                     }
 
                     // AI summary placeholder when localOnly=true
@@ -228,12 +234,7 @@ struct BriefTabView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showMoodPicker = true
-                    } label: {
-                        Image(systemName: "face.smiling")
-                            .foregroundStyle(Color.warmPrimaryAccent)
-                    }
+                    EmptyView()
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 16) {
@@ -292,22 +293,6 @@ struct BriefTabView: View {
                 isRefreshing = false
             }
             .scrollDismissesKeyboard(.interactively)
-            .onChange(of: isRefreshing) { _, refreshing in
-                if !refreshing {
-                    // Reset refresh indicator when done
-                }
-            }
-            .sheet(isPresented: $showMoodPicker) {
-                MorningMoodView(selectedMood: $selectedMood)
-            }
-            .sheet(isPresented: $showShareSheet) {
-                BriefingShareView(
-                    sections: viewModel.briefingSections,
-                    aiSummary: viewModel.aiDaySummary,
-                    highlights: [],
-                    mood: selectedMood
-                )
-            }
             .task {
                 await viewModel.loadData()
             }
@@ -318,7 +303,6 @@ struct BriefTabView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    // Greeting with time-of-day feel
                     Text("\(greetingText), \(userName).")
                         .font(.system(.title2, design: .rounded))
                         .fontWeight(.bold)
@@ -342,12 +326,14 @@ struct BriefTabView: View {
 
                 Spacer()
 
-                // Network badge — shows LIVE when external (Polygon.io/WeatherKit/RSS), LOCAL when cache-only
-                BounceLabel(
-                    text: viewModel.networkBadge == .local ? "LOCAL" : "LIVE",
-                    color: viewModel.networkBadge == .local ? Color.warmLocalBadge : Color.warmExternalBadge,
-                    icon: viewModel.networkBadge == .local ? "checkmark.shield" : "network"
-                )
+                // Network badge — 3-state: LOCAL, LIVE (online), EMAIL
+                if viewModel.networkBadge != .none {
+                    BounceLabel(
+                        text: networkBadgeText(),
+                        color: networkBadgeColor(),
+                        icon: networkBadgeIcon
+                    )
+                }
             }
         }
         .opacity(headerHasAppeared ? 1 : 0)
@@ -376,6 +362,7 @@ struct BriefTabView: View {
 }
 
 // MARK: - Custom Refresh Header (animated sun with spinner)
+
 struct CustomRefreshHeader: View {
     let isRefreshing: Bool
     @State private var rotation: Double = 0
