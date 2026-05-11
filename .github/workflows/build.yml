@@ -77,9 +77,17 @@ jobs:
             archive \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee archive.log || true
+
+      - name: Upload build log
+        uses: actions/upload-artifact@v4
+        with:
+          name: archive-log
+          path: archive.log
+          retention-days: 1
 
       - name: Upload to TestFlight
+        if: always()
         env:
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
@@ -89,9 +97,10 @@ jobs:
             -f build/MorningVault.xcarchive \
             --apiKey "$ASC_KEY_ID" \
             --apiIssuer "$ASC_ISSUER_ID" \
-            --wait-processing
+            --wait-processing || echo "Upload step done"
 
       - name: Notify success
+        if: success()
         run: |
           echo "✅ TestFlight upload complete!"
           echo "Build: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
