@@ -43,7 +43,6 @@ jobs:
           path: build.log
           retention-days: 1
 
-  # TestFlight upload — only on git tags
   testflight:
     runs-on: macos-14
     needs: build
@@ -84,7 +83,6 @@ jobs:
             -f build/MorningVault.xcarchive \
             --apiKey "$ASC_KEY_ID" \
             --apiIssuer "$ASC_ISSUER_ID" \
-            --type macos \
             --wait-processing
 
       - name: Notify success
