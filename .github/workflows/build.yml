@@ -20,6 +20,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Resolve SPM dependencies
+        run: xcodebuild -project MorningVault.xcodeproj -scheme MorningVault -resolvePackageDependencies
+
       - name: List available simulators
         run: xcrun simctl list devices available | grep -E "iPhone" | head -10
 
@@ -29,9 +32,17 @@ jobs:
             -scheme MorningVault \
             -configuration Debug \
             -destination 'platform=iOS Simulator,id=3AA4FC23-17DE-49CF-8D07-DECAFCDD7323' \
-            build
+            build CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log
 
-  # Archive only runs on tags, not on every push (requires signing certificates)
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          retention-days: 1
+
+  # Archive only runs on tags (requires Apple signing certificates)
   archive:
     runs-on: macos-14
     needs: build
