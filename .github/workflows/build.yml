@@ -42,8 +42,8 @@ jobs:
           path: build.log
           retention-days: 1
 
-  # Archive only runs on tags (requires Apple signing certificates)
-  archive:
+  # TestFlight upload — only on git tags (e.g., v1.0.0)
+  testflight:
     runs-on: macos-14
     needs: build
     if: startsWith(github.ref, 'refs/tags/')
@@ -55,16 +55,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build archive
+      - name: Create directory for private key
+        run: mkdir -p ~/.appstoreconnect/private_keys
+
+      - name: Download private key
+        env:
+          ASC_KEY_BASE64: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          echo "$ASC_KEY_BASE64" | base64 -d > ~/.appstoreconnect/private_keys/AuthKey_7W72CN4J29.p8
+          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_7W72CN4J29.p8
+
+      - name: Build archive for TestFlight
         run: |
           xcodebuild -project MorningVault.xcodeproj \
             -scheme MorningVault \
             -configuration Release \
             -archivePath build/MorningVault.xcarchive \
-            archive
+            archive CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
 
-      - name: Upload archive
-        uses: actions/upload-artifact@v4
-        with:
-          name: MorningVault-archive
-          path: build/MorningVault.xcarchive
+      - name: Upload to TestFlight
+        env:
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: |
+          xcrun altool --upload-app \
+            -t ios \
+            -f build/MorningVault.xcarchive \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID" \
+            --type macos \
+            --wait-processing
+
+      - name: Notify success
+        run: |
+          echo "✅ TestFlight upload complete!"
+          echo "Build: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
