@@ -21,6 +21,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Bump build number
+        run: |
+          NEXT=${{ github.run_number }}
+          sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*/CURRENT_PROJECT_VERSION = $NEXT/" MorningVault.xcodeproj/project.pbxproj || true
+          echo "Build number set to: $NEXT"
+
       - name: Resolve SPM dependencies
         run: xcodebuild -project MorningVault.xcodeproj -scheme MorningVault -resolvePackageDependencies
 
@@ -54,6 +60,12 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Bump build number
+        run: |
+          NEXT=${{ github.run_number }}
+          sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*/CURRENT_PROJECT_VERSION = $NEXT/" MorningVault.xcodeproj/project.pbxproj || true
+          echo "Build number set to: $NEXT"
 
       - name: Resolve SPM dependencies
         run: xcodebuild -project MorningVault.xcodeproj -scheme MorningVault -resolvePackageDependencies
