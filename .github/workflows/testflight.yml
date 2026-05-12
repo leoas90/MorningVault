@@ -28,8 +28,10 @@ jobs:
       - name: Resolve SPM dependencies
         run: xcodebuild -project MorningVault.xcodeproj -scheme MorningVault -resolvePackageDependencies
 
-      - name: Build for App Store (Archive)
+      - name: Build for App Store (Archive) with automatic signing
         run: |
+          rm -rf build/MorningVault.xcarchive
+
           xcodebuild -project MorningVault.xcodeproj \
             -scheme MorningVault \
             -configuration Release \
@@ -37,10 +39,11 @@ jobs:
             -archivePath build/MorningVault.xcarchive \
             archive \
             CODE_SIGN_STYLE=Automatic \
-            CODE_SIGN_IDENTITY="-" \
-            DEVELOPMENT_TEAM="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=YES
+            CODE_SIGN_IDENTITY="Apple Development: Yezid Rodriguez (ZH39BD4N85)" \
+            DEVELOPMENT_TEAM=ZH39BD4N85 \
+            CODE_SIGNING_REQUIRED=YES \
+            CODE_SIGNING_ALLOWED=YES \
+            2>&1
 
       - name: Package IPA from archive
         run: |
@@ -49,10 +52,12 @@ jobs:
 
           ls "$APP" || exit 1
 
+          # Verify embedded.mobileprovision exists
+          ls "$APP/embedded.mobileprovision" || { echo "ERROR: No embedded.mobileprovision!"; exit 1; }
+
           mkdir -p Payload
           cp -R "$APP" Payload/MorningVault.app
 
-          # Preserve signature and embedded.mobileprovision from archive
           rm -f build/MorningVault.ipa
           cd Payload
           zip -r ../build/MorningVault.ipa MorningVault.app
