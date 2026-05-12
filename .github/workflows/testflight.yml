@@ -1,4 +1,4 @@
-name: Build & Upload to TestFlight
+# Build & Upload to TestFlight — CI pipeline
 
 on:
   push:
