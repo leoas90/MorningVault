@@ -64,14 +64,18 @@ jobs:
 
       - name: Upload to TestFlight
         run: |
-          # Write private key to file with proper newlines (PEM format)
-          echo "$ASC_KEY" > /tmp/auth_key.p8
+          # Create the exact directory and filename altool expects
+          mkdir -p ~/.appstoreconnect/private_keys
 
-          # Debugging: Print out paths and variables for clarity
+          # Write private key with correct filename: AuthKey_<KEY_ID>.p8
+          echo "$ASC_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+
+          # Debug output
           echo "Using API Key ID: $ASC_KEY_ID"
           echo "Using Issuer ID: $ASC_ISSUER_ID"
-          echo "Auth Key Path: /tmp/auth_key.p8"
-          echo "Auth Key first 20 chars: $(head -c 20 /tmp/auth_key.p8)"
+          echo "Key file: ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          echo "Key file exists: $(test -f ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8 && echo YES || echo NO)"
+          echo "Key first 30 chars: $(head -c 30 ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8)"
 
           # Execute TestFlight upload
           xcrun altool --upload-app \
