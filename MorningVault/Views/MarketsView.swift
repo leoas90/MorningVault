@@ -47,8 +47,8 @@ struct MarketsView: View {
                 withAnimation(.easeOut(duration: 0.35)) {
                     hasAppeared = true
                 }
-                // Fetch live prices on appear
-                await viewModel.fetchLivePrices()
+                // Debounce: skip if live prices were fetched within last 60 seconds
+                await viewModel.fetchLivePricesIfStale(cooldown: 60)
             }
             .opacity(hasAppeared ? 1 : 0)
             .offset(y: hasAppeared ? 0 : 12)
@@ -180,6 +180,16 @@ final class MarketsViewModel: ObservableObject {
             }
         }
     }
+
+    /// Debounced fetch — skips if prices were updated within `cooldown` seconds.
+    func fetchLivePricesIfStale(cooldown: TimeInterval) async {
+        guard lastPriceFetch == nil || Date().timeIntervalSince(lastPriceFetch!) >= cooldown
+        else { return }
+        lastPriceFetch = Date()
+        await fetchLivePrices()
+    }
+
+    @Published private(set) var lastPriceFetch: Date?
 
     /// Calls the MorningVault backend proxy for market data.
     /// Backend → Polygon.io (paid tier) + server-side cache.

@@ -55,8 +55,7 @@ final class AnomalyDetectionService {
     private func detectMarketAnomalies() async -> [String] {
         var messages: [String] = []
 
-        // Get tracked symbols and their cached prices
-        let trackedSymbols = loadTrackedSymbols()
+        // Get cached prices
         let cached = loadCachedPrices()
 
         for (symbol, data) in cached {

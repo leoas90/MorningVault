@@ -74,7 +74,7 @@ struct BriefingSectionCard: View {
         }
         .padding(20)
         .background(Color.warmSurface)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
         .shadow(color: Color.warmTextPrimary.opacity(0.06), radius: 8, x: 0, y: 4)
         .cardEntrance(delay: delay)
     }
@@ -128,7 +128,7 @@ struct BriefingSectionCard: View {
         }
         .padding(10)
         .background(Color.warmNegative.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.banner))
     }
 
     private func articleListView(feed: RSSFeedData) -> some View {

@@ -80,7 +80,7 @@ struct ContentView: View {
         }
         .tint(Color.warmPrimaryAccent)
         .task {
-            let fetchedName = await ContactsService.shared.fetchDeviceName()
+            _ = await ContactsService.shared.fetchDeviceName()
             await viewModel.silentRefresh()
         }
         .fullScreenCover(isPresented: .constant(!hasCompletedOnboarding)) {

@@ -14,25 +14,22 @@ final class HealthKitService: ObservableObject {
 
     /// Checks current authorization status without triggering a dialog.
     /// Returns true only if health data is accessible and authorized.
-    func isAuthorizedForHealthData() -> Bool {
+    func isAuthorizedForHealthData() async -> Bool {
         guard HKHealthStore.isHealthDataAvailable() else { return false }
-        // For read access, authorizationStatus(for:) returns sharing status which is separate.
-        // Instead, verify by checking if we can actually execute a query without error.
-        // Quick sync check using semaphore — this method IS synchronous-safe.
-        let semaphore = DispatchSemaphore(value: 0)
-        var queryAuthorized = false
-        let stepType = HKObjectType.quantityType(forIdentifier: .stepCount)!
-        let query = HKStatisticsQuery(
-            quantityType: stepType,
-            quantitySamplePredicate: nil,
-            options: .cumulativeSum
-        ) { _, result, error in
-            queryAuthorized = (error == nil && result != nil)
-            semaphore.signal()
+        // Verify read access by executing a real HealthKit query.
+        // Pattern: async continuation matches the async/await pattern used elsewhere.
+        return await withCheckedContinuation { continuation in
+            let stepType = HKObjectType.quantityType(forIdentifier: .stepCount)!
+            let query = HKStatisticsQuery(
+                quantityType: stepType,
+                quantitySamplePredicate: nil,
+                options: .cumulativeSum
+            ) { _, result, error in
+                let authorized = (error == nil && result != nil)
+                continuation.resume(returning: authorized)
+            }
+            healthStore.execute(query)
         }
-        healthStore.execute(query)
-        _ = semaphore.wait(timeout: .now() + 2)
-        return queryAuthorized
     }
 
     func requestAuthorization() async -> Bool {
@@ -51,8 +48,8 @@ final class HealthKitService: ObservableObject {
 
         do {
             try await healthStore.requestAuthorization(toShare: [], read: types)
-            // Use synchronous authorization check after await to avoid Published race
-            let authorized = isAuthorizedForHealthData()
+            // Verify read access using the async authorization check.
+            let authorized = await isAuthorizedForHealthData()
             await MainActor.run { isAuthorized = authorized }
             return authorized
         } catch {

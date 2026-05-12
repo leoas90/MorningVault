@@ -10,14 +10,15 @@ struct SettingsView: View {
     @AppStorage("local_only") private var localOnly = false
     @AppStorage("theme") private var themeRaw: String = AppTheme.system.rawValue
     @AppStorage("user_name") private var userName: String = ""
-    @StateObject private var healthService = HealthKitService.shared
-    @StateObject private var calendarService = CalendarService.shared
-    @StateObject private var alarmService = AlarmService.shared
     @State private var showingPrivacyPolicy = false
     @State private var hasAppeared = false
     @FocusState private var isNameFieldFocused: Bool
-        @State private var showingAPIKeyAlert = false
+    @State private var showingAPIKeyAlert = false
     @State private var apiKeySaveMessage: String = ""
+
+    private let healthService = HealthKitService.shared
+    private let calendarService = CalendarService.shared
+    private let alarmService = AlarmService.shared
 
     private var currentTheme: AppTheme {
         get { AppTheme(rawValue: themeRaw) ?? .system }
@@ -245,8 +246,8 @@ struct SettingsView: View {
                 HStack {
                     Label("HealthKit", systemImage: "heart.text.square")
                     Spacer()
-                    Image(systemName: healthService.isAuthorizedForHealthData() ? "checkmark.circle.fill" : "exclamationmark.circle")
-                        .foregroundStyle(healthService.isAuthorizedForHealthData() ? .green : .orange)
+                    Image(systemName: healthService.isAuthorized ? "checkmark.circle.fill" : "exclamationmark.circle")
+                        .foregroundStyle(healthService.isAuthorized ? .green : .orange)
                 }
             }
 

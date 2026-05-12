@@ -117,8 +117,8 @@ struct OnboardingSymbolsStep: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(selectedSymbols.isEmpty ? Color.secondary : Color.accentColor)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .background(selectedSymbols.isEmpty ? Color.primary.opacity(0.85) : Color.accentColor)
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.button))
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 32)

@@ -7,6 +7,7 @@ struct MorningVaultApp: App {
     // BGTaskScheduler registration ID
     private let precomputationTaskID = "com.yeziddr.morningvault.precompute"
     @AppStorage("theme") private var themeRaw: String = AppTheme.system.rawValue
+    @Environment(\.scenePhase) private var scenePhase
 
     private var currentTheme: AppTheme {
         AppTheme(rawValue: themeRaw) ?? .system
@@ -19,6 +20,12 @@ struct MorningVaultApp: App {
                     handleDeepLink(url)
                 }
                 .appTheme(currentTheme)
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active {
+                        // Invalidate cache on foreground to ensure fresh briefing
+                        NotificationCenter.default.post(name: .viewBriefingRequested, object: nil)
+                    }
+                }
         }
     }
 

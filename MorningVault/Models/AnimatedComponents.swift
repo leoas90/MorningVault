@@ -4,6 +4,17 @@ import SwiftUI
 
 // MARK: - Color Extension for Hex
 
+// MARK: - Design System Tokens
+
+/// Consistent corner radii used throughout the app.
+/// Update here to propagate a radius change everywhere.
+enum AppRadius {
+    static let card: CGFloat = 20
+    static let button: CGFloat = 14
+    static let banner: CGFloat = 8
+    static let badge: CGFloat = 6
+}
+
 extension Color {
     init(hex: String) {
         let trimmed = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)

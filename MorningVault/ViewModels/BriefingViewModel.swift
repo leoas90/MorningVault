@@ -1,6 +1,8 @@
 import SwiftUI
 import Combine
+#if canImport(FoundationModels)
 import FoundationModels
+#endif
 import Security
 
 /// On-device AI briefing generator for MorningVault.
@@ -319,7 +321,7 @@ final class BriefingViewModel: ObservableObject {
         _ = await healthService.requestAuthorization()
         // Give HealthKit a moment to update published state, then check via async method
         try? await Task.sleep(nanoseconds: 500_000_000)
-        let authorized = await healthService.isAuthorizedForHealthData()
+        let authorized: Bool = await healthService.isAuthorizedForHealthData()
         if !authorized {
             await MainActor.run { self.permissionDenied.append("health") }
             return nil
@@ -525,18 +527,7 @@ final class BriefingViewModel: ObservableObject {
         }
     }
 
-    /// All fetches route through Polygon.io — one API for both stocks and crypto.
-    /// Retries once on 429 with 1s backoff before falling back to cache.
-    private func fetchViaPolygon(symbol: String) async -> SymbolData? {
-        // Deprecated: backend now calls Polygon.io directly.
-        // This stub exists only to avoid "unused function" warnings during migration.
-        // Will be removed once backend integration is verified in production.
-        return nil
-    }
-
-    private func attemptPolygonFetch(url: URL) async -> SymbolData? {
-        return nil
-    }
+    // MARK: - Stub functions (removed after backend migration)
 }
 
 // MARK: - Backend + Network types

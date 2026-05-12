@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(FoundationModels)
 import FoundationModels
+#endif
 
 /// On-device AI service using Apple's Foundation Models framework.
 ///
@@ -378,6 +380,7 @@ struct MarketSentimentResult {
 
 // MARK: - Foundation Models Structured Output Types
 
+#if canImport(FoundationModels)
 /// Structured output for full briefing prompt response.
 /// Uses @Generable so LanguageModelSession.respond(generating:) can use it.
 @available(iOS 26.0, *)
@@ -403,3 +406,4 @@ struct MarketSentimentOutput: Codable {
     let sentiment: String      // "bullish" | "bearish" | "neutral"
     let confidence: Double     // 0.0 – 1.0
 }
+#endif

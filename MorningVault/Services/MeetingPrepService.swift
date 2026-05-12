@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(FoundationModels)
 import FoundationModels
+#endif
 
 /// Prepares meeting intelligence before the user's first event.
 /// Reads the first calendar event of the day, generates talking points
@@ -112,6 +114,7 @@ final class MeetingPrepService {
         guard #available(iOS 26.0, *) else { return [] }
         guard aiService.isAvailable else { return [] }
 
+        #if canImport(FoundationModels)
         let lm = SystemLanguageModel()
         guard case .available = lm.availability else { return [] }
         let session = LanguageModelSession(model: lm)
@@ -124,6 +127,9 @@ final class MeetingPrepService {
         } catch {
             return []
         }
+        #else
+        return []
+        #endif
     }
 
     private func parseBulletPoints(from text: String) -> [String] {
