@@ -48,7 +48,7 @@ jobs:
           <plist version="1.0">
           <dict>
             <key>method</key>
-            <string>package</string>
+            <string>app-store-connect</string>
             <key>signingStyle</key>
             <string>automatic</string>
           </dict>
