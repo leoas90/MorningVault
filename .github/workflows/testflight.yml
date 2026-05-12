@@ -42,6 +42,7 @@ jobs:
             DEVELOPMENT_TEAM=ZH39BD4N85 \
             CODE_SIGNING_REQUIRED=YES \
             CODE_SIGNING_ALLOWED=YES \
+            -allowProvisioningUpdates \
             2>&1
 
       - name: Package IPA from archive
