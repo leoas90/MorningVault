@@ -83,7 +83,7 @@ jobs:
           if grep -q "BEGIN PRIVATE KEY" /tmp/asc_key_input; then
             cp /tmp/asc_key_input "$KEY_PATH"
           else
-            base64 -d /tmp/asc_key_input > "$KEY_PATH"
+            base64 -D -i /tmp/asc_key_input -o "$KEY_PATH"
           fi
           chmod 600 "$KEY_PATH"
           test -s "$KEY_PATH"
