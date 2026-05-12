@@ -56,7 +56,7 @@ jobs:
           # Create the IPA (just a zip of Payload)
           rm -f build/MorningVault.ipa
           cd Payload
-          zip -r ../MorningVault.ipa MorningVault.app
+          zip -r ../build/MorningVault.ipa MorningVault.app
           cd ..
 
           echo "IPA created:"
