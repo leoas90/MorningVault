@@ -55,6 +55,7 @@ final class AIService {
             isAvailable = false
             return
         }
+        #if canImport(FoundationModels)
         let lm = SystemLanguageModel()
         switch lm.availability {
         case .available:
@@ -64,6 +65,9 @@ final class AIService {
         @unknown default:
             isAvailable = false
         }
+        #else
+        isAvailable = false
+        #endif
     }
 
     // MARK: - Public API
@@ -92,6 +96,7 @@ final class AIService {
         // Sanitize sections — strip raw health data, replace with qualitative summaries
         let sanitizedSections = sections.map { sanitizeSection($0) }
 
+        #if canImport(FoundationModels)
         let lm = SystemLanguageModel()
         if case .unavailable = lm.availability {
             // DEBUG: print("[AIService] FM became unavailable: \(String(describing: _))")
@@ -119,6 +124,11 @@ final class AIService {
             insight = result.insight
             sentiment = result.sentiment
         }
+        #else
+        // Fallback: return nil when FoundationModels not available (already checked isAvailable above)
+        lastError = "Foundation Models not available."
+        return nil
+        #endif
 
         let latencyMs = Int(Date().timeIntervalSince(startTime) * 1000)
         recordLatency(latencyMs)
@@ -140,6 +150,7 @@ final class AIService {
         guard #available(iOS 26.0, *) else { return nil }
         guard isAvailable else { return nil }
 
+        #if canImport(FoundationModels)
         let lm = SystemLanguageModel()
         guard case .available = lm.availability else { return nil }
         let session = LanguageModelSession(model: lm)
@@ -165,6 +176,9 @@ final class AIService {
             lastError = error.localizedDescription
             return nil
         }
+        #else
+        return nil
+        #endif
     }
 
     // MARK: - Health Data Sanitization
