@@ -28,7 +28,7 @@ jobs:
       - name: Resolve SPM dependencies
         run: xcodebuild -project MorningVault.xcodeproj -scheme MorningVault -resolvePackageDependencies
 
-      - name: Build for App Store (Archive) with automatic signing
+      - name: Build for App Store (Archive)
         run: |
           rm -rf build/MorningVault.xcarchive
 
@@ -39,7 +39,6 @@ jobs:
             -archivePath build/MorningVault.xcarchive \
             archive \
             CODE_SIGN_STYLE=Automatic \
-            CODE_SIGN_IDENTITY="Apple Development: Yezid Rodriguez (ZH39BD4N85)" \
             DEVELOPMENT_TEAM=ZH39BD4N85 \
             CODE_SIGNING_REQUIRED=YES \
             CODE_SIGNING_ALLOWED=YES \
@@ -70,9 +69,6 @@ jobs:
         run: |
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$ASC_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
-
-          echo "Using API Key ID: $ASC_KEY_ID"
-          echo "Using Issuer ID: $ASC_ISSUER_ID"
 
           xcrun altool --upload-app \
             --type ios \
