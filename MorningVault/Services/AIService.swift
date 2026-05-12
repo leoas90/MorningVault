@@ -124,11 +124,6 @@ final class AIService {
             insight = result.insight
             sentiment = result.sentiment
         }
-        #else
-        // Fallback: return nil when FoundationModels not available (already checked isAvailable above)
-        lastError = "Foundation Models not available."
-        return nil
-        #endif
 
         let latencyMs = Int(Date().timeIntervalSince(startTime) * 1000)
         recordLatency(latencyMs)
@@ -143,6 +138,11 @@ final class AIService {
             sentiment: sentiment,
             latencyMs: latencyMs
         )
+        #else
+        // Fallback: return nil when FoundationModels not available (already checked isAvailable above)
+        lastError = "Foundation Models not available."
+        return nil
+        #endif
     }
 
     /// Generate market sentiment classification from market section content.
