@@ -49,7 +49,7 @@ jobs:
           # Verify .app exists in archive
           ls "$APP" || exit 1
 
-          # Create_payload directory and copy .app
+          # Create Payload directory and copy .app
           mkdir -p Payload
           cp -R "$APP" Payload/MorningVault.app
 
@@ -64,15 +64,21 @@ jobs:
 
       - name: Upload to TestFlight
         run: |
-          printf '%s' "$ASC_KEY" > /tmp/auth_key.p8
+          # Write private key to file with proper newlines (PEM format)
+          echo "$ASC_KEY" > /tmp/auth_key.p8
 
+          # Debugging: Print out paths and variables for clarity
+          echo "Using API Key ID: $ASC_KEY_ID"
+          echo "Using Issuer ID: $ASC_ISSUER_ID"
+          echo "Auth Key Path: /tmp/auth_key.p8"
+          echo "Auth Key first 20 chars: $(head -c 20 /tmp/auth_key.p8)"
+
+          # Execute TestFlight upload
           xcrun altool --upload-app \
-            -t ios \
-            -f build/MorningVault.ipa \
-            --apiKeyId "$ASC_KEY_ID" \
-            --apiKeyPath /tmp/auth_key.p8 \
-            --issuerId "$ASC_ISSUER_ID" \
             --type ios \
+            --file build/MorningVault.ipa \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID" \
             2>&1
 
       - name: Verify Upload
