@@ -49,11 +49,11 @@ jobs:
           <plist version="1.0">
           <dict>
             <key>method</key>
-            <string>developer</string>
+            <string>app-store-connect</string>
             <key>signingStyle</key>
-            <string>manual</string>
-            <key>signingCertificate</key>
-            <string>-</string>
+            <string>automatic</string>
+            <key>uploadBitcode</key>
+            <false/>
           </dict>
           </plist>
           EOF
