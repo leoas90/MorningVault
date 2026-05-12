@@ -18,6 +18,7 @@ import Security
 final class BriefingViewModel: ObservableObject {
     @Published var briefingSections: [BriefingSection] = []
     @Published var isLoading = false
+    @Published var hasLoaded = false  // guard: only load once per session, not on every tab appear
     @Published var isGeneratingAI = false
     @Published var lastError: String?
     @Published var networkBadge: NetworkBadge = .local
@@ -64,8 +65,9 @@ final class BriefingViewModel: ObservableObject {
     // MARK: - Load all data then generate
 
     func loadData() async {
+        guard !hasLoaded else { return }
         isLoading = true
-        defer { isLoading = false }
+        defer { hasLoaded = true; isLoading = false }
 
         // Fetch all sources concurrently
         async let health = fetchHealth()

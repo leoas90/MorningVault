@@ -294,6 +294,7 @@ struct BriefTabView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .task {
+                guard !viewModel.hasLoaded else { return }
                 await viewModel.loadData()
             }
         }

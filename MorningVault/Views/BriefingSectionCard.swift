@@ -8,7 +8,7 @@ struct BriefingSectionCard: View {
 
     @State private var isExpanded = true
     @State private var hasAppeared = false
-    @StateObject private var readState = NewsReadStateTracker.shared
+    @ObservedObject private var readState = NewsReadStateTracker.shared
 
     private var sectionColor: Color {
         switch section.title.lowercased() {

@@ -5,6 +5,7 @@ struct MarketsView: View {
     @State private var newSymbol: String = ""
     @State private var newEntryPrice: String = ""
     @State private var hasAppeared = false
+    @State private var pricesLoadTaskStarted = false
     @FocusState private var isFieldFocused: Bool
 
     var body: some View {
@@ -43,6 +44,8 @@ struct MarketsView: View {
             }
             .animation(.easeInOut(duration: 0.15), value: isFieldFocused)
             .task {
+                guard !pricesLoadTaskStarted else { return }
+                pricesLoadTaskStarted = true
                 viewModel.load()
                 withAnimation(.easeOut(duration: 0.35)) {
                     hasAppeared = true
@@ -327,7 +330,6 @@ private struct SymbolRowView: View {
                         showGradient: true
                     )
                     .frame(width: 80, height: 30)
-                    .cardEntrance(delay: delay + 0.1)
                     if isEstimated {
                         Text("demo")
                             .font(.system(size: 8))
