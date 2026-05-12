@@ -11,6 +11,9 @@ env:
   ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
   BUNDLE_ID: com.yeziddr.morningvault.dev
   APP_ID: ${{ secrets.APP_ID }}
+  CERT_P12: ${{ secrets.CERT_P12 }}
+  CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
+  PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
 
 jobs:
   build-and-upload:
@@ -28,7 +31,23 @@ jobs:
       - name: Resolve SPM dependencies
         run: xcodebuild -project MorningVault.xcodeproj -scheme MorningVault -resolvePackageDependencies
 
-      - name: Build for App Store (Archive)
+      - name: Import signing assets
+        run: |
+          # Decode and install certificate
+          echo "$CERT_P12" | base64 --decode > cert.p12
+          security import cert.p12 -P "$CERT_PASSWORD" -k ~/Library/Keychains/login.keychain-db -T /usr/bin/codesign -T /usr/bin/productutil 2>/dev/null || \
+          security import cert.p12 -P "$CERT_PASSWORD" -k /Users/runner/Library/Keychains/temp.keychain -T /usr/bin/codesign -T /usr/bin/productutil
+
+          # Decode and install provisioning profile
+          echo "$PROVISIONING_PROFILE" | base64 --decode > profile.mobileprovision
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
+
+          # Verify
+          security find-identity -vp codesigning | grep -v "valid identities"
+          ls ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      - name: Build for App Store (Archive) with manual signing
         run: |
           rm -rf build/MorningVault.xcarchive
 
@@ -38,11 +57,11 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath build/MorningVault.xcarchive \
             archive \
-            CODE_SIGN_STYLE=Automatic \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution: Yezid Rodriguez (ZH39BD4N85)" \
             DEVELOPMENT_TEAM=ZH39BD4N85 \
             CODE_SIGNING_REQUIRED=YES \
             CODE_SIGNING_ALLOWED=YES \
-            -allowProvisioningUpdates \
             2>&1
 
       - name: Package IPA from archive
@@ -51,8 +70,6 @@ jobs:
           APP="$ARCHIVE/Products/Applications/MorningVault.app"
 
           ls "$APP" || exit 1
-
-          # Verify embedded.mobileprovision exists
           ls "$APP/embedded.mobileprovision" || { echo "ERROR: No embedded.mobileprovision!"; exit 1; }
 
           mkdir -p Payload
