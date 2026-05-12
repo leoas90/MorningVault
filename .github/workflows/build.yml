@@ -75,12 +75,19 @@ jobs:
 
       - name: Prepare App Store Connect API key
         env:
-          ASC_KEY_BASE64: ${{ secrets.ASC_PRIVATE_KEY }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
         run: |
           mkdir -p ~/.appstoreconnect/private_keys
-          echo "$ASC_KEY_BASE64" | base64 -d > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
-          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
-          test -s ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          KEY_PATH=~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          printf '%s' "$ASC_PRIVATE_KEY" > /tmp/asc_key_input
+          if grep -q "BEGIN PRIVATE KEY" /tmp/asc_key_input; then
+            cp /tmp/asc_key_input "$KEY_PATH"
+          else
+            base64 -d /tmp/asc_key_input > "$KEY_PATH"
+          fi
+          chmod 600 "$KEY_PATH"
+          test -s "$KEY_PATH"
+          grep -q "BEGIN PRIVATE KEY" "$KEY_PATH"
 
       - name: Bump build number and fix team id
         run: |
