@@ -1,0 +1,65 @@
+name: Build & Upload to TestFlight
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  ASC_KEY: ${{ secrets.ASC_KEY }}
+  ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+  ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+  BUNDLE_ID: com.yeziddr.morningvault.dev
+
+jobs:
+  build-and-upload:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Xcode
+        run: |
+          # Clear known hosts for privacy
+          ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null
+          # Find available simulators
+          xcrun simctl list devices available | grep -o "iPhone [0-9].*" | head -3
+
+      - name: Build for iOS Simulator
+        run: |
+          xcodebuild -project MorningVault.xcodeproj \
+            -scheme MorningVault \
+            -configuration Debug \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+            build CODE_SIGNING_ALLOWED=NO
+
+      - name: Build for App Store (Archive)
+        run: |
+          xcodebuild -project MorningVault.xcodeproj \
+            -scheme MorningVault \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/MorningVault.xcarchive \
+            archive CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload to TestFlight
+        run: |
+          # Convert multiline p8 key to single line
+          KEY=$(echo "${{ secrets.ASC_KEY }}" | tr -d '\n')
+          
+          # Authenticate with App Store Connect
+          AUTH=$(curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"key\":\"$KEY\",\"issuer\":\"${{ secrets.ASC_ISSUER_ID }}\",\"keyId\":\"${{ secrets.ASC_KEY_ID }}\"}" \
+            "https://api.appstoreconnect.apple.com/v1/authentication") \
+          
+          TOKEN=$(echo "$AUTH" | python3 -c "import sys,json; print(json.load(sys.stdin)['tokens']['jwt'])")
+          
+          # Upload the archive
+          curl -s -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"data\":{\"attributes\":{\"name\":\"MorningVault Beta\",\"platform\":\"ios\",\"versionString\":\"1.0.0\",\"buildNumber\":\"$(date +%Y%m%d%H%M%S)\"},\"relationships\":{\"app\":{\"data\":{\"id\":\"${{ secrets.APP_ID }}\",\"type\":\"apps\"}}}}}" \
+            "https://api.appstoreconnect.apple.com/v1_beta/upload"
