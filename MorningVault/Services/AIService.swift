@@ -303,6 +303,7 @@ final class AIService {
 
     // MARK: - Single-call path (under token budget)
 
+    #if canImport(FoundationModels)
     @available(iOS 26.0, *)
     private func generateSingle(
         session: LanguageModelSession,
@@ -320,9 +321,11 @@ final class AIService {
             return (nil, nil)
         }
     }
+    #endif
 
     // MARK: - Chunked path (exceeds token budget)
 
+    #if canImport(FoundationModels)
     @available(iOS 26.0, *)
     private func generateChunked(
         session: LanguageModelSession,
@@ -377,6 +380,7 @@ final class AIService {
             return (segmentInsights.joined(separator: " "), nil)
         }
     }
+    #endif
 }
 
 // MARK: - Result Types
