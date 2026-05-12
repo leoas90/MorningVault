@@ -41,29 +41,26 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Export .ipa
+      - name: Package IPA manually
         run: |
-          cat > build/exportOptions.plist << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>app-store-connect</string>
-            <key>signingStyle</key>
-            <string>automatic</string>
-            <key>uploadBitcode</key>
-            <false/>
-          </dict>
-          </plist>
-          EOF
-          xcodebuild -exportArchive \
-            -archivePath build/MorningVault.xcarchive \
-            -exportPath build \
-            -exportOptionsPlist build/exportOptions.plist \
-            CODE_SIGN_IDENTITY="-" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+          ARCHIVE="build/MorningVault.xcarchive"
+          APP="$ARCHIVE/Products/Applications/MorningVault.app"
+
+          # Verify .app exists in archive
+          ls "$APP" || exit 1
+
+          # Create_payload directory and copy .app
+          mkdir -p Payload
+          cp -R "$APP" Payload/MorningVault.app
+
+          # Create the IPA (just a zip of Payload)
+          rm -f build/MorningVault.ipa
+          cd Payload
+          zip -r ../MorningVault.ipa MorningVault.app
+          cd ..
+
+          echo "IPA created:"
+          ls -lh build/MorningVault.ipa
 
       - name: Upload to TestFlight
         run: |
@@ -82,4 +79,4 @@ jobs:
         if: always()
         run: |
           sleep 10
-          echo "Build uploaded. Check App Store Connect > TestFlight > Builds for status."
+          echo "Build uploaded. Check App Store Connect > TestFlight > Builds."
