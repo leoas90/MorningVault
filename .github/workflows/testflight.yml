@@ -36,24 +36,23 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath build/MorningVault.xcarchive \
             archive \
+            CODE_SIGN_STYLE=Automatic \
             CODE_SIGN_IDENTITY="-" \
             DEVELOPMENT_TEAM="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=YES
 
-      - name: Package IPA manually
+      - name: Package IPA from archive
         run: |
           ARCHIVE="build/MorningVault.xcarchive"
           APP="$ARCHIVE/Products/Applications/MorningVault.app"
 
-          # Verify .app exists in archive
           ls "$APP" || exit 1
 
-          # Create Payload directory and copy .app
           mkdir -p Payload
           cp -R "$APP" Payload/MorningVault.app
 
-          # Create the IPA (just a zip of Payload)
+          # Preserve signature and embedded.mobileprovision from archive
           rm -f build/MorningVault.ipa
           cd Payload
           zip -r ../build/MorningVault.ipa MorningVault.app
@@ -64,20 +63,12 @@ jobs:
 
       - name: Upload to TestFlight
         run: |
-          # Create the exact directory and filename altool expects
           mkdir -p ~/.appstoreconnect/private_keys
-
-          # Write private key with correct filename: AuthKey_<KEY_ID>.p8
           echo "$ASC_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
 
-          # Debug output
           echo "Using API Key ID: $ASC_KEY_ID"
           echo "Using Issuer ID: $ASC_ISSUER_ID"
-          echo "Key file: ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
-          echo "Key file exists: $(test -f ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8 && echo YES || echo NO)"
-          echo "Key first 30 chars: $(head -c 30 ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8)"
 
-          # Execute TestFlight upload
           xcrun altool --upload-app \
             --type ios \
             --file build/MorningVault.ipa \
