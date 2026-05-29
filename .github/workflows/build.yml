@@ -71,7 +71,7 @@ jobs:
 
           echo "$PROVISIONING_PROFILE" | base64 --decode > profile.mobileprovision
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/MorningVault-AppStore.mobileprovision
+          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/MorningVault-AppStores.mobileprovision
 
           security find-identity -vp codesigning | grep -v "valid identities"
           ls ~/Library/MobileDevice/Provisioning\ Profiles/
@@ -89,7 +89,7 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution: Yezid Rodriguez (8ZPN58AQLD)" \
             DEVELOPMENT_TEAM=8ZPN58AQLD \
-            PROVISIONING_PROFILE=MorningVault-AppStore \
+            PROVISIONING_PROFILE=MorningVault-AppStores \
             CODE_SIGNING_REQUIRED=YES \
             CODE_SIGNING_ALLOWED=YES \
             2>&1
