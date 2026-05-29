@@ -72,6 +72,7 @@ jobs:
           echo "$PROVISIONING_PROFILE" | base64 --decode > profile.mobileprovision
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/MorningVault-AppStores.mobileprovision
+          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/5aa8732c-6c4b-4353-b56f-60da038328ae.mobileprovision
 
           security find-identity -vp codesigning | grep -v "valid identities"
           ls ~/Library/MobileDevice/Provisioning\ Profiles/
@@ -89,9 +90,9 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution: Yezid Rodriguez (8ZPN58AQLD)" \
             DEVELOPMENT_TEAM=8ZPN58AQLD \
-            PROVISIONING_PROFILE=MorningVault-AppStores \
             CODE_SIGNING_REQUIRED=YES \
             CODE_SIGNING_ALLOWED=YES \
+            -allowProvisioningUpdates \
             2>&1
 
       - name: Package IPA from archive
