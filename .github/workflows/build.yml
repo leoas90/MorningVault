@@ -9,19 +9,24 @@ on:
 env:
   DEVICE: "platform=iOS Simulator,name=iPhone 16 Pro"
   SCHEME: MorningVault
-  PROVISIONING_PROFILE_NAME: MorningVault-AppStore
+  ASC_KEY: ${{ secrets.ASC_KEY }}
+  ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+  ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+  BUNDLE_ID: com.yeziddr.morningvault.dev
+  APP_ID: ${{ secrets.APP_ID }}
+  CERT_P12: ${{ secrets.CERT_P12 }}
+  CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
+  PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
 
 jobs:
   build:
-    runs-on: macos-15
-
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install XcodeGen
-        run: |
-          brew install xcodegen
+        run: brew install xcodegen
 
       - name: Generate Xcode project
         run: xcodegen generate
@@ -40,37 +45,87 @@ jobs:
             build CODE_SIGN_STYLE=Automatic CODE_SIGNING_ALLOWED=NO
         working-directory: .
 
-      - name: Build for App Store (Archive)
-        env:
-          CERTIFICATE_BASE64: ${{ secrets.CERTIFICATE_BASE64 }}
-          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
-          PROVISIONING_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+  build-and-upload:
+    runs-on: macos-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bump build number
         run: |
-          # Create Keychain
-          security create-keychain -p "" build-keychain
-          security set-keychain-settings build-keychain
-          security unlock-keychain -p "" build-keychain
+          NEXT=${{ github.run_number }}
+          sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*/CURRENT_PROJECT_VERSION = $NEXT/" MorningVault.xcodeproj/project.pbxproj || true
+          echo "Build number set to: $NEXT"
 
-          # Import certificate
-          echo "$CERTIFICATE_BASE64" | base64 -d > certificate.p12
-          security import certificate.p12 -P "$CERTIFICATE_PASSWORD" -t cert -f pkcs12 -k build-keychain -k build-keychain
-          security set-key-partition-list -S apple-tool:,apple: -k "" build-keychain
-          rm certificate.p12
+      - name: Resolve SPM dependencies
+        run: xcodebuild -project MorningVault.xcodeproj -scheme MorningVault -resolvePackageDependencies
 
-          # Write provisioning profile
+      - name: Import signing assets
+        run: |
+          echo "$CERT_P12" | base64 --decode > cert.p12
+          security import cert.p12 -P "$CERT_PASSWORD" -k ~/Library/Keychains/login.keychain-db -T /usr/bin/codesign 2>/dev/null || \
+          security import cert.p12 -P "$CERT_PASSWORD" -k /Users/runner/Library/Keychains/temp.keychain -T /usr/bin/codesign
+
+          echo "$PROVISIONING_PROFILE" | base64 --decode > profile.mobileprovision
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$PROVISIONING_PROFILE_BASE64" | base64 -d > ~/Library/MobileDevice/Provisioning\ Profiles/MorningVault-AppStore.mobileprovision
+          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/MorningVault-AppStore.mobileprovision
 
-          # Set code sign identity
-          CODE_SIGN_IDENTITY="Apple Distribution: Yezid Rodriguez (8ZPN58AQLD)"
+          security find-identity -vp codesigning | grep -v "valid identities"
+          ls ~/Library/MobileDevice/Provisioning\ Profiles/
 
-          # Build archive
+      - name: Build for App Store (Archive)
+        run: |
+          rm -rf build/MorningVault.xcarchive
+
           xcodebuild -project MorningVault.xcodeproj \
-            -scheme $SCHEME \
+            -scheme MorningVault \
             -configuration Release \
-            -destination "generic/platform=iOS" \
-            -archivePath ./build/MorningVault.xcarchive \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/MorningVault.xcarchive \
+            archive \
             CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY" \
-            PROVISIONING_PROFILE="$PROVISIONING_PROFILE_NAME"
-        working-directory: .
+            CODE_SIGN_IDENTITY="Apple Distribution: Yezid Rodriguez (8ZPN58AQLD)" \
+            DEVELOPMENT_TEAM=8ZPN58AQLD \
+            PROVISIONING_PROFILE=MorningVault-AppStore \
+            CODE_SIGNING_REQUIRED=YES \
+            CODE_SIGNING_ALLOWED=YES \
+            2>&1
+
+      - name: Package IPA from archive
+        run: |
+          ARCHIVE="build/MorningVault.xcarchive"
+          APP="$ARCHIVE/Products/Applications/MorningVault.app"
+
+          ls "$APP" || exit 1
+          ls "$APP/embedded.mobileprovision" || { echo "ERROR: No embedded.mobileprovision!"; exit 1; }
+
+          mkdir -p Payload
+          cp -R "$APP" Payload/MorningVault.app
+
+          rm -f build/MorningVault.ipa
+          cd Payload
+          zip -r ../build/MorningVault.ipa MorningVault.app
+          cd ..
+
+          echo "IPA created:"
+          ls -lh build/MorningVault.ipa
+
+      - name: Upload to TestFlight
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$ASC_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+
+          xcrun altool --upload-app \
+            --type ios \
+            --file build/MorningVault.ipa \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID" \
+            2>&1
+
+      - name: Verify Upload
+        if: always()
+        run: |
+          sleep 10
+          echo "Build uploaded. Check App Store Connect > TestFlight > Builds."
