@@ -1,0 +1,9 @@
+name: Smoke Test
+on:
+  workflow_dispatch:
+jobs:
+  hello:
+    runs-on: macos-15
+    steps:
+      - name: Greeting
+        run: echo "smoke test ok at $(date)"
