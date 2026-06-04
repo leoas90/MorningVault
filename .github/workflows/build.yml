@@ -1,4 +1,4 @@
-name: Build & TestFlight
+name: MorningVault Build & TestFlight
 
 on:
   push:
