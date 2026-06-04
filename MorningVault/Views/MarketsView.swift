@@ -208,11 +208,6 @@ final class MarketsViewModel: ObservableObject {
         }
     }
 
-    /// Deprecated: Polygon.io is now called exclusively by the backend.
-    private func fetchPolygonPrev(symbol: String, apiKey: String) async -> (price: Double, change: Double)? {
-        return nil
-    }
-
     private struct MarketBackendResponse: Codable {
         let symbol: String
         let price: Double

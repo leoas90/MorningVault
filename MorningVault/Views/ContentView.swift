@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     @AppStorage("user_name") private var userName: String = ""
@@ -297,7 +298,20 @@ struct BriefTabView: View {
                 guard !viewModel.hasLoaded else { return }
                 await viewModel.loadData()
             }
+            .sheet(isPresented: $showShareSheet) {
+                ShareSheet(items: [briefingShareText()])
+                    .presentationDetents([.medium, .large])
+            }
         }
+    }
+
+    private func briefingShareText() -> String {
+        let dateString = Date().formatted(date: .complete, time: .omitted)
+        var lines: [String] = ["☀️ MorningVault — \(dateString)"]
+        for section in viewModel.briefingSections.prefix(5) {
+            lines.append("• \(section.title): \(section.content)")
+        }
+        return lines.joined(separator: "\n")
     }
 
     private var headerSection: some View {
@@ -424,6 +438,21 @@ struct CustomRefreshHeader: View {
             }
         }
     }
+}
+
+// MARK: - Share Sheet
+
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+    var excludedActivityTypes: [UIActivity.ActivityType]? = nil
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        controller.excludedActivityTypes = excludedActivityTypes
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 #Preview {

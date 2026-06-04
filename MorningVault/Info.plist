@@ -23,11 +23,22 @@
 	<string>MorningVault reads your calendar to include today's events in your briefing. Data stays on your device.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Approximate location only — for weather. No precise GPS stored or transmitted.</string>
-	<key>NSHealthUpdateUsageDescription</key>
+	<key>NSHealthShareUsageDescription</key>
 	<string>MorningVault reads your health data — including sleep, steps, heart rate, and HRV — to include in your morning briefing. Data stays on your device and is never shared.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>MorningVault needs microphone access for voice notes.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>MorningVault uses speech recognition to process voice notes.</string>
 	<key>com.apple.developer.ios.user-data-access</key>
 	<string>MorningVault requires user data access for health and calendar integration.</string>
-	
+
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+	</dict>
+	<key>UILaunchScreen</key>
+	<dict/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

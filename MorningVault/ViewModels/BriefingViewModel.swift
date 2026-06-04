@@ -507,13 +507,10 @@ final class BriefingViewModel: ObservableObject {
 
     /// Calls the MorningVault backend proxy for market data.
     /// Backend -> Polygon.io (paid tier) + server-side cache.
+    private static let backendURL = "https://morningvault.fly.dev"
+
     private func fetchFromBackend(symbol: String) async -> SymbolData? {
-        guard let baseURL = UserDefaults.standard.string(forKey: "market_backend_url"),
-              !baseURL.isEmpty,
-              let url = URL(string: "\(baseURL)/market/\(symbol.uppercased())") else {
-            // Backend URL not configured — fall back to local cache
-            return nil
-        }
+        guard let url = URL(string: "\(Self.backendURL)/market/\(symbol.uppercased())") else { return nil }
 
         do {
             let (data, response) = try await URLSession.shared.data(from: url)

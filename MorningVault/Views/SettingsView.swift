@@ -202,10 +202,6 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - API Keys
-
-
-
     // MARK: - Privacy
 
     private var privacySection: some View {
@@ -331,15 +327,6 @@ struct AnimatedToggle: View {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.6).delay(0.1)) {
                 scale = 1.0
             }
-        }
-    }
-}
-
-extension SettingsView {
-    var _animatedToggleExample: some View {
-        Group {
-            // Example usage:
-            // AnimatedToggle(isOn: $myToggle, icon: "heart.fill", label: "Health")
         }
     }
 }

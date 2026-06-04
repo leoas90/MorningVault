@@ -10,7 +10,7 @@ settings:
   base:
     SWIFT_VERSION: "5.9"
     TARGETED_DEVICE_FAMILY: "1"
-    DEVELOPMENT_TEAM: "Z8ZPN58AQLD"
+    DEVELOPMENT_TEAM: "8ZPN58AQLD"
     CODE_SIGN_STYLE: Automatic
 
 targets:
@@ -30,22 +30,9 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: 1.0.0
-        GENERATE_INFOPLIST_FILE: YES
+        GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: MorningVault/Info.plist
         ALWAYS_SEARCH_USER_PATHS: NO
-        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
-        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_NSMicrophoneUsageDescription: "MorningVault needs microphone access for voice notes."
-        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "MorningVault uses speech recognition to process voice notes."
-        INFOPLIST_KEY_NSUsesAVAudioSessionDescription: "MorningVault uses microphone for voice briefs."
-        INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription: "MorningVault reads your calendar to include today's events in your briefing. Data stays on your device."
-        INFOPLIST_KEY_NSHealthShareUsageDescription: "MorningVault reads your health data to include sleep, steps, and HRV in your briefing. Data stays on your device."
-        INFOPLIST_KEY_NSHealthUpdaterUseDescription: "MorningVault reads health data on-device only."
-        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "MorningVault uses approximate location (city-level only) for weather data. No precise GPS is stored or transmitted."
-        INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
-        INFOPLIST_KEY_UISupportedInterfaceOrientations~ipad: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
-        INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.productivity"
     entitlements:
       path: MorningVault/MorningVault.entitlements
       properties:
