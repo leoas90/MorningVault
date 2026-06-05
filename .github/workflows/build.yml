@@ -120,6 +120,7 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution: Yezid Rodriguez (8ZPN58AQLD)" \
             DEVELOPMENT_TEAM=8ZPN58AQLD \
+            PROVISIONING_PROFILE_SPECIFIER=MorningVaultAppStores \
             CODE_SIGNING_REQUIRED=YES \
             CODE_SIGNING_ALLOWED=YES \
             -allowProvisioningUpdates \
