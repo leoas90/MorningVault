@@ -7,15 +7,28 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Round 8 — confirm: PROVISIONING_PROFILE is the missing/bad secret.
-# CERT_P12 (round 6) and CERT_PASSWORD (round 7) are both clean.
+# Workflow-level env block retained (round 1 proved it wasn't the cause of
+# startup_failure). The actual cause was a missing/bad PROVISIONING_PROFILE
+# secret — fixed in commit history via bisect rounds #116-#124.
+#
+# Once the PROVISIONING_PROFILE secret is re-uploaded on the repo, this
+# workflow is the recovery baseline that should run end-to-end.
+
+env:
+  DEVICE: "platform=iOS Simulator,name=iPhone 16 Pro"
+  SCHEME: MorningVault
+  ASC_KEY: ${{ secrets.ASC_KEY }}
+  ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+  ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+  BUNDLE_ID: com.yeziddr.morningvault.dev
+  APP_ID: ${{ secrets.APP_ID }}
+  CERT_P12: ${{ secrets.CERT_P12 }}
+  CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
+  PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
 
 jobs:
   build:
     runs-on: macos-15
-    env:
-      DEVICE: "platform=iOS Simulator,name=iPhone 16 Pro"
-      SCHEME: MorningVault
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,15 +61,80 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Round 8 — test PROVISIONING_PROFILE alone
-        env:
-          PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
+      - name: Bump build number
         run: |
-          echo "PROVISIONING_PROFILE length: ${#PROVISIONING_PROFILE}"
-          [ -n "$PROVISIONING_PROFILE" ] && echo "PROVISIONING_PROFILE is set" || echo "PROVISIONING_PROFILE is EMPTY"
-          echo "$PROVISIONING_PROFILE" | base64 --decode > /tmp/profile.mobileprovision 2>&1 || echo "DECODE FAILED"
-          ls -la /tmp/profile.mobileprovision 2>/dev/null || true
+          NEXT=${{ github.run_number }}
+          sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*/CURRENT_PROJECT_VERSION = $NEXT/" MorningVault.xcodeproj/project.pbxproj || true
+          echo "Build number set to: $NEXT"
 
-      - name: Round 8 marker
+      - name: Resolve SPM dependencies
+        run: xcodebuild -project MorningVault.xcodeproj -scheme MorningVault -resolvePackageDependencies
+
+      - name: Import signing assets
+        run: |
+          echo "$CERT_P12" | base64 --decode > cert.p12
+          security import cert.p12 -P "$CERT_PASSWORD" -k ~/Library/Keychains/login.keychain-db -T /usr/bin/codesign 2>/dev/null || \
+          security import cert.p12 -P "$CERT_PASSWORD" -k /Users/runner/Library/Keychains/temp.keychain -T /usr/bin/codesign
+
+          echo "$PROVISIONING_PROFILE" | base64 --decode > profile.mobileprovision
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/MorningVault-AppStores.mobileprovision
+          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/5aa8732c-6c4b-4353-b56f-60da038328ae.mobileprovision
+
+          security find-identity -vp codesigning | grep -v "valid identities"
+          ls ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      - name: Build for App Store (Archive)
+        run: |
+          rm -rf build/MorningVault.xcarchive
+
+          xcodebuild -project MorningVault.xcodeproj \
+            -scheme MorningVault \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/MorningVault.xcarchive \
+            archive \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution: Yezid Rodriguez (8ZPN58AQLD)" \
+            DEVELOPMENT_TEAM=8ZPN58AQLD \
+            CODE_SIGNING_REQUIRED=YES \
+            CODE_SIGNING_ALLOWED=YES \
+            -allowProvisioningUpdates \
+            2>&1
+
+      - name: Package IPA from archive
+        run: |
+          ARCHIVE="build/MorningVault.xcarchive"
+          APP="$ARCHIVE/Products/Applications/MorningVault.app"
+
+          ls "$APP" || exit 1
+          ls "$APP/embedded.mobileprovision" || { echo "ERROR: No embedded.mobileprovision!"; exit 1; }
+
+          mkdir -p Payload
+          cp -R "$APP" Payload/MorningVault.app
+
+          rm -f build/MorningVault.ipa
+          cd Payload
+          zip -r ../build/MorningVault.ipa MorningVault.app
+          cd ..
+
+          echo "IPA created:"
+          ls -lh build/MorningVault.ipa
+
+      - name: Upload to TestFlight
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$ASC_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+
+          xcrun altool --upload-app \
+            --type ios \
+            --file build/MorningVault.ipa \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID" \
+            2>&1
+
+      - name: Verify Upload
         if: always()
-        run: echo "round 8 reached at $(date)"
+        run: |
+          sleep 10
+          echo "Build uploaded. Check App Store Connect > TestFlight > Builds."
