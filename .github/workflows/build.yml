@@ -7,8 +7,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# env block intentionally removed (round 1 proved it's not the cause)
-# Secrets wired at the step that uses them (per-step env).
+# Round 4 — bisect: add only the no-secret steps back.
+# If this still startup_fails, the cause is NOT in any of these steps
+# (Bump build number, Resolve SPM deps, Package IPA, Verify Upload).
+# If it succeeds, we then add Import signing assets, Build Archive, Upload TF
+# one at a time to find the secret-causing step.
 
 jobs:
   build:
@@ -44,8 +47,6 @@ jobs:
     runs-on: macos-15
     needs: build
     if: github.event_name != 'pull_request'
-    env:
-      BUNDLE_ID: com.yeziddr.morningvault.dev
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,82 +60,12 @@ jobs:
       - name: Resolve SPM dependencies
         run: xcodebuild -project MorningVault.xcodeproj -scheme MorningVault -resolvePackageDependencies
 
-      - name: Import signing assets
-        env:
-          CERT_P12: ${{ secrets.CERT_P12 }}
-          CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
-          PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
-        run: |
-          echo "$CERT_P12" | base64 --decode > cert.p12
-          security import cert.p12 -P "$CERT_PASSWORD" -k ~/Library/Keychains/login.keychain-db -T /usr/bin/codesign 2>/dev/null || \
-          security import cert.p12 -P "$CERT_PASSWORD" -k /Users/runner/Library/Keychains/temp.keychain -T /usr/bin/codesign
+      # NO Import signing assets in this round
+      # NO Build for App Store (Archive) in this round
+      # NO Package IPA in this round
+      # NO Upload to TestFlight in this round
 
-          echo "$PROVISIONING_PROFILE" | base64 --decode > profile.mobileprovision
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/MorningVault-AppStores.mobileprovision
-          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/5aa8732c-6c4b-4353-b56f-60da038328ae.mobileprovision
-
-          security find-identity -vp codesigning | grep -v "valid identities"
-          ls ~/Library/MobileDevice/Provisioning\ Profiles/
-
-      - name: Build for App Store (Archive)
-        env:
-          # APP_ID declared to preserve original test surface
-          APP_ID: ${{ secrets.APP_ID }}
-        run: |
-          rm -rf build/MorningVault.xcarchive
-
-          xcodebuild -project MorningVault.xcodeproj \
-            -scheme MorningVault \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -archivePath build/MorningVault.xcarchive \
-            archive \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution: Yezid Rodriguez (8ZPN58AQLD)" \
-            DEVELOPMENT_TEAM=8ZPN58AQLD \
-            CODE_SIGNING_REQUIRED=YES \
-            CODE_SIGNING_ALLOWED=YES \
-            -allowProvisioningUpdates \
-            2>&1
-
-      - name: Package IPA from archive
-        run: |
-          ARCHIVE="build/MorningVault.xcarchive"
-          APP="$ARCHIVE/Products/Applications/MorningVault.app"
-
-          ls "$APP" || exit 1
-          ls "$APP/embedded.mobileprovision" || { echo "ERROR: No embedded.mobileprovision!"; exit 1; }
-
-          mkdir -p Payload
-          cp -R "$APP" Payload/MorningVault.app
-
-          rm -f build/MorningVault.ipa
-          cd Payload
-          zip -r ../build/MorningVault.ipa MorningVault.app
-          cd ..
-
-          echo "IPA created:"
-          ls -lh build/MorningVault.ipa
-
-      - name: Upload to TestFlight
-        env:
-          ASC_KEY: ${{ secrets.ASC_KEY }}
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-        run: |
-          mkdir -p ~/.appstoreconnect/private_keys
-          echo "$ASC_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
-
-          xcrun altool --upload-app \
-            --type ios \
-            --file build/MorningVault.ipa \
-            --apiKey "$ASC_KEY_ID" \
-            --apiIssuer "$ASC_ISSUER_ID" \
-            2>&1
-
-      - name: Verify Upload
+      - name: Round 4 marker — no-secret steps only
         if: always()
         run: |
-          sleep 10
-          echo "Build uploaded. Check App Store Connect > TestFlight > Builds."
+          echo "build-and-upload round 4 reached at $(date)"
