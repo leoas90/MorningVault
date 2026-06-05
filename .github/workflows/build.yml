@@ -79,6 +79,12 @@ jobs:
           echo "$PROVISIONING_PROFILE" | base64 --decode > profile.mobileprovision
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
 
+          # Wipe any stale profiles from previous runner runs. xcodebuild picks
+          # the "best matching" profile by name, and a stale one with a name
+          # xcodebuild likes will win over our fresh one. Only keep what THIS
+          # run installs.
+          rm -rf ~/Library/MobileDevice/Provisioning\ Profiles/*
+
           # Install under BOTH the profile's internal Name and its UUID.
           # xcodebuild locates profiles by filename — either Name or UUID works,
           # but the filename must match the profile's internal Name exactly, and
@@ -91,6 +97,12 @@ jobs:
           echo "Profile UUID: $PROFILE_UUID"
           cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/${PROFILE_NAME}.mobileprovision
           cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/${PROFILE_UUID}.mobileprovision
+
+          # Sanity check: parse the installed copy and confirm capabilities
+          echo "--- Profile verification ---"
+          INSTALLED=~/Library/MobileDevice/Provisioning\ Profiles/${PROFILE_NAME}.mobileprovision
+          security cms -D -i "$INSTALLED" 2>/dev/null | plutil -extract Entitlements xml1 -o - - 2>/dev/null | grep -E "healthkit|application-groups" | head -5
+          echo "--- End verification ---"
 
           security find-identity -vp codesigning | grep -v "valid identities"
           ls ~/Library/MobileDevice/Provisioning\ Profiles/
