@@ -7,11 +7,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Round 4 — bisect: add only the no-secret steps back.
-# If this still startup_fails, the cause is NOT in any of these steps
-# (Bump build number, Resolve SPM deps, Package IPA, Verify Upload).
-# If it succeeds, we then add Import signing assets, Build Archive, Upload TF
-# one at a time to find the secret-causing step.
+# Round 5 — bisect: add only Import signing assets (the 3-secret step).
+# If startup_fails, then a missing/bad secret among CERT_P12, CERT_PASSWORD,
+# PROVISIONING_PROFILE is the trigger.
 
 jobs:
   build:
@@ -60,12 +58,24 @@ jobs:
       - name: Resolve SPM dependencies
         run: xcodebuild -project MorningVault.xcodeproj -scheme MorningVault -resolvePackageDependencies
 
-      # NO Import signing assets in this round
-      # NO Build for App Store (Archive) in this round
-      # NO Package IPA in this round
-      # NO Upload to TestFlight in this round
-
-      - name: Round 4 marker — no-secret steps only
-        if: always()
+      - name: Import signing assets
+        env:
+          CERT_P12: ${{ secrets.CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
+          PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
         run: |
-          echo "build-and-upload round 4 reached at $(date)"
+          echo "$CERT_P12" | base64 --decode > cert.p12
+          security import cert.p12 -P "$CERT_PASSWORD" -k ~/Library/Keychains/login.keychain-db -T /usr/bin/codesign 2>/dev/null || \
+          security import cert.p12 -P "$CERT_PASSWORD" -k /Users/runner/Library/Keychains/temp.keychain -T /usr/bin/codesign
+
+          echo "$PROVISIONING_PROFILE" | base64 --decode > profile.mobileprovision
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/MorningVault-AppStores.mobileprovision
+          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/5aa8732c-6c4b-4353-b56f-60da038328ae.mobileprovision
+
+          security find-identity -vp codesigning | grep -v "valid identities"
+          ls ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      - name: Round 5 marker
+        if: always()
+        run: echo "round 5 reached at $(date)"
