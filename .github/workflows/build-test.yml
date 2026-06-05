@@ -1,0 +1,37 @@
+name: Build Test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# env block intentionally removed for isolation test
+# env:
+#   DEVICE: "platform=iOS Simulator,name=iPhone 16 Pro"
+#   SCHEME: MorningVault
+#   ASC_KEY: ${{ secrets.ASC_KEY }}
+#   ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+#   ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+#   BUNDLE_ID: com.yeziddr.morningvault.dev
+#   APP_ID: ${{ secrets.APP_ID }}
+#   CERT_P12: ${{ secrets.CERT_P12 }}
+#   CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
+#   PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Just print
+        run: echo "build-test ok at $(date) — env block disabled"
+
+  build-and-upload:
+    runs-on: macos-15
+    needs: build
+    if: github.event_name != 'pull_request'
+    steps:
+      - name: Just print 2
+        run: echo "build-and-upload would run here"
