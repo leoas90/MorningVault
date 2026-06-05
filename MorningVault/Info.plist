@@ -8,6 +8,8 @@
 	</array>
 	<key>CFBundleDisplayName</key>
 	<string>MorningVault</string>
+	<key>CFBundleExecutable</key>
+	<string>MorningVault</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.yeziddr.morningvault.dev</string>
 	<key>CFBundleName</key>
