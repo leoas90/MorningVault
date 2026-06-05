@@ -78,8 +78,19 @@ jobs:
 
           echo "$PROVISIONING_PROFILE" | base64 --decode > profile.mobileprovision
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/MorningVault-AppStores.mobileprovision
-          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/5aa8732c-6c4b-4353-b56f-60da038328ae.mobileprovision
+
+          # Install under BOTH the profile's internal Name and its UUID.
+          # xcodebuild locates profiles by filename — either Name or UUID works,
+          # but the filename must match the profile's internal Name exactly, and
+          # the UUID-named copy must match the profile's actual UUID. Reading
+          # these dynamically means we don't break on profile regeneration
+          # (different cert → different UUID/Name).
+          PROFILE_NAME=$(security cms -D -i profile.mobileprovision 2>/dev/null | plutil -extract Name raw -)
+          PROFILE_UUID=$(security cms -D -i profile.mobileprovision 2>/dev/null | plutil -extract UUID raw -)
+          echo "Profile Name: $PROFILE_NAME"
+          echo "Profile UUID: $PROFILE_UUID"
+          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/${PROFILE_NAME}.mobileprovision
+          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/${PROFILE_UUID}.mobileprovision
 
           security find-identity -vp codesigning | grep -v "valid identities"
           ls ~/Library/MobileDevice/Provisioning\ Profiles/
