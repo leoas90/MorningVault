@@ -61,6 +61,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Clear derived data
+        run: |
+          # Wipe DerivedData from any previous build on this runner. The macOS
+          # runner image is fresh per job, but if GitHub reuses an image
+          # mid-job (e.g., a cancelled-then-restarted run), stale DerivedData
+          # can survive and cause xcodebuild to use cached signing decisions
+          # from a previous (failed) run. Wipe it to be safe.
+          rm -rf ~/Library/Developer/Xcode/DerivedData/MorningVault-*
+          echo "DerivedData cleared"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+        working-directory: .
+
       - name: Bump build number
         run: |
           NEXT=${{ github.run_number }}
@@ -69,6 +86,17 @@ jobs:
 
       - name: Resolve SPM dependencies
         run: xcodebuild -project MorningVault.xcodeproj -scheme MorningVault -resolvePackageDependencies
+
+      - name: Install xcbeautify (optional)
+        # Pretty-prints xcodebuild output. If brew install fails, we fall back
+        # to raw xcodebuild output via the `|| true` trick — never blocks.
+        run: |
+          if brew install xcbeautify 2>/dev/null; then
+            echo "xcbeautify installed"
+          else
+            echo "xcbeautify install failed — will use raw xcodebuild output"
+          fi
+          which xcbeautify || echo "xcbeautify not on PATH"
 
       - name: Import signing assets
         run: |
@@ -101,7 +129,7 @@ jobs:
           # Sanity check: parse the installed copy and confirm capabilities
           echo "--- Profile verification ---"
           INSTALLED=~/Library/MobileDevice/Provisioning\ Profiles/${PROFILE_NAME}.mobileprovision
-          security cms -D -i "$INSTALLED" 2>/dev/null | plutil -extract Entitlements xml1 -o - - 2>/dev/null | grep -E "healthkit|application-groups" | head -5
+          security cms -D -i "$INSTALLED" 2>/dev/null | plutil -extract Entitlements xml1 -o - - 2>/dev/null | grep -E "healthkit|weatherkit" | head -5
           echo "--- End verification ---"
 
           security find-identity -vp codesigning | grep -v "valid identities"
@@ -110,6 +138,21 @@ jobs:
       - name: Build for App Store (Archive)
         run: |
           rm -rf build/MorningVault.xcarchive
+
+          # Pipe through xcbeautify if available, otherwise raw output.
+          # xcbeautify is optional — its absence doesn't fail the build.
+          # We disable pipefail for the pipeline because xcbeautify can exit
+          # non-zero on build errors (it highlights them), but we want the
+          # build's exit code to drive the workflow. If xcbeautify itself
+          # crashes, we fall back to raw output.
+          set +o pipefail
+          XCB='cat'
+          if command -v xcbeautify >/dev/null 2>&1; then
+            XCB='xcbeautify'
+            echo "Using xcbeautify for pretty output"
+          else
+            echo "xcbeautify not available, using raw output"
+          fi
 
           xcodebuild -project MorningVault.xcodeproj \
             -scheme MorningVault \
@@ -124,7 +167,11 @@ jobs:
             CODE_SIGNING_REQUIRED=YES \
             CODE_SIGNING_ALLOWED=YES \
             -allowProvisioningUpdates \
-            2>&1
+            2>&1 | $XCB
+          BUILD_RC=${PIPESTATUS[0]}
+          set -o pipefail
+          echo "xcodebuild exit code: $BUILD_RC"
+          exit $BUILD_RC
 
       - name: Package IPA from archive
         run: |
