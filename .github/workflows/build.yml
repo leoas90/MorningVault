@@ -7,9 +7,7 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Round 6 — bisect secrets in Import signing assets.
-# Try each secret individually. The first that doesn't cause startup_failure
-# confirms the OTHER ones are the trigger.
+# Round 7 — test CERT_PASSWORD alone. CERT_P12 was clean (round 6).
 
 jobs:
   build:
@@ -49,15 +47,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Round 6 — test CERT_P12 only
+      - name: Round 7 — test CERT_PASSWORD alone
         env:
-          CERT_P12: ${{ secrets.CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
         run: |
-          echo "CERT_P12 length: ${#CERT_P12}"
-          echo "$CERT_P12" | base64 --decode > /tmp/cert.p12 2>&1 || echo "DECODE FAILED"
-          ls -la /tmp/cert.p12
-          file /tmp/cert.p12
+          echo "CERT_PASSWORD length: ${#CERT_PASSWORD}"
+          [ -n "$CERT_PASSWORD" ] && echo "CERT_PASSWORD is set" || echo "CERT_PASSWORD is EMPTY"
 
-      - name: Round 6 marker
+      - name: Round 7 marker
         if: always()
-        run: echo "round 6 reached at $(date)"
+        run: echo "round 7 reached at $(date)"
