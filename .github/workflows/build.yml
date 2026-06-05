@@ -7,7 +7,8 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Round 7 — test CERT_PASSWORD alone. CERT_P12 was clean (round 6).
+# Round 8 — confirm: PROVISIONING_PROFILE is the missing/bad secret.
+# CERT_P12 (round 6) and CERT_PASSWORD (round 7) are both clean.
 
 jobs:
   build:
@@ -47,13 +48,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Round 7 — test CERT_PASSWORD alone
+      - name: Round 8 — test PROVISIONING_PROFILE alone
         env:
-          CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
+          PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
         run: |
-          echo "CERT_PASSWORD length: ${#CERT_PASSWORD}"
-          [ -n "$CERT_PASSWORD" ] && echo "CERT_PASSWORD is set" || echo "CERT_PASSWORD is EMPTY"
+          echo "PROVISIONING_PROFILE length: ${#PROVISIONING_PROFILE}"
+          [ -n "$PROVISIONING_PROFILE" ] && echo "PROVISIONING_PROFILE is set" || echo "PROVISIONING_PROFILE is EMPTY"
+          echo "$PROVISIONING_PROFILE" | base64 --decode > /tmp/profile.mobileprovision 2>&1 || echo "DECODE FAILED"
+          ls -la /tmp/profile.mobileprovision 2>/dev/null || true
 
-      - name: Round 7 marker
+      - name: Round 8 marker
         if: always()
-        run: echo "round 7 reached at $(date)"
+        run: echo "round 8 reached at $(date)"
