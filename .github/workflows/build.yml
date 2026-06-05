@@ -7,21 +7,15 @@ on:
     branches: [main]
   workflow_dispatch:
 
-env:
-  DEVICE: "platform=iOS Simulator,name=iPhone 16 Pro"
-  SCHEME: MorningVault
-  ASC_KEY: ${{ secrets.ASC_KEY }}
-  ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-  ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-  BUNDLE_ID: com.yeziddr.morningvault.dev
-  APP_ID: ${{ secrets.APP_ID }}
-  CERT_P12: ${{ secrets.CERT_P12 }}
-  CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
-  PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
+# env block removed for isolation test (env was suspected startup_failure cause)
+# Replaced with per-step env / direct secrets refs as needed.
 
 jobs:
   build:
     runs-on: macos-15
+    env:
+      DEVICE: "platform=iOS Simulator,name=iPhone 16 Pro"
+      SCHEME: MorningVault
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,6 +44,8 @@ jobs:
     runs-on: macos-15
     needs: build
     if: github.event_name != 'pull_request'
+    env:
+      BUNDLE_ID: com.yeziddr.morningvault.dev
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -64,6 +60,10 @@ jobs:
         run: xcodebuild -project MorningVault.xcodeproj -scheme MorningVault -resolvePackageDependencies
 
       - name: Import signing assets
+        env:
+          CERT_P12: ${{ secrets.CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
+          PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
         run: |
           echo "$CERT_P12" | base64 --decode > cert.p12
           security import cert.p12 -P "$CERT_PASSWORD" -k ~/Library/Keychains/login.keychain-db -T /usr/bin/codesign 2>/dev/null || \
@@ -78,6 +78,10 @@ jobs:
           ls ~/Library/MobileDevice/Provisioning\ Profiles/
 
       - name: Build for App Store (Archive)
+        env:
+          # APP_ID was in original env block — keep declared to preserve test surface
+          # (the step doesn't use it, but a missing secret here would mask the real cause)
+          APP_ID: ${{ secrets.APP_ID }}
         run: |
           rm -rf build/MorningVault.xcarchive
 
@@ -115,6 +119,10 @@ jobs:
           ls -lh build/MorningVault.ipa
 
       - name: Upload to TestFlight
+        env:
+          ASC_KEY: ${{ secrets.ASC_KEY }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
         run: |
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$ASC_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
