@@ -26,19 +26,19 @@ extension Color {
         self.init(red: red, green: green, blue: blue)
     }
 
-    static var warmBackground: Color { Color(hex: "FBF9F7") }
-    static var warmSurface: Color { Color(hex: "FFFFFF") }
-    static var warmCardBackground: Color { Color(hex: "FFFFFF") }
-    static var warmPrimaryAccent: Color { Color(hex: "E07A5F") }
-    static var warmSecondaryAccent: Color { Color(hex: "81B29A") }
-    static var warmTextPrimary: Color { Color(hex: "3D405B") }
-    static var warmTextSecondary: Color { Color(hex: "8D8D8D") }
-    static var warmDivider: Color { Color(hex: "E8E4E0") }
-    static var warmPositive: Color { Color(hex: "81B29A") }
-    static var warmNegative: Color { Color(hex: "E07A5F") }
-    static var warmAISummary: Color { Color(hex: "F4A261") }
-    static var warmLocalBadge: Color { Color(hex: "81B29A") }
-    static var warmExternalBadge: Color { Color(hex: "F4A261") }
+    static var warmBackground: Color { Color.backgroundColor }
+    static var warmSurface: Color { Color.surfaceColor }
+    static var warmCardBackground: Color { Color.surfaceColor }
+    static var warmPrimaryAccent: Color { Color.appAccentColor }
+    static var warmSecondaryAccent: Color { Color.positiveColor }
+    static var warmTextPrimary: Color { Color(UIColor { traits in traits.userInterfaceStyle == .dark ? UIColor.white : UIColor.black }) }
+    static var warmTextSecondary: Color { Color(UIColor { traits in traits.userInterfaceStyle == .dark ? UIColor(white: 0.7, alpha: 1) : UIColor(white: 0.4, alpha: 1) }) }
+    static var warmDivider: Color { Color(UIColor { traits in traits.userInterfaceStyle == .dark ? UIColor(white: 0.2, alpha: 1) : UIColor(white: 0.9, alpha: 1) }) }
+    static var warmPositive: Color { Color.positiveColor }
+    static var warmNegative: Color { Color.appAccentColor }
+    static var warmAISummary: Color { Color.aiSummaryBadgeColor }
+    static var warmLocalBadge: Color { Color.positiveColor }
+    static var warmExternalBadge: Color { Color.aiSummaryBadgeColor }
 }
 
 // MARK: - NumberText View (Animated value changes)

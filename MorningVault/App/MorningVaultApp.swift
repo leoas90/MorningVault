@@ -138,8 +138,7 @@ extension Notification.Name {
 
 enum AppTheme: String, CaseIterable, Identifiable {
     case system
-    case warm
-    case cool
+    case light
     case dark
 
     var id: String { rawValue }
@@ -147,8 +146,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .system: return "System"
-        case .warm: return "Warm"
-        case .cool: return "Cool"
+        case .light: return "Light"
         case .dark: return "Dark"
         }
     }
@@ -156,9 +154,29 @@ enum AppTheme: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .system: return "circle.lefthalf.filled"
-        case .warm: return "sun.max.fill"
-        case .cool: return "moon.fill"
+        case .light: return "sun.max.fill"
         case .dark: return "moon.stars.fill"
+        }
+    }
+}
+
+enum ColorAppearance: String, CaseIterable, Identifiable {
+    case cool
+    case warm
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .cool: return "Cool"
+        case .warm: return "Warm"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .cool: return "snowflake"
+        case .warm: return "sun.max.fill"
         }
     }
 }
@@ -181,34 +199,34 @@ extension Color {
     }
 
     static func backgroundColor(for theme: AppTheme) -> Color {
+        let appearanceRaw = UserDefaults.standard.string(forKey: "appearance") ?? "warm"
+        let appearance = ColorAppearance(rawValue: appearanceRaw) ?? .warm
         switch theme {
         case .system:
             return Color(UIColor { traits in
                 traits.userInterfaceStyle == .dark
                     ? UIColor(hex: "0D0D0F")
-                    : UIColor(hex: "F2F2F7")
+                    : (appearance == .warm ? UIColor(hex: "FBF8F3") : UIColor(hex: "F0F4F8"))
             })
-        case .warm:
-            return Color(UIColor(hex: "FBF8F3"))  // warm cream
-        case .cool:
-            return Color(UIColor(hex: "F0F4F8"))  // cool gray-blue
+        case .light:
+            return appearance == .warm ? Color(UIColor(hex: "FBF8F3")) : Color(UIColor(hex: "F0F4F8"))
         case .dark:
             return Color(UIColor(hex: "0D0D0F"))  // premium dark
         }
     }
 
     static func surfaceColor(for theme: AppTheme) -> Color {
+        let appearanceRaw = UserDefaults.standard.string(forKey: "appearance") ?? "warm"
+        let appearance = ColorAppearance(rawValue: appearanceRaw) ?? .warm
         switch theme {
         case .system:
             return Color(UIColor { traits in
                 traits.userInterfaceStyle == .dark
                     ? UIColor(hex: "1C1C1E")
-                    : UIColor.white
+                    : (appearance == .warm ? UIColor(hex: "FFFDF9") : UIColor(hex: "FFFFFF"))
             })
-        case .warm:
-            return Color(UIColor(hex: "FFFDF9"))  // warm white
-        case .cool:
-            return Color(UIColor(hex: "FFFFFF"))  // crisp white
+        case .light:
+            return appearance == .warm ? Color(UIColor(hex: "FFFDF9")) : Color(UIColor(hex: "FFFFFF"))
         case .dark:
             return Color(UIColor(hex: "1C1C1E"))
         }
@@ -221,13 +239,13 @@ extension Color {
     }
 
     static func appAccentColor(for theme: AppTheme) -> Color {
+        let appearanceRaw = UserDefaults.standard.string(forKey: "appearance") ?? "warm"
+        let appearance = ColorAppearance(rawValue: appearanceRaw) ?? .warm
         switch theme {
         case .system:
-            return .blue
-        case .warm:
-            return Color(UIColor(hex: "D4A373"))  // soft terracotta
-        case .cool:
-            return Color(UIColor(hex: "7E8EA8"))  // cool slate
+            return appearance == .warm ? Color(UIColor(hex: "D4A373")) : Color(UIColor(hex: "7E8EA8"))
+        case .light:
+            return appearance == .warm ? Color(UIColor(hex: "D4A373")) : Color(UIColor(hex: "7E8EA8"))
         case .dark:
             return Color(UIColor(hex: "6B7280"))  // muted gray
         }
@@ -240,13 +258,13 @@ extension Color {
     }
 
     static func _positiveColor(for theme: AppTheme) -> Color {
+        let appearanceRaw = UserDefaults.standard.string(forKey: "appearance") ?? "warm"
+        let appearance = ColorAppearance(rawValue: appearanceRaw) ?? .warm
         switch theme {
         case .system:
             return .green
-        case .warm:
-            return Color(UIColor(hex: "81B29A"))  // sage green
-        case .cool:
-            return .green
+        case .light:
+            return appearance == .warm ? Color(UIColor(hex: "81B29A")) : .green
         case .dark:
             return .green
         }
@@ -259,13 +277,13 @@ extension Color {
     }
 
     static func aiSummaryBadgeColor(for theme: AppTheme) -> Color {
+        let appearanceRaw = UserDefaults.standard.string(forKey: "appearance") ?? "warm"
+        let appearance = ColorAppearance(rawValue: appearanceRaw) ?? .warm
         switch theme {
         case .system:
-            return .orange
-        case .warm:
-            return Color(UIColor(hex: "E07A5F"))  // terracotta coral
-        case .cool:
-            return Color(UIColor(hex: "7E8EA8"))  // cool slate
+            return appearance == .warm ? Color(UIColor(hex: "E07A5F")) : Color(UIColor(hex: "7E8EA8"))
+        case .light:
+            return appearance == .warm ? Color(UIColor(hex: "E07A5F")) : Color(UIColor(hex: "7E8EA8"))
         case .dark:
             return Color(UIColor(hex: "6B7280"))  // muted gray
         }

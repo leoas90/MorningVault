@@ -9,6 +9,7 @@ struct SettingsView: View {
     @AppStorage("headlines_enabled") private var headlinesEnabled = true
     @AppStorage("local_only") private var localOnly = false
     @AppStorage("theme") private var themeRaw: String = AppTheme.system.rawValue
+    @AppStorage("appearance") private var appearanceRaw: String = "warm"
     @AppStorage("user_name") private var userName: String = ""
     @State private var showingPrivacyPolicy = false
     @State private var hasAppeared = false
@@ -46,9 +47,16 @@ struct SettingsView: View {
     private var themeDescription: String {
         switch currentTheme {
         case .system: return "Adapts to your device's light/dark setting"
-        case .warm: return "Soft cream tones — warm and energizing"
-        case .cool: return "Cool gray-blue — calm and focused"
+        case .light: return "Always light mode"
         case .dark: return "Premium dark — always dark mode"
+        }
+    }
+
+    private var appearanceDescription: String {
+        let appearance = ColorAppearance(rawValue: appearanceRaw) ?? .warm
+        switch appearance {
+        case .cool: return "Cool gray-blue tones — calm and focused"
+        case .warm: return "Soft cream tones — warm and energizing"
         }
     }
 
@@ -148,7 +156,7 @@ struct SettingsView: View {
     // MARK: - Appearance
 
     private var appearanceSection: some View {
-        Section("Appearance") {
+        Section("Theme") {
             Picker("Theme", selection: $themeRaw) {
                 ForEach(AppTheme.allCases) { theme in
                     Label(theme.displayName, systemImage: theme.icon)
@@ -157,8 +165,19 @@ struct SettingsView: View {
             }
             .pickerStyle(.inline)
             .labelsHidden()
+        }
 
-            Text(themeDescription)
+        Section("Appearance") {
+            Picker("Appearance", selection: $appearanceRaw) {
+                ForEach(ColorAppearance.allCases) { appearance in
+                    Label(appearance.displayName, systemImage: appearance.icon)
+                        .tag(appearance.rawValue)
+                }
+            }
+            .pickerStyle(.inline)
+            .labelsHidden()
+
+            Text(appearanceDescription)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
