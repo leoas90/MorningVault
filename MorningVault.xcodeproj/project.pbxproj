@@ -290,7 +290,7 @@
 				TargetAttributes = {
 					503CFA92C92AF708C45357B51245DC80 = {
 						DevelopmentTeam = 8ZPN58AQLD;
-						ProvisioningStyle = Automatic;
+						ProvisioningStyle = Manual;
 					};
 				};
 			};
@@ -373,9 +373,11 @@
 		09D4CC953A62A211F79AC1598192CC65 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = 8ZPN58AQLD;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				PROVISIONING_PROFILE_SPECIFIER = MorningVaultAppStores;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -419,9 +421,11 @@
 		994783B379FE2EF3D2C344FAD5BF5F73 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = 8ZPN58AQLD;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				PROVISIONING_PROFILE_SPECIFIER = MorningVaultAppStores;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = 1;

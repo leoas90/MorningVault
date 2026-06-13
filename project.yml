@@ -12,6 +12,8 @@ settings:
     TARGETED_DEVICE_FAMILY: "1"
     DEVELOPMENT_TEAM: "8ZPN58AQLD"
     CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "Apple Distribution"
+    PROVISIONING_PROFILE_SPECIFIER: "MorningVaultAppStores"
 
 targets:
   MorningVault:
