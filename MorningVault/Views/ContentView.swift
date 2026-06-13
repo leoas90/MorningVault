@@ -5,6 +5,8 @@ struct ContentView: View {
     @AppStorage("user_name") private var userName: String = ""
     @AppStorage("local_only") private var localOnly = false
     @AppStorage("has_completed_onboarding") private var hasCompletedOnboarding = false
+    @AppStorage("theme") private var themeRaw: String = AppTheme.system.rawValue
+    @AppStorage("appearance") private var appearanceRaw: String = "warm"
 
     @StateObject private var viewModel = BriefingViewModel()
     @State private var selectedTab: Tab = .brief
@@ -79,6 +81,7 @@ struct ContentView: View {
             }
             .tag(Tab.settings)
         }
+        .id(themeRaw + appearanceRaw)
         .tint(Color.warmPrimaryAccent)
         .task {
             _ = await ContactsService.shared.fetchDeviceName()

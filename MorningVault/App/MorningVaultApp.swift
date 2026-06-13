@@ -20,12 +20,22 @@ struct MorningVaultApp: App {
                     handleDeepLink(url)
                 }
                 .appTheme(currentTheme)
+                .preferredColorScheme(preferredColorScheme)
+                .id(themeRaw)  // Force full UI rebuild when theme or appearance changes
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         // Invalidate cache on foreground to ensure fresh briefing
                         NotificationCenter.default.post(name: .viewBriefingRequested, object: nil)
                     }
                 }
+        }
+    }
+
+    private var preferredColorScheme: ColorScheme? {
+        switch currentTheme {
+        case .light: return .light
+        case .dark: return .dark
+        case .system: return nil
         }
     }
 
