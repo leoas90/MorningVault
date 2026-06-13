@@ -57,6 +57,7 @@ struct SettingsView: View {
         switch appearance {
         case .cool: return "Cool gray-blue tones — calm and focused"
         case .warm: return "Soft cream tones — warm and energizing"
+        case .calm: return "Soft sage green tones — calm and balanced"
         }
     }
 

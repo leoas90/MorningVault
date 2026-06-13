@@ -173,6 +173,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
 enum ColorAppearance: String, CaseIterable, Identifiable {
     case cool
     case warm
+    case calm
 
     var id: String { rawValue }
 
@@ -180,6 +181,7 @@ enum ColorAppearance: String, CaseIterable, Identifiable {
         switch self {
         case .cool: return "Cool"
         case .warm: return "Warm"
+        case .calm: return "Calm"
         }
     }
 
@@ -187,6 +189,7 @@ enum ColorAppearance: String, CaseIterable, Identifiable {
         switch self {
         case .cool: return "snowflake"
         case .warm: return "sun.max.fill"
+        case .calm: return "leaf.fill"
         }
     }
 }
@@ -216,10 +219,16 @@ extension Color {
             return Color(UIColor { traits in
                 traits.userInterfaceStyle == .dark
                     ? UIColor(hex: "0D0D0F")
-                    : (appearance == .warm ? UIColor(hex: "FBF8F3") : UIColor(hex: "F0F4F8"))
+                    : (appearance == .warm ? UIColor(hex: "FBF8F3") : (appearance == .cool ? UIColor(hex: "F0F4F8") : UIColor(hex: "F5F7F5")))
             })
         case .light:
-            return appearance == .warm ? Color(UIColor(hex: "FBF8F3")) : Color(UIColor(hex: "F0F4F8"))
+            if appearance == .warm {
+                return Color(UIColor(hex: "FBF8F3"))
+            } else if appearance == .cool {
+                return Color(UIColor(hex: "F0F4F8"))
+            } else {
+                return Color(UIColor(hex: "F5F7F5"))  // calm sage green tint
+            }
         case .dark:
             return Color(UIColor(hex: "0D0D0F"))  // premium dark
         }
@@ -233,10 +242,16 @@ extension Color {
             return Color(UIColor { traits in
                 traits.userInterfaceStyle == .dark
                     ? UIColor(hex: "1C1C1E")
-                    : (appearance == .warm ? UIColor(hex: "FFFDF9") : UIColor(hex: "FFFFFF"))
+                    : (appearance == .warm ? UIColor(hex: "FFFDF9") : (appearance == .cool ? UIColor(hex: "FFFFFF") : UIColor(hex: "FAFCFA")))
             })
         case .light:
-            return appearance == .warm ? Color(UIColor(hex: "FFFDF9")) : Color(UIColor(hex: "FFFFFF"))
+            if appearance == .warm {
+                return Color(UIColor(hex: "FFFDF9"))
+            } else if appearance == .cool {
+                return Color(UIColor(hex: "FFFFFF"))
+            } else {
+                return Color(UIColor(hex: "FAFCFA"))  // calm off-white
+            }
         case .dark:
             return Color(UIColor(hex: "1C1C1E"))
         }
@@ -253,9 +268,21 @@ extension Color {
         let appearance = ColorAppearance(rawValue: appearanceRaw) ?? .warm
         switch theme {
         case .system:
-            return appearance == .warm ? Color(UIColor(hex: "D4A373")) : Color(UIColor(hex: "7E8EA8"))
+            if appearance == .warm {
+                return Color(UIColor(hex: "D4A373"))
+            } else if appearance == .cool {
+                return Color(UIColor(hex: "7E8EA8"))
+            } else {
+                return Color(UIColor(hex: "81B29A"))
+            }
         case .light:
-            return appearance == .warm ? Color(UIColor(hex: "D4A373")) : Color(UIColor(hex: "7E8EA8"))
+            if appearance == .warm {
+                return Color(UIColor(hex: "D4A373"))
+            } else if appearance == .cool {
+                return Color(UIColor(hex: "7E8EA8"))
+            } else {
+                return Color(UIColor(hex: "81B29A"))  // calm sage green
+            }
         case .dark:
             return Color(UIColor(hex: "6B7280"))  // muted gray
         }
@@ -272,9 +299,15 @@ extension Color {
         let appearance = ColorAppearance(rawValue: appearanceRaw) ?? .warm
         switch theme {
         case .system:
-            return .green
+            return appearance == .calm ? Color(UIColor(hex: "81B29A")) : .green
         case .light:
-            return appearance == .warm ? Color(UIColor(hex: "81B29A")) : .green
+            if appearance == .warm {
+                return Color(UIColor(hex: "81B29A"))
+            } else if appearance == .cool {
+                return .green
+            } else {
+                return Color(UIColor(hex: "81B29A"))  // calm sage
+            }
         case .dark:
             return .green
         }
@@ -293,7 +326,13 @@ extension Color {
         case .system:
             return appearance == .warm ? Color(UIColor(hex: "E07A5F")) : Color(UIColor(hex: "7E8EA8"))
         case .light:
-            return appearance == .warm ? Color(UIColor(hex: "E07A5F")) : Color(UIColor(hex: "7E8EA8"))
+            if appearance == .warm {
+                return Color(UIColor(hex: "E07A5F"))
+            } else if appearance == .cool {
+                return Color(UIColor(hex: "7E8EA8"))
+            } else {
+                return Color(UIColor(hex: "81B29A"))  // calm green
+            }
         case .dark:
             return Color(UIColor(hex: "6B7280"))  // muted gray
         }
