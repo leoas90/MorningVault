@@ -147,10 +147,21 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            Button("Send Test Notification") {
+            Button {
                 Task { await AlarmService.shared.scheduleTest(seconds: 5) }
+            } label: {
+                if alarmService.isScheduling {
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("Sending...")
+                    }
+                } else {
+                    Text("Send Test Notification")
+                }
             }
             .foregroundStyle(.blue)
+            .disabled(alarmService.isScheduling)
         }
     }
 
@@ -277,6 +288,20 @@ struct SettingsView: View {
                     Spacer()
                     Image(systemName: calendarService.isAuthorized ? "checkmark.circle.fill" : "exclamationmark.circle")
                         .foregroundStyle(calendarService.isAuthorized ? .green : .orange)
+                }
+            }
+
+            Button {
+                Task {
+                    await alarmService.requestAuthorization()
+                    await alarmService.refreshAuthorizationState()
+                }
+            } label: {
+                HStack {
+                    Label("Notifications", systemImage: "bell")
+                    Spacer()
+                    Image(systemName: alarmService.authorizationState == .authorized ? "checkmark.circle.fill" : "exclamationmark.circle")
+                        .foregroundStyle(alarmService.authorizationState == .authorized ? .green : .orange)
                 }
             }
 

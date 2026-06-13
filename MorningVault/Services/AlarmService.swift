@@ -40,10 +40,18 @@ final class AlarmService: ObservableObject {
         isScheduling = true
         defer { isScheduling = false }
 
+        let center = UNUserNotificationCenter.current()
+
+        // Check authorization first
+        let settings = await center.notificationSettings()
+        if settings.authorizationStatus != .authorized {
+            lastError = "Notifications not authorized. Please enable in Settings > Notifications."
+            activeAlarms = []
+            return
+        }
+
         // Cancel any existing first
         await cancelBriefingAlarm()
-
-        let center = UNUserNotificationCenter.current()
 
         // Register category with "View Brief" action
         let viewBriefAction = UNNotificationAction(
