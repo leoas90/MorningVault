@@ -156,30 +156,32 @@ struct SettingsView: View {
     // MARK: - Appearance
 
     private var appearanceSection: some View {
-        Section("Theme") {
-            Picker("Theme", selection: $themeRaw) {
-                ForEach(AppTheme.allCases) { theme in
-                    Label(theme.displayName, systemImage: theme.icon)
-                        .tag(theme.rawValue)
+        Group {
+            Section("Theme") {
+                Picker("Theme", selection: $themeRaw) {
+                    ForEach(AppTheme.allCases) { theme in
+                        Label(theme.displayName, systemImage: theme.icon)
+                            .tag(theme.rawValue)
+                    }
                 }
+                .pickerStyle(.inline)
+                .labelsHidden()
             }
-            .pickerStyle(.inline)
-            .labelsHidden()
-        }
 
-        Section("Appearance") {
-            Picker("Appearance", selection: $appearanceRaw) {
-                ForEach(ColorAppearance.allCases) { appearance in
-                    Label(appearance.displayName, systemImage: appearance.icon)
-                        .tag(appearance.rawValue)
+            Section("Appearance") {
+                Picker("Appearance", selection: $appearanceRaw) {
+                    ForEach(ColorAppearance.allCases) { appearance in
+                        Label(appearance.displayName, systemImage: appearance.icon)
+                            .tag(appearance.rawValue)
+                    }
                 }
-            }
-            .pickerStyle(.inline)
-            .labelsHidden()
+                .pickerStyle(.inline)
+                .labelsHidden()
 
-            Text(appearanceDescription)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                Text(appearanceDescription)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
