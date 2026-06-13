@@ -19,7 +19,7 @@ struct SettingsView: View {
 
     private let healthService = HealthKitService.shared
     private let calendarService = CalendarService.shared
-    private let alarmService = AlarmService.shared
+    @StateObject private var alarmService = AlarmService.shared
 
     private var currentTheme: AppTheme {
         get { AppTheme(rawValue: themeRaw) ?? .system }
