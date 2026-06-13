@@ -26,7 +26,7 @@ struct BuildView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Version", systemImage: "info.circle") .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        Text("1.0.0 (Build 1)")
+                        Text("\(getMarketingVersion()) (Build \(getBuildNumber()))")
                             .font(.body)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -58,6 +58,10 @@ struct BuildView: View {
 
     private func getBuildNumber() -> String {
         Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+    }
+
+    private func getMarketingVersion() -> String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
     }
 }
 

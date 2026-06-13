@@ -287,16 +287,24 @@ struct SettingsView: View {
             HStack {
                 Text("Version")
                 Spacer()
-                Text("1.0.0")
+                Text(getMarketingVersion())
                     .foregroundStyle(.secondary)
             }
             HStack {
                 Text("Build")
                 Spacer()
-                Text("1")
+                Text(getBuildNumber())
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private func getBuildNumber() -> String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+    }
+
+    private func getMarketingVersion() -> String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
     }
 }
 
