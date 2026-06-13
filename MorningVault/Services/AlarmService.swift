@@ -49,6 +49,7 @@ final class AlarmService: ObservableObject {
             activeAlarms = []
             return
         }
+        lastError = nil
 
         // Cancel any existing first
         await cancelBriefingAlarm()
@@ -98,6 +99,7 @@ final class AlarmService: ObservableObject {
         if !scheduledIds.isEmpty {
             UserDefaults.standard.set(true, forKey: fallbackScheduledKey)
             activeAlarms = scheduledIds
+            Task { await refreshPendingAlarms() }
         }
     }
 

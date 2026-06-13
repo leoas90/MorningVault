@@ -138,14 +138,18 @@ struct SettingsView: View {
                 selection: briefingTimeBinding,
                 displayedComponents: .hourAndMinute
             )
-            .onChange(of: briefingTimeSeconds) { _, seconds in
-                let hour = Int(seconds) / 3600
-                let minute = Int(seconds) % 3600 / 60
-                Task { await AlarmService.shared.scheduleBriefing(hour: hour, minute: minute) }
-            }
             Text("Your morning briefing will be ready at this time.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+            Button("Schedule / Update Alarm") {
+                let totalSeconds = Int(briefingTimeSeconds)
+                let hour = totalSeconds / 3600
+                let minute = totalSeconds % 3600 / 60
+                Task { await alarmService.scheduleBriefing(hour: hour, minute: minute) }
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(alarmService.isScheduling)
 
             Button {
                 Task { await AlarmService.shared.scheduleTest(seconds: 5) }
