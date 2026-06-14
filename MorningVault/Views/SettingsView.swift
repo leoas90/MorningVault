@@ -32,7 +32,13 @@ struct SettingsView: View {
                 let totalSeconds = Int(briefingTimeSeconds)
                 let hour = totalSeconds / 3600
                 let minute = totalSeconds % 3600 / 60
-                return DateComponents(hour: hour, minute: minute).date ?? Date()
+                // Anchor to today's date for a stable, valid Date object the picker can manipulate reliably
+                let cal = Calendar.current
+                let today = cal.startOfDay(for: Date())
+                var comps = DateComponents()
+                comps.hour = hour
+                comps.minute = minute
+                return cal.date(byAdding: comps, to: today) ?? Date()
             },
             set: { newDate in
                 let cal = Calendar.current
@@ -130,7 +136,6 @@ struct SettingsView: View {
     }
 
     // MARK: - Alarm
-
     private var alarmSection: some View {
         Section("Alarm") {
             DatePicker(
@@ -138,15 +143,26 @@ struct SettingsView: View {
                 selection: briefingTimeBinding,
                 displayedComponents: .hourAndMinute
             )
-            Text("Your morning briefing will be ready at this time.")
+
+            Text("Your morning briefing will be ready at this time. Tap below to apply the schedule.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            Button("Schedule / Update Alarm") {
+            Button {
                 let totalSeconds = Int(briefingTimeSeconds)
                 let hour = totalSeconds / 3600
                 let minute = totalSeconds % 3600 / 60
                 Task { await alarmService.scheduleBriefing(hour: hour, minute: minute) }
+            } label: {
+                if alarmService.isScheduling {
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("Scheduling...")
+                    }
+                } else {
+                    Text("Schedule / Update Alarm")
+                }
             }
             .buttonStyle(.borderedProminent)
             .disabled(alarmService.isScheduling)
@@ -166,6 +182,17 @@ struct SettingsView: View {
             }
             .foregroundStyle(.blue)
             .disabled(alarmService.isScheduling)
+
+            // Quick status hint in this section
+            if !alarmService.activeAlarms.isEmpty {
+                Text("✓ Alarms scheduled for weekdays")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+            } else if alarmService.lastError != nil {
+                Text("See Permissions section below for status/errors")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
