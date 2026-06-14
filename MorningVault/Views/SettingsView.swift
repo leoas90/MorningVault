@@ -106,6 +106,11 @@ struct SettingsView: View {
                 } else {
                     hasAppeared = true
                 }
+                // Auto-refresh alarm status on appear (feature request)
+                Task {
+                    await alarmService.refreshPendingAlarms()
+                    await alarmService.refreshAuthorizationState()
+                }
             }
             .safeAreaInset(edge: .bottom) {
                 if isNameFieldFocused {
@@ -183,16 +188,52 @@ struct SettingsView: View {
             .foregroundStyle(.blue)
             .disabled(alarmService.isScheduling)
 
-            // Quick status hint in this section
-            if !alarmService.activeAlarms.isEmpty {
-                Text("✓ Alarms scheduled for weekdays")
-                    .font(.caption)
-                    .foregroundStyle(.green)
-            } else if alarmService.lastError != nil {
-                Text("See Permissions section below for status/errors")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            // Status + management (detailed view + cancel + refresh)
+            Group {
+                if !alarmService.activeAlarms.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        let total = Int(briefingTimeSeconds)
+                        let h = total / 3600
+                        let m = (total % 3600) / 60
+                        let timeStr = String(format: "%02d:%02d", h, m)
+                        Text("✓ Scheduled")
+                            .font(.caption.bold())
+                            .foregroundStyle(.green)
+                        Text("Time: \(timeStr)  •  Days: Mon–Fri")
+                            .font(.caption)
+                            .foregroundStyle(.primary)
+                        Text("\(alarmService.activeAlarms.count) active notification triggers")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Text("No alarms scheduled yet")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if let err = alarmService.lastError {
+                    Text("Error: \(err)")
+                        .font(.caption2)
+                        .foregroundStyle(.red)
+                }
             }
+
+            HStack(spacing: 12) {
+                Button("Cancel All Alarms") {
+                    Task { await alarmService.cancelBriefingAlarm() }
+                }
+                .buttonStyle(.bordered)
+                .disabled(alarmService.isScheduling || alarmService.activeAlarms.isEmpty)
+                .foregroundStyle(.red)
+
+                Button("Refresh Status") {
+                    Task { await alarmService.refreshPendingAlarms() }
+                }
+                .buttonStyle(.bordered)
+                .disabled(alarmService.isScheduling)
+            }
+            .font(.caption)
         }
     }
 
