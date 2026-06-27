@@ -21,8 +21,13 @@ from pydantic import BaseModel
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY", "")
 POLYGON_BASE_URL = "https://api.polygon.io"
 
-# Cache directory — backed by Fly.io persistent volume at /app/.cache
-CACHE_DIR = Path(os.getenv("CACHE_DIR", "/app/.cache"))
+# Cache directory — Fly volume at /app/.cache; local dev uses ./.cache next to server.py
+_default_cache = (
+    Path("/app/.cache")
+    if Path("/app").is_dir()
+    else Path(__file__).resolve().parent / ".cache"
+)
+CACHE_DIR = Path(os.getenv("CACHE_DIR", str(_default_cache)))
 CACHE_TTL = 300  # 5 minutes
 
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -130,6 +135,36 @@ async def _fetch_from_polygon(symbol: str) -> tuple[float, float]:
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
 
+@app.get("/market/batch", response_model=list[MarketResponse])
+async def get_market_batch(symbols: str = Query(..., description="Comma-separated symbols, e.g. AAPL,SPY,BTC")):
+    """
+    Batch endpoint — fetches multiple symbols concurrently.
+    Returns whatever data is available, never fails partial.
+    """
+    symbol_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    results: list[MarketResponse] = []
+
+    for symbol in symbol_list:
+        if cached := _cache_read(symbol):
+            results.append(MarketResponse(
+                symbol=symbol, price=cached["price"],
+                change24h=cached["change24h"], cached=True,
+            ))
+            continue
+
+        try:
+            price, change = await _fetch_from_polygon(symbol)
+            _cache_write(symbol, price, change)
+            results.append(MarketResponse(symbol=symbol, price=price, change24h=change, cached=False))
+        except Exception as exc:
+            results.append(MarketResponse(
+                symbol=symbol, price=0, change24h=0, cached=False,
+                error=str(exc),
+            ))
+
+    return results
+
+
 @app.get("/market/{symbol}", response_model=MarketResponse)
 async def get_market(symbol: str):
     """
@@ -162,37 +197,6 @@ async def get_market(symbol: str):
     # 3. Update cache and return
     _cache_write(symbol, price, change)
     return MarketResponse(symbol=symbol, price=price, change24h=change, cached=False)
-
-
-@app.get("/market/batch", response_model=list[MarketResponse])
-async def get_market_batch(symbols: str = Query(..., description="Comma-separated symbols, e.g. AAPL,SPY,BTC")):
-    """
-    Batch endpoint — fetches multiple symbols concurrently.
-    Returns whatever data is available, never fails partial.
-    """
-    symbol_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
-    results: list[MarketResponse] = []
-
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        for symbol in symbol_list:
-            if cached := _cache_read(symbol):
-                results.append(MarketResponse(
-                    symbol=symbol, price=cached["price"],
-                    change24h=cached["change24h"], cached=True,
-                ))
-                continue
-
-            try:
-                price, change = await _fetch_from_polygon(symbol)
-                _cache_write(symbol, price, change)
-                results.append(MarketResponse(symbol=symbol, price=price, change24h=change, cached=False))
-            except Exception as exc:
-                results.append(MarketResponse(
-                    symbol=symbol, price=0, change24h=0, cached=False,
-                    error=str(exc),
-                ))
-
-    return results
 
 
 @app.get("/health")
