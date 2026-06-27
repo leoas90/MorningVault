@@ -25,8 +25,10 @@ final class BriefingViewModel: ObservableObject {
     @Published var aiDaySummary: String? = nil
     @Published var meetingPrep: MeetingPrep? = nil
     @Published var permissionDenied: [String] = []  // services that were denied
+    @Published var morningSnapshot: MorningSnapshot = .empty
 
     private let meetingPrepService = MeetingPrepService.shared
+    private static let snapshotSymbols = ["SPY", "BTC"]
 
     @AppStorage("local_only") private var localOnly = false
     @AppStorage("health_enabled") private var healthEnabled = true
@@ -204,6 +206,7 @@ final class BriefingViewModel: ObservableObject {
 
         briefingSections = enabledSections + disabledSections
         updateNetworkBadge()
+        await refreshMorningSnapshot(weather: weatherData, calendarCount: calendarEvents.count)
     }
 
     /// Returns true if a section's data source toggle is enabled.
@@ -290,6 +293,92 @@ final class BriefingViewModel: ObservableObject {
             // Online — live external sources active (weather/markets/RSS)
             networkBadge = .online
         }
+    }
+
+    // MARK: - Morning snapshot (Brief tab hero)
+
+    func refreshMorningSnapshot(weather: WeatherData?, calendarCount: Int) async {
+        var snapshot = MorningSnapshot.empty
+        snapshot.updatedAt = Date()
+
+        if let w = weather {
+            snapshot.weatherIcon = w.conditionIcon
+            snapshot.weatherLine = "\(w.temperatureC)° · \(w.condition)"
+            snapshot.location = w.location
+        }
+
+        if calendarCount > 0 {
+            snapshot.calendarLine = calendarCount == 1 ? "1 event today" : "\(calendarCount) events today"
+        } else if calendarEnabled && !permissionDenied.contains("calendar") {
+            snapshot.calendarLine = "Calendar clear today"
+        }
+
+        snapshot.marketsStatus = .loading
+        await MainActor.run { self.morningSnapshot = snapshot }
+
+        let quotes: [MorningSnapshotQuote]
+        let status: MorningSnapshot.MarketsStatus
+
+        if localOnly {
+            quotes = await snapshotQuotesFromCache()
+            status = quotes.isEmpty ? .unavailable : .cached
+        } else {
+            let (liveQuotes, liveStatus) = await fetchSnapshotQuotesLive()
+            quotes = liveQuotes
+            status = liveStatus
+        }
+
+        snapshot.marketQuotes = quotes
+        snapshot.marketsStatus = status
+        await MainActor.run { self.morningSnapshot = snapshot }
+    }
+
+    private func fetchSnapshotQuotesLive() async -> ([MorningSnapshotQuote], MorningSnapshot.MarketsStatus) {
+        let batch = await MarketBackendService.fetchBatch(symbols: Self.snapshotSymbols)
+        var quotes: [MorningSnapshotQuote] = []
+        var anyLive = false
+        var anyCached = false
+
+        for symbol in Self.snapshotSymbols {
+            if let row = batch.first(where: { $0.symbol == symbol }), row.error == nil, row.price > 0 {
+                quotes.append(MorningSnapshotQuote(
+                    symbol: symbol,
+                    priceText: MarketBackendService.formatPrice(symbol: symbol, price: row.price),
+                    change24h: row.change24h
+                ))
+                if row.cached { anyCached = true } else { anyLive = true }
+                await cache.setSymbolPrice(symbol, data: TTLCache.CachedSymbolData(
+                    price: row.price, change24h: row.change24h, timestamp: Date()
+                ))
+                continue
+            }
+            if let cached = await cache.getSymbolPrice(symbol) {
+                quotes.append(MorningSnapshotQuote(
+                    symbol: symbol,
+                    priceText: MarketBackendService.formatPrice(symbol: symbol, price: cached.price),
+                    change24h: cached.change24h
+                ))
+                anyCached = true
+            }
+        }
+
+        if quotes.isEmpty { return ([], .unavailable) }
+        if anyLive { return (quotes, .live) }
+        if anyCached { return (quotes, .cached) }
+        return (quotes, .unavailable)
+    }
+
+    private func snapshotQuotesFromCache() async -> [MorningSnapshotQuote] {
+        var quotes: [MorningSnapshotQuote] = []
+        for symbol in Self.snapshotSymbols {
+            guard let cached = await cache.getSymbolPrice(symbol) else { continue }
+            quotes.append(MorningSnapshotQuote(
+                symbol: symbol,
+                priceText: MarketBackendService.formatPrice(symbol: symbol, price: cached.price),
+                change24h: cached.change24h
+            ))
+        }
+        return quotes
     }
 
     // MARK: - Data fetchers (with cache fallback)
@@ -505,39 +594,14 @@ final class BriefingViewModel: ObservableObject {
         }
     }
 
-    /// Calls the MorningVault backend proxy for market data.
-    /// Backend -> Polygon.io (paid tier) + server-side cache.
-    private static let backendURL = "https://morningvault.fly.dev"
-
     private func fetchFromBackend(symbol: String) async -> SymbolData? {
-        guard let url = URL(string: "\(Self.backendURL)/market/\(symbol.uppercased())") else { return nil }
-
-        do {
-            let (data, response) = try await URLSession.shared.data(from: url)
-            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
-            let decoder = JSONDecoder()
-            let market = try decoder.decode(BackendMarketResponse.self, from: data)
-            // Cache the fresh data server-side
-            Task { await cache.setSymbolPrice(symbol, data: TTLCache.CachedSymbolData(
-                price: market.price, change24h: market.change24h, timestamp: Date())) }
-            return SymbolData(price: market.price, change24h: market.change24h)
-        } catch {
-            return nil
-        }
+        let batch = await MarketBackendService.fetchBatch(symbols: [symbol])
+        guard let row = batch.first, row.error == nil, row.price > 0 else { return nil }
+        await cache.setSymbolPrice(symbol, data: TTLCache.CachedSymbolData(
+            price: row.price, change24h: row.change24h, timestamp: Date()
+        ))
+        return SymbolData(price: row.price, change24h: row.change24h)
     }
-
-    // MARK: - Stub functions (removed after backend migration)
-}
-
-// MARK: - Backend + Network types
-
-/// Response shape from the MorningVault backend /market/{symbol} endpoint.
-private struct BackendMarketResponse: Codable {
-    let symbol: String
-    let price: Double
-    let change24h: Double
-    let cached: Bool
-    let error: String?
 }
 
 /// Network badge — shows data freshness to user.

@@ -180,6 +180,9 @@ struct BriefTabView: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 8)
 
+                    MorningSnapshotCard(snapshot: viewModel.morningSnapshot)
+                        .padding(.horizontal, 20)
+
                     // Briefing sections with stagger
                     if viewModel.isLoading {
                         LoadingStateView()
