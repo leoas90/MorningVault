@@ -1,4 +1,4 @@
-app = "morningvault-market-api"
+app = "morningvault"
 primary_region = "iad"
 
 [build]
