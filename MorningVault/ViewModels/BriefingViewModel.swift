@@ -66,14 +66,18 @@ final class BriefingViewModel: ObservableObject {
 
     // MARK: - Load all data then generate
 
-    func loadData() async {
-        guard !hasLoaded else { return }
+    func loadData(force: Bool = false) async {
+        if hasLoaded && !force { return }
         isLoading = true
         defer { hasLoaded = true; isLoading = false }
 
+        if force {
+            permissionDenied = []
+        }
+
         // Fetch all sources concurrently
         async let health = fetchHealth()
-        async let weather = fetchWeather()
+        async let weather = fetchWeather(forceLive: force)
         async let calendar = fetchCalendar()
         async let rss = fetchRSS()
 
@@ -231,7 +235,7 @@ final class BriefingViewModel: ObservableObject {
         defer { isLoading = false }
 
         // Load all data sections first
-        await loadData()
+        await loadData(force: true)
 
         // Update badge BEFORE the guard that may early-return for localOnly
         updateNetworkBadge()
@@ -300,11 +304,23 @@ final class BriefingViewModel: ObservableObject {
     func refreshMorningSnapshot(weather: WeatherData?, calendarCount: Int) async {
         var snapshot = MorningSnapshot.empty
         snapshot.updatedAt = Date()
+        snapshot.weatherEnabled = weatherEnabled
 
         if let w = weather {
             snapshot.weatherIcon = w.conditionIcon
             snapshot.weatherLine = "\(w.temperatureC)° · \(w.condition)"
             snapshot.location = w.location
+            snapshot.weatherNeedsLocation = false
+        } else if weatherEnabled {
+            weatherService.syncAuthorizationFromManager()
+            snapshot.weatherNeedsLocation = weatherService.needsLocationPermission
+            if let cached = await cache.getWeather() {
+                snapshot.weatherIcon = cached.conditionIcon
+                snapshot.weatherLine = "\(cached.temperatureC)° · \(cached.condition)"
+                snapshot.location = cached.location
+            }
+        } else {
+            snapshot.weatherEnabled = false
         }
 
         if calendarCount > 0 {
@@ -383,20 +399,20 @@ final class BriefingViewModel: ObservableObject {
 
     // MARK: - Data fetchers (with cache fallback)
 
-    private func fetchWeather() async -> WeatherData? {
-        // Respect weather_enabled setting
+    private func fetchWeather(forceLive: Bool = false) async -> WeatherData? {
         guard weatherEnabled else { return nil }
         if localOnly {
             return await cache.getWeather()
         }
-        if let cached: WeatherData = await cache.getWeather() {
+        if !forceLive, let cached: WeatherData = await cache.getWeather() {
             return cached
         }
         let data = await weatherService.fetchWeather()
         if let data = data {
             await cache.setWeather(data)
+            return data
         }
-        return data
+        return await cache.getWeather()
     }
 
     private func fetchHealth() async -> HealthData? {

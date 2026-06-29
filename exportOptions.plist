@@ -2,10 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>destination</key>
+	<string>export</string>
+	<key>generateAppStoreInformation</key>
+	<false/>
+	<key>manageAppVersionAndBuildNumber</key>
+	<true/>
 	<key>method</key>
 	<string>app-store-connect</string>
-	<key>signingStyle</key>
-	<string>manual</string>
 	<key>provisioningProfiles</key>
 	<dict>
 		<key>com.yeziddr.morningvault.dev</key>
@@ -13,11 +17,15 @@
 	</dict>
 	<key>signingCertificate</key>
 	<string>Apple Distribution</string>
+	<key>signingStyle</key>
+	<string>manual</string>
+	<key>stripSwiftSymbols</key>
+	<true/>
 	<key>teamID</key>
 	<string>8ZPN58AQLD</string>
+	<key>testFlightInternalTestingOnly</key>
+	<false/>
 	<key>uploadSymbols</key>
 	<true/>
-	<key>compileBitcode</key>
-	<false/>
 </dict>
 </plist>

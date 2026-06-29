@@ -31,7 +31,7 @@ struct MorningSnapshotCard: View {
                         }
                     }
                 } else {
-                    Text("Enable weather in Settings for your local forecast.")
+                    Text(weatherPlaceholder)
                         .font(.subheadline)
                         .foregroundStyle(Color.warmTextSecondary)
                 }
@@ -105,7 +105,7 @@ struct MorningSnapshotCard: View {
             case .loading: return ("…", Color.warmTextSecondary)
             case .live: return ("LIVE", Color.warmExternalBadge)
             case .cached: return ("CACHED", Color.warmSecondaryAccent)
-            case .unavailable: return ("OFFLINE", Color.warmTextSecondary)
+            case .unavailable: return ("MARKETS", Color.warmTextSecondary)
             }
         }()
         return Text(text)
@@ -115,5 +115,15 @@ struct MorningSnapshotCard: View {
             .padding(.vertical, 4)
             .background(color.opacity(0.12))
             .clipShape(Capsule())
+    }
+
+    private var weatherPlaceholder: String {
+        if !snapshot.weatherEnabled {
+            return "Weather is off in Settings → Data Sources."
+        }
+        if snapshot.weatherNeedsLocation {
+            return "Allow Location for MorningVault (Settings → Permissions), then pull to refresh."
+        }
+        return "Weather didn’t load — pull to refresh. (Needs Location + WeatherKit on your Apple Developer app.)"
     }
 }

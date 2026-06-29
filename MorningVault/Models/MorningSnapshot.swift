@@ -8,6 +8,9 @@ struct MorningSnapshot: Equatable {
     var calendarLine: String?
     var marketQuotes: [MorningSnapshotQuote]
     var marketsStatus: MarketsStatus
+    /// Mirrors Settings → Weather toggle so the card doesn't blame Settings when it's on.
+    var weatherEnabled: Bool
+    var weatherNeedsLocation: Bool
     var updatedAt: Date?
 
     enum MarketsStatus: Equatable {
@@ -24,6 +27,8 @@ struct MorningSnapshot: Equatable {
         calendarLine: nil,
         marketQuotes: [],
         marketsStatus: .loading,
+        weatherEnabled: true,
+        weatherNeedsLocation: false,
         updatedAt: nil
     )
 }

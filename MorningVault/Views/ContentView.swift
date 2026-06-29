@@ -136,6 +136,7 @@ struct BriefTabView: View {
     @Binding var isVoicePlaying: Bool
     @Binding var showShareSheet: Bool
 
+    @AppStorage("weather_enabled") private var weatherEnabled = true
     @State private var isRefreshing = false
     @State private var headerHasAppeared = false
 
@@ -303,6 +304,9 @@ struct BriefTabView: View {
             .task {
                 guard !viewModel.hasLoaded else { return }
                 await viewModel.loadData()
+            }
+            .onChange(of: weatherEnabled) { _, _ in
+                Task { await viewModel.loadData(force: true) }
             }
             .sheet(isPresented: $showShareSheet) {
                 ShareSheet(items: [briefingShareText()])

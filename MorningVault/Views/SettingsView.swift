@@ -19,6 +19,7 @@ struct SettingsView: View {
 
     private let healthService = HealthKitService.shared
     private let calendarService = CalendarService.shared
+    @ObservedObject private var weatherService = WeatherService.shared
     @StateObject private var alarmService = AlarmService.shared
 
     private var currentTheme: AppTheme {
@@ -360,6 +361,18 @@ struct SettingsView: View {
                     Spacer()
                     Image(systemName: calendarService.isAuthorized ? "checkmark.circle.fill" : "exclamationmark.circle")
                         .foregroundStyle(calendarService.isAuthorized ? .green : .orange)
+                }
+            }
+
+            Button {
+                weatherService.requestAuthorization()
+                weatherService.syncAuthorizationFromManager()
+            } label: {
+                HStack {
+                    Label("Location (Weather)", systemImage: "location")
+                    Spacer()
+                    Image(systemName: weatherService.isAuthorized ? "checkmark.circle.fill" : "exclamationmark.circle")
+                        .foregroundStyle(weatherService.isAuthorized ? .green : .orange)
                 }
             }
 

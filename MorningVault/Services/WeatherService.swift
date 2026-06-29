@@ -21,6 +21,28 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
         locationManager.delegate = self
         // Privacy: approximate location only
         locationManager.desiredAccuracy = kCLLocationAccuracyReduced
+        syncAuthorizationFromManager()
+    }
+
+    /// Call on launch — delegate may not have fired yet when status was already granted.
+    func syncAuthorizationFromManager() {
+        switch locationManager.authorizationStatus {
+        case .authorizedWhenInUse, .authorizedAlways:
+            isAuthorized = true
+        default:
+            isAuthorized = false
+        }
+    }
+
+    var needsLocationPermission: Bool {
+        switch locationManager.authorizationStatus {
+        case .denied, .restricted:
+            return true
+        case .notDetermined:
+            return true
+        default:
+            return false
+        }
     }
 
     // MARK: - Authorization
@@ -32,16 +54,16 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
     // MARK: - Fetch with Approximate Location
 
     func fetchWeather() async -> WeatherData? {
-        // localOnly check is handled at BriefingViewModel level via sharedCache
-        // WeatherService just fetches weather — caching is managed by BriefingViewModel
+        syncAuthorizationFromManager()
 
-        // Request authorization if needed
-        guard isAuthorized else {
+        if !isAuthorized {
             requestAuthorization()
-            // Wait briefly for auth
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            guard isAuthorized else { return nil }
-            return await fetchWeather()
+            for _ in 0..<6 {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                syncAuthorizationFromManager()
+                if isAuthorized { break }
+            }
+            if !isAuthorized { return nil }
         }
 
         // Get location (approximate)
@@ -140,13 +162,10 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
     // MARK: - CLLocationManagerDelegate
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        switch manager.authorizationStatus {
-        case .authorizedWhenInUse, .authorizedAlways:
-            isAuthorized = true
+        syncAuthorizationFromManager()
+        if isAuthorized {
             locationContinuationAuth?.resume()
             locationContinuationAuth = nil
-        default:
-            isAuthorized = false
         }
     }
 
