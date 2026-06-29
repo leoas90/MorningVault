@@ -311,9 +311,11 @@ final class BriefingViewModel: ObservableObject {
             snapshot.weatherLine = "\(w.temperatureC)° · \(w.condition)"
             snapshot.location = w.location
             snapshot.weatherNeedsLocation = false
+            snapshot.weatherErrorDetail = nil
         } else if weatherEnabled {
             weatherService.syncAuthorizationFromManager()
             snapshot.weatherNeedsLocation = weatherService.needsLocationPermission
+            snapshot.weatherErrorDetail = weatherService.lastError
             if let cached = await cache.getWeather() {
                 snapshot.weatherIcon = cached.conditionIcon
                 snapshot.weatherLine = "\(cached.temperatureC)° · \(cached.condition)"

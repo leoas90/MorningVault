@@ -11,6 +11,8 @@ struct MorningSnapshot: Equatable {
     /// Mirrors Settings → Weather toggle so the card doesn't blame Settings when it's on.
     var weatherEnabled: Bool
     var weatherNeedsLocation: Bool
+    /// Last fetch failure (Location or WeatherKit) for clearer hero-card messaging.
+    var weatherErrorDetail: String?
     var updatedAt: Date?
 
     enum MarketsStatus: Equatable {
@@ -29,6 +31,7 @@ struct MorningSnapshot: Equatable {
         marketsStatus: .loading,
         weatherEnabled: true,
         weatherNeedsLocation: false,
+        weatherErrorDetail: nil,
         updatedAt: nil
     )
 }

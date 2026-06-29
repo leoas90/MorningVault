@@ -122,8 +122,17 @@ struct MorningSnapshotCard: View {
             return "Weather is off in Settings → Data Sources."
         }
         if snapshot.weatherNeedsLocation {
-            return "Allow Location for MorningVault (Settings → Permissions), then pull to refresh."
+            return "Allow Location for MorningVault (Settings → Privacy → Location → While Using), then pull to refresh."
         }
-        return "Weather didn’t load — pull to refresh. (Needs Location + WeatherKit on your Apple Developer app.)"
+        if let detail = snapshot.weatherErrorDetail, !detail.isEmpty {
+            if detail.localizedCaseInsensitiveContains("WeatherKit") {
+                return "WeatherKit failed — enable WeatherKit on App ID com.yeziddr.morningvault.dev, refresh the App Store profile, reinstall. (\(detail))"
+            }
+            if detail.localizedCaseInsensitiveContains("Location") {
+                return "\(detail) Pull to refresh after granting location."
+            }
+            return "\(detail) Pull to refresh."
+        }
+        return "Weather didn’t load — pull to refresh. Check Location (While Using) and WeatherKit on your Apple Developer App ID."
     }
 }
