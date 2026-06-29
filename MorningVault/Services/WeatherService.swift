@@ -107,16 +107,97 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
         }
     }
 
-    // MARK: - Fetch via WeatherKit (native, no wttr.in)
+    // MARK: - Fetch via WeatherKit, wttr.in city fallback if JWT/profile fails
 
     private func fetchWeatherByLocation(_ location: CLLocation) async -> WeatherData? {
         do {
             let weather = try await WeatherKit.WeatherService.shared.weather(for: location)
+            lastError = nil
             return parseWeatherKitResponse(weather)
         } catch {
             lastError = "WeatherKit unavailable: \(error.localizedDescription)"
+            if let fallback = await fetchWttrCityFallback() {
+                lastError = nil
+                return fallback
+            }
             return nil
         }
+    }
+
+    /// City-name only (`~city`), no lat/lon in URL — used when WeatherKit JWT fails (e.g. stale profile).
+    private func fetchWttrCityFallback() async -> WeatherData? {
+        let city = approximateLocation.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !city.isEmpty, city != "Unknown" else { return nil }
+
+        let slug = city.replacingOccurrences(of: " ", with: "_")
+        guard let encoded = slug.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+              let url = URL(string: "https://wttr.in/~\(encoded)?format=j1") else { return nil }
+
+        var request = URLRequest(url: url, timeoutInterval: 25)
+        request.setValue("MorningVault/1.0", forHTTPHeaderField: "User-Agent")
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else { return nil }
+            return parseWttrJ1(data, city: city)
+        } catch {
+            return nil
+        }
+    }
+
+    private func parseWttrJ1(_ data: Data, city: String) -> WeatherData? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let conditions = json["current_condition"] as? [[String: Any]],
+              let current = conditions.first else { return nil }
+
+        func intVal(_ key: String) -> Int {
+            if let s = current[key] as? String, let v = Int(s) { return v }
+            if let n = current[key] as? Int { return n }
+            return 0
+        }
+        func doubleVal(_ key: String) -> Double {
+            if let s = current[key] as? String, let v = Double(s) { return v }
+            if let n = current[key] as? Double { return n }
+            return 0
+        }
+
+        var condition = "Weather"
+        if let desc = current["weatherDesc"] as? [[String: Any]],
+           let first = desc.first,
+           let value = first["value"] as? String {
+            condition = value
+        }
+
+        let tempC = intVal("temp_C")
+        let feelsLikeC = intVal("FeelsLikeC")
+        let humidity = intVal("humidity")
+        let windKph = intVal("windspeedKmph")
+        let windDir = (current["winddir16Point"] as? String) ?? ""
+        let uvIndex = intVal("uvIndex")
+        let precipMM = doubleVal("precipMM")
+
+        let lower = condition.lowercased()
+        let icon: String
+        if lower.contains("rain") || lower.contains("drizzle") { icon = "🌧️" }
+        else if lower.contains("snow") { icon = "❄️" }
+        else if lower.contains("thunder") { icon = "⛈️" }
+        else if lower.contains("fog") || lower.contains("mist") { icon = "🌫️" }
+        else if lower.contains("cloud") || lower.contains("overcast") { icon = "☁️" }
+        else if lower.contains("clear") || lower.contains("sunny") { icon = "☀️" }
+        else { icon = "🌤️" }
+
+        return WeatherData(
+            temperatureC: tempC,
+            feelsLikeC: feelsLikeC,
+            condition: condition,
+            conditionIcon: icon,
+            humidity: humidity,
+            windKph: windKph,
+            windDirection: windDir,
+            uvIndex: uvIndex,
+            precipMM: precipMM,
+            location: city
+        )
     }
 
     // MARK: - Parse WeatherKit response → WeatherData

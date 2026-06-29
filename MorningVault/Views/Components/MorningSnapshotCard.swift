@@ -125,8 +125,8 @@ struct MorningSnapshotCard: View {
             return "Allow Location for MorningVault (Settings → Privacy → Location → While Using), then pull to refresh."
         }
         if let detail = snapshot.weatherErrorDetail, !detail.isEmpty {
-            if detail.localizedCaseInsensitiveContains("WeatherKit") {
-                return "WeatherKit failed — enable WeatherKit on App ID com.yeziddr.morningvault.dev, refresh the App Store profile, reinstall. (\(detail))"
+            if detail.localizedCaseInsensitiveContains("WeatherKit") || detail.contains("error 2") {
+                return "WeatherKit JWT failed (stale App Store profile). Regenerate MorningVaultAppStores, reinstall. Weather may still load via city fallback after refresh."
             }
             if detail.localizedCaseInsensitiveContains("Location") {
                 return "\(detail) Pull to refresh after granting location."
