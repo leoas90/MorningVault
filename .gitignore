@@ -6,3 +6,5 @@ build/
 *.ipa
 *.p12
 *.mobileprovision
+backend/.venv/
+backend/.cache/
