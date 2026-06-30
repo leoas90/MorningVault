@@ -5,6 +5,7 @@ import WeatherKit
 
 /// WeatherKit service — approximate location only, no precise GPS stored/transmitted
 /// Uses WeatherKit native API with city-level approximated location (no precise lat/lon transmitted)
+@MainActor
 final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     static let shared = WeatherService()
 
@@ -242,11 +243,13 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
 
     // MARK: - CLLocationManagerDelegate
 
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        syncAuthorizationFromManager()
-        if isAuthorized {
-            locationContinuationAuth?.resume()
-            locationContinuationAuth = nil
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        Task { @MainActor in
+            self.syncAuthorizationFromManager()
+            if self.isAuthorized {
+                self.locationContinuationAuth?.resume()
+                self.locationContinuationAuth = nil
+            }
         }
     }
 
@@ -264,14 +267,18 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
         }
     }
 
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
-        locationContinuation?.resume(returning: location)
-        locationContinuation = nil
+        Task { @MainActor in
+            self.locationContinuation?.resume(returning: location)
+            self.locationContinuation = nil
+        }
     }
 
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        locationContinuation?.resume(throwing: error)
-        locationContinuation = nil
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        Task { @MainActor in
+            self.locationContinuation?.resume(throwing: error)
+            self.locationContinuation = nil
+        }
     }
 }

@@ -44,6 +44,10 @@ final class BriefingViewModel: ObservableObject {
 
     private let voiceBriefingService = VoiceBriefingService.shared
 
+    /// Coalesce overlapping launch/foreground refreshes (TestFlight SIGSEGV in Combine Published).
+    private var loadDataInFlight: Task<Void, Never>?
+    private var silentRefreshInFlight: Task<Void, Never>?
+
     // MARK: - Latency instrumentation
 
     /// Ring buffer of last N FM call latencies (milliseconds)
@@ -67,6 +71,21 @@ final class BriefingViewModel: ObservableObject {
     // MARK: - Load all data then generate
 
     func loadData(force: Bool = false) async {
+        if hasLoaded && !force { return }
+        if let loadDataInFlight, !force {
+            await loadDataInFlight.value
+            return
+        }
+
+        let task = Task { @MainActor in
+            await self.performLoadData(force: force)
+        }
+        loadDataInFlight = task
+        await task.value
+        loadDataInFlight = nil
+    }
+
+    private func performLoadData(force: Bool) async {
         if hasLoaded && !force { return }
         isLoading = true
         defer { hasLoaded = true; isLoading = false }
@@ -260,13 +279,20 @@ final class BriefingViewModel: ObservableObject {
     /// Silent refresh — loads from cache first (instant), then does a live refresh in background.
     /// Use on app launch / deep-link open for instant briefing display.
     func silentRefresh() async {
-        // Load from cache for instant display
-        await loadFromCache()
-
-        // If no cached data, do a live load
-        if briefingSections.isEmpty {
-            await loadData()
+        if let silentRefreshInFlight {
+            await silentRefreshInFlight.value
+            return
         }
+
+        let task = Task { @MainActor in
+            await self.loadFromCache()
+            if self.briefingSections.isEmpty {
+                await self.loadData()
+            }
+        }
+        silentRefreshInFlight = task
+        await task.value
+        silentRefreshInFlight = nil
     }
 
     /// Persist current briefing to TTLCache for fast app launch.
@@ -332,7 +358,7 @@ final class BriefingViewModel: ObservableObject {
         }
 
         snapshot.marketsStatus = .loading
-        await MainActor.run { self.morningSnapshot = snapshot }
+        morningSnapshot = snapshot
 
         let quotes: [MorningSnapshotQuote]
         let status: MorningSnapshot.MarketsStatus
@@ -348,7 +374,7 @@ final class BriefingViewModel: ObservableObject {
 
         snapshot.marketQuotes = quotes
         snapshot.marketsStatus = status
-        await MainActor.run { self.morningSnapshot = snapshot }
+        morningSnapshot = snapshot
     }
 
     private func fetchSnapshotQuotesLive() async -> ([MorningSnapshotQuote], MorningSnapshot.MarketsStatus) {
