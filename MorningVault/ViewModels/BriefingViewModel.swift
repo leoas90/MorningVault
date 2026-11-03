@@ -23,6 +23,8 @@ final class BriefingViewModel: ObservableObject {
     @Published var lastError: String?
     @Published var networkBadge: NetworkBadge = .local
     @Published var aiDaySummary: String? = nil
+    /// Up to 3 lines on what changed since the last briefing (on-device, no model).
+    @Published var sinceYesterday: [String] = []
     @Published var meetingPrep: MeetingPrep? = nil
     @Published var permissionDenied: [String] = []  // services that were denied
     @Published var morningSnapshot: MorningSnapshot = .empty
@@ -230,6 +232,14 @@ final class BriefingViewModel: ObservableObject {
         briefingSections = enabledSections + disabledSections
         updateNetworkBadge()
         await refreshMorningSnapshot(weather: weatherData, calendarCount: calendarEvents.count)
+
+        let todayDigest = SinceYesterday.digest(
+            weather: weatherData,
+            events: calendarEvents,
+            headlines: rssFeeds.flatMap { $0.articles }.map(\.title),
+            health: healthData
+        )
+        sinceYesterday = SinceYesterday.update(with: todayDigest)
 
         // Share what's on screen with the widget and Siri actions.
         let firstUpcoming = calendarEvents.first { !$0.isAllDay && $0.endDate > Date() }

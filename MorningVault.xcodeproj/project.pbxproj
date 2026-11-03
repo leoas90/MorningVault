@@ -39,6 +39,7 @@
 		8DDF2174459CD1E991DAAF4BC80F9B7C /* MeetingPrepService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4FAAAF213FBE84FF9276477C136A542 /* MeetingPrepService.swift */; };
 		9042BD4B2842481D46DC732C6CF2353A /* AlertIntelligenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4951FC59E42AAD4CECA3E1924B2A1693 /* AlertIntelligenceService.swift */; };
 		9068C0DD4908B02DE5FB7AE994E03DC7 /* BriefingTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C018F09283F3785795D9B904EDC8657 /* BriefingTemplate.swift */; };
+		918896762B024000CE6EB2B0C38AD249 /* SinceYesterdayService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F262638492997BDB559DCA1305F6AA /* SinceYesterdayService.swift */; };
 		91BFDA6A2A453BCE3CEF2C0D0C06C012 /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83D59911EA5A72F47B9005007972ED36 /* AIService.swift */; };
 		92567F0344CF2CDB5202DE347B7A3DDE /* FeatureModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4646E30EED5670E0496C86E2B0F1F088 /* FeatureModels.swift */; };
 		94A0D6686678D5519AA6FCEF5B76EB4D /* MorningSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = F95A4F8D514E38562AD1FEE92A30E57D /* MorningSnapshot.swift */; };
@@ -101,6 +102,7 @@
 		3B28A4999CCA31CE5259245888453A4C /* MorningVault.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MorningVault.entitlements; sourceTree = "<group>"; };
 		3C018F09283F3785795D9B904EDC8657 /* BriefingTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingTemplate.swift; sourceTree = "<group>"; };
 		428137D842E34AED7DAB84826932182B /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
+		42F262638492997BDB559DCA1305F6AA /* SinceYesterdayService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SinceYesterdayService.swift; sourceTree = "<group>"; };
 		43846CD46D74B41CF7F5B426659842AC /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
 		4646E30EED5670E0496C86E2B0F1F088 /* FeatureModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureModels.swift; sourceTree = "<group>"; };
 		47A4440AD2E04B7D687DCE548606C114 /* Animations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Animations.swift; sourceTree = "<group>"; };
@@ -334,6 +336,7 @@
 				1927CFE7F60D2F00E0BDF16B7BA417A9 /* MarketBackendService.swift */,
 				A4FAAAF213FBE84FF9276477C136A542 /* MeetingPrepService.swift */,
 				F22FA11BC4393AA0A34AC49709336FF1 /* RSSService.swift */,
+				42F262638492997BDB559DCA1305F6AA /* SinceYesterdayService.swift */,
 				2E8DEEC9A141B8A080C115EDCE432FB9 /* VoiceBriefingService.swift */,
 				96717330575D4D9806610694C3F4557C /* WeatherService.swift */,
 			);
@@ -486,6 +489,7 @@
 				81FD66DB7B058CD91F68FCADA9DB5A72 /* RefreshControl.swift in Sources */,
 				6F501F23D05B4A79F07762FB05A333A3 /* SettingsView.swift in Sources */,
 				406A3913E4807FB8E2470EFB75164EE8 /* SharedBriefingStore.swift in Sources */,
+				918896762B024000CE6EB2B0C38AD249 /* SinceYesterdayService.swift in Sources */,
 				DDE112C8EA70E2937D9D3200BB0BFB8B /* SourcesView.swift in Sources */,
 				DA1A730221F51EFEFE472370282D429A /* TrackedSymbol.swift in Sources */,
 				1BF70A4ECE4574BDB9956439BC25990F /* VoiceBriefingService.swift in Sources */,
@@ -557,6 +561,7 @@
 		9394312E8051881995CC9BA732E74318 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				CODE_SIGN_ENTITLEMENTS = MorningVaultWidget/MorningVaultWidget.entitlements;
 				CURRENT_PROJECT_VERSION = 30;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -588,6 +593,7 @@
 		CAFF860E3313816BA36A73C300790DD9 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				CODE_SIGN_ENTITLEMENTS = MorningVaultWidget/MorningVaultWidget.entitlements;
 				CURRENT_PROJECT_VERSION = 30;
 				GENERATE_INFOPLIST_FILE = NO;

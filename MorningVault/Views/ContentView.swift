@@ -349,6 +349,22 @@ struct BriefTabView: View {
                                 .animation(.easeOut(duration: 0.2), value: summary)
                         }
                     }
+
+                    if !viewModel.sinceYesterday.isEmpty {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Since yesterday")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(Color.warmAISummary)
+                            ForEach(viewModel.sinceYesterday, id: \.self) { line in
+                                Text("• \(line)")
+                                    .font(.caption)
+                                    .foregroundStyle(Color.warmTextSecondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .padding(.top, 2)
+                        .accessibilityElement(children: .combine)
+                    }
                 }
 
                 Spacer()
