@@ -85,51 +85,13 @@ final class MeetingPrepService {
         return attendees
     }
 
-    /// Generates 3-5 talking points via the on-device AI service.
+    /// Generates 3-5 talking points via the on-device AI service (structured output).
     private func generateTalkingPoints(
         title: String,
         attendees: [String],
         agenda: String?
     ) async -> [String] {
-        guard aiService.isAvailable else { return [] }
-
-        let attendeeText = attendees.isEmpty ? "Unknown attendees" : attendees.joined(separator: ", ")
-        let agendaText = agenda ?? "No agenda provided"
-
-        let prompt = """
-        Generate 3-5 concise talking points for an upcoming meeting.
-
-        Meeting: \(title)
-        Attendees: \(attendeeText)
-        Agenda: \(agendaText)
-
-        Provide exactly 3-5 bullet points that would be useful preparation.
-        Each point should be 1-2 sentences max.
-        Focus on strategic questions, potential topics, and key considerations.
-        """
-
-        // Use AIService to generate — we'll use a simple text response approach
-        // since AIService.generateInsight is tailored for briefing sections.
-        // We call into the model's respond directly for meeting prep.
-        guard #available(iOS 26.0, *) else { return [] }
-        guard aiService.isAvailable else { return [] }
-
-        #if canImport(FoundationModels)
-        let lm = SystemLanguageModel()
-        guard case .available = lm.availability else { return [] }
-        let session = LanguageModelSession(model: lm)
-
-        do {
-            // Use text response and parse bullet points manually
-            let textResponse = try await session.respond(to: prompt)
-            let text = textResponse.content.trimmingCharacters(in: .whitespacesAndNewlines)
-            return parseBulletPoints(from: text)
-        } catch {
-            return []
-        }
-        #else
-        return []
-        #endif
+        await aiService.talkingPoints(title: title, attendees: attendees, agenda: agenda)
     }
 
     private func parseBulletPoints(from text: String) -> [String] {

@@ -263,11 +263,7 @@ final class BriefingViewModel: ObservableObject {
         // Skip if no sections to process (localOnly users still get data, just no FM)
         guard !briefingSections.isEmpty else { return }
 
-        isGeneratingAI = true
-        if let summary = await AIService.shared.generateInsight(from: briefingSections) {
-            aiDaySummary = summary.insight
-        }
-        isGeneratingAI = false
+        await generateAISummary()
 
         // Persist full briefing to cache so app can display instantly when opened from notification
         await cacheBriefing()
@@ -289,10 +285,62 @@ final class BriefingViewModel: ObservableObject {
             if self.briefingSections.isEmpty {
                 await self.loadData()
             }
+            if self.aiDaySummary == nil {
+                await self.generateAISummary()
+            }
         }
         silentRefreshInFlight = task
         await task.value
         silentRefreshInFlight = nil
+    }
+
+    // MARK: - AI day summary (on-device Foundation Models)
+
+    private static let summaryKey = "ai_day_summary"
+    private static let summaryDayKey = "ai_day_summary_day"
+
+    /// Why there is no AI summary (device not eligible, Apple Intelligence off, still
+    /// downloading). Shown in place of the summary so the header never just goes blank.
+    @Published var aiUnavailableReason: String? = nil
+
+    /// Streams the day summary into `aiDaySummary` and saves it for the rest of the day,
+    /// so the summary made by the 6am background refresh is what you see when you open the app.
+    func generateAISummary() async {
+        guard !briefingSections.isEmpty, !isGeneratingAI else { return }
+        let ai = AIService.shared
+        guard ai.refreshAvailability() else {
+            aiUnavailableReason = ai.unavailableReason
+            return
+        }
+        aiUnavailableReason = nil
+        isGeneratingAI = true
+        defer { isGeneratingAI = false }
+        let previous = aiDaySummary
+        if let summary = await ai.generateInsight(from: briefingSections, onPartial: { [weak self] partial in
+            self?.aiDaySummary = partial
+        }) {
+            aiDaySummary = summary.insight
+            Self.saveSummary(summary.insight)
+        } else {
+            aiDaySummary = previous
+        }
+    }
+
+    private static func dayStamp(_ date: Date = Date()) -> String {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: date)
+    }
+
+    private static func saveSummary(_ text: String) {
+        UserDefaults.standard.set(text, forKey: summaryKey)
+        UserDefaults.standard.set(dayStamp(), forKey: summaryDayKey)
+    }
+
+    private static func todaysSavedSummary() -> String? {
+        guard UserDefaults.standard.string(forKey: summaryDayKey) == dayStamp() else { return nil }
+        return UserDefaults.standard.string(forKey: summaryKey)
     }
 
     /// Persist current briefing to TTLCache for fast app launch.
@@ -310,8 +358,8 @@ final class BriefingViewModel: ObservableObject {
     private func loadFromCache() async {
         if let cached: BriefingData = await cache.getBriefing() {
             briefingSections = cached.sections
-            // AI summary lives in BriefingViewModel.aiDaySummary, not in BriefingData
-            // Re-derive from sections if available
+            // AI summary lives outside BriefingData; restore today's saved copy.
+            if aiDaySummary == nil { aiDaySummary = Self.todaysSavedSummary() }
             updateNetworkBadge()
         }
     }

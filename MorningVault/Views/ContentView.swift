@@ -84,6 +84,7 @@ struct ContentView: View {
         .id(themeRaw + appearanceRaw)
         .tint(Color.warmPrimaryAccent)
         .task {
+            AIService.shared.prewarm()
             _ = await ContactsService.shared.fetchDeviceName()
             await viewModel.silentRefresh()
         }
@@ -222,11 +223,11 @@ struct BriefTabView: View {
                     }
 
                     // AI summary placeholder when localOnly=true
-                    if localOnly && viewModel.aiDaySummary == nil {
+                    if viewModel.aiDaySummary == nil, let reason = viewModel.aiUnavailableReason {
                         HStack(spacing: 8) {
                             Image(systemName: "sparkles")
                                 .foregroundStyle(Color.warmAISummary)
-                            Text("AI summary disabled — enable live data in Settings to unlock.")
+                            Text(reason)
                                 .font(.caption)
                                 .foregroundStyle(Color.warmTextSecondary)
                         }
@@ -344,7 +345,8 @@ struct BriefTabView: View {
                             Text(summary)
                                 .font(.caption)
                                 .foregroundStyle(Color.warmTextSecondary)
-                                .lineLimit(2)
+                                .lineLimit(4)
+                                .animation(.easeOut(duration: 0.2), value: summary)
                         }
                     }
                 }
