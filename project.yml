@@ -44,11 +44,40 @@ targets:
         com.apple.security.application-groups:
           - group.com.morningvault.app
     dependencies:
+      - target: MorningVaultWidget
+        embed: true
       - sdk: HealthKit.framework
       - sdk: EventKit.framework
       - sdk: CoreLocation.framework
       - sdk: WeatherKit.framework
       - sdk: Contacts.framework
+
+  MorningVaultWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: MorningVaultWidget
+      - path: MorningVault/Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yeziddr.morningvault.dev.widget
+        PRODUCT_NAME: MorningVaultWidget
+        INFOPLIST_FILE: MorningVaultWidget/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CURRENT_PROJECT_VERSION: 30
+        MARKETING_VERSION: 1.0.0
+        # Needs App ID com.yeziddr.morningvault.dev.widget (App Groups: group.com.morningvault.app)
+        # and an App Store profile with this name, created in the developer portal.
+        PROVISIONING_PROFILE_SPECIFIER: "MorningVaultWidgetAppStore"
+        SKIP_INSTALL: YES
+    entitlements:
+      path: MorningVaultWidget/MorningVaultWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.morningvault.app
+    dependencies:
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
 
 schemes:
   MorningVault:
