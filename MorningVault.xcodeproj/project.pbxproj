@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		001F0A2A8CFB4398E5DE99F7D99D8376 /* BriefingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F951050E0F4C265855B07DF18303D7 /* BriefingIntents.swift */; };
 		01C84101231D23F50503874D63C776DB /* BriefingSectionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD35C3FB14B743538182864CA1899D44 /* BriefingSectionCard.swift */; };
 		022EF00362556838848A36F876D22837 /* MarketAlert.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3A83DFA76D2C0A47C96483FCD25ACDE /* MarketAlert.swift */; };
 		152CB811BC57EAFCF06BA45D09D2B5B4 /* Animations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47A4440AD2E04B7D687DCE548606C114 /* Animations.swift */; };
@@ -19,6 +20,7 @@
 		3198BFFB287A21E6CA2460107C2761C1 /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 43846CD46D74B41CF7F5B426659842AC /* HealthKit.framework */; };
 		32037E46DB46E58676B04EEA14A35816 /* MorningSnapshotCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66CF0FA6E0A29BDFA3A898DCF4678A5B /* MorningSnapshotCard.swift */; };
 		33A04E9CAB2AC6C0310F4E1E90A1014C /* NewsSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5169DF9CE3C7BF70629DCB00E093250 /* NewsSource.swift */; };
+		406A3913E4807FB8E2470EFB75164EE8 /* SharedBriefingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA716AFE1B7CFF2B49C066F4110922E8 /* SharedBriefingStore.swift */; };
 		42D0B5349BD15D38EE5865C08A5E93AF /* AlarmService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57398225F0C285023D3C56AC851A1A6B /* AlarmService.swift */; };
 		52F4149E2CAB9594235A645F6B715FA0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5D4F604E0DBCADA9DF64936377284AC1 /* Assets.xcassets */; };
 		53E7E780D00D137008B91CCECCFF3A8C /* CalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACAA8CF9C253BBAB993C7ABC92A771CE /* CalendarService.swift */; };
@@ -102,11 +104,13 @@
 		DAF1AB9ADD648A1E241B6F5232265B4E /* DataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataModels.swift; sourceTree = "<group>"; };
 		DBA9C338BBD6EFB8CD1B5D46A817EDB6 /* OnboardingSymbolsStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSymbolsStep.swift; sourceTree = "<group>"; };
 		E0D4005055984F536F9A3C0309866736 /* MeetingPrepCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingPrepCard.swift; sourceTree = "<group>"; };
+		E1F951050E0F4C265855B07DF18303D7 /* BriefingIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingIntents.swift; sourceTree = "<group>"; };
 		E249A63C0B140CBBF820E5C4B7F50BC5 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		E3A83DFA76D2C0A47C96483FCD25ACDE /* MarketAlert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketAlert.swift; sourceTree = "<group>"; };
 		F1E53372DCE56D9D3406815A3F37F6DE /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		F22FA11BC4393AA0A34AC49709336FF1 /* RSSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RSSService.swift; sourceTree = "<group>"; };
 		F95A4F8D514E38562AD1FEE92A30E57D /* MorningSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningSnapshot.swift; sourceTree = "<group>"; };
+		FA716AFE1B7CFF2B49C066F4110922E8 /* SharedBriefingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedBriefingStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -125,6 +129,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		03E855DB005FA049693C8C81D7C30CA6 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				FA716AFE1B7CFF2B49C066F4110922E8 /* SharedBriefingStore.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
 		0EB7EA1687CF05560E38CC3D9D23FADF /* Views */ = {
 			isa = PBXGroup;
 			children = (
@@ -156,10 +168,12 @@
 			isa = PBXGroup;
 			children = (
 				3BA7E34060EC759608A31F2AE78475E2 /* App */,
+				291C3054176FDA1D4CD8E9A81E164F17 /* Intents */,
 				3A6F4458CA92FCC4186D98AF4E89B729 /* Models */,
 				890ED5881EF8B6C67CD48C9224A6F47B /* PrivacyPolicy */,
 				FF7B96E1523C2CDA0E81D000C50DBC74 /* Resources */,
 				FB8E0C39401F09929292A3B08AB6C8C6 /* Services */,
+				03E855DB005FA049693C8C81D7C30CA6 /* Shared */,
 				13CD21375EC243754783B091EC33C899 /* ViewModels */,
 				0EB7EA1687CF05560E38CC3D9D23FADF /* Views */,
 				1A263120723E5F68E8715198DF4B21A7 /* Info.plist */,
@@ -175,6 +189,14 @@
 				95636A328EE4AFF5D7B29D1D5F6BAC0F /* Frameworks */,
 				4452B7F94AE6708DAAE632695B8F0EF1 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		291C3054176FDA1D4CD8E9A81E164F17 /* Intents */ = {
+			isa = PBXGroup;
+			children = (
+				E1F951050E0F4C265855B07DF18303D7 /* BriefingIntents.swift */,
+			);
+			path = Intents;
 			sourceTree = "<group>";
 		};
 		3A6F4458CA92FCC4186D98AF4E89B729 /* Models */ = {
@@ -342,6 +364,7 @@
 				5C7528E145772D1ECF28C2858B3A3CF5 /* AnimatedComponents.swift in Sources */,
 				152CB811BC57EAFCF06BA45D09D2B5B4 /* Animations.swift in Sources */,
 				FA9F342C1B4F9D1E74751B5D12AB6079 /* AnomalyDetectionService.swift in Sources */,
+				001F0A2A8CFB4398E5DE99F7D99D8376 /* BriefingIntents.swift in Sources */,
 				01C84101231D23F50503874D63C776DB /* BriefingSectionCard.swift in Sources */,
 				9068C0DD4908B02DE5FB7AE994E03DC7 /* BriefingTemplate.swift in Sources */,
 				B7AC7F2B658CBEDCB47954B5FDFB4021 /* BriefingTemplatePickerView.swift in Sources */,
@@ -372,6 +395,7 @@
 				F1A4FBEDC1BDFFE7370D10984CB03957 /* RSSService.swift in Sources */,
 				81FD66DB7B058CD91F68FCADA9DB5A72 /* RefreshControl.swift in Sources */,
 				6F501F23D05B4A79F07762FB05A333A3 /* SettingsView.swift in Sources */,
+				406A3913E4807FB8E2470EFB75164EE8 /* SharedBriefingStore.swift in Sources */,
 				DDE112C8EA70E2937D9D3200BB0BFB8B /* SourcesView.swift in Sources */,
 				DA1A730221F51EFEFE472370282D429A /* TrackedSymbol.swift in Sources */,
 				1BF70A4ECE4574BDB9956439BC25990F /* VoiceBriefingService.swift in Sources */,
@@ -388,7 +412,7 @@
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = 8ZPN58AQLD;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				PROVISIONING_PROFILE_SPECIFIER = MorningVaultAppStores;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
@@ -436,7 +460,7 @@
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = 8ZPN58AQLD;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				PROVISIONING_PROFILE_SPECIFIER = MorningVaultAppStores;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;

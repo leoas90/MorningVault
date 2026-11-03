@@ -230,6 +230,69 @@ final class BriefingViewModel: ObservableObject {
         briefingSections = enabledSections + disabledSections
         updateNetworkBadge()
         await refreshMorningSnapshot(weather: weatherData, calendarCount: calendarEvents.count)
+
+        // Share what's on screen with the widget and Siri actions.
+        let firstUpcoming = calendarEvents.first { !$0.isAllDay && $0.endDate > Date() }
+        let articles = rssFeeds.flatMap { $0.articles }
+        SharedBriefingStore.update { b in
+            b.firstEventTitle = firstUpcoming?.title
+            b.firstEventStart = firstUpcoming?.startDate
+            b.weatherLine = weatherData.map { "\($0.temperatureC)° \($0.condition)" }
+            b.headlines = articles.prefix(10).map {
+                SharedBriefing.Headline(title: $0.title, gist: Self.savedGists[$0.id], source: nil)
+            }
+        }
+        applySavedGists()
+        if headlinesEnabled && !articles.isEmpty {
+            Task { await self.addHeadlineGists(for: Array(articles.prefix(10))) }
+        }
+    }
+
+    // MARK: - Headline gists (on-device, one line per story)
+
+    private static let gistsKey = "headline_gists_v1"
+
+    /// article id -> one-line gist, kept for the latest ~150 stories.
+    private static var savedGists: [String: String] {
+        get { UserDefaults.standard.dictionary(forKey: gistsKey) as? [String: String] ?? [:] }
+        set {
+            var trimmed = newValue
+            if trimmed.count > 150 {
+                for k in trimmed.keys.prefix(trimmed.count - 150) { trimmed.removeValue(forKey: k) }
+            }
+            UserDefaults.standard.set(trimmed, forKey: gistsKey)
+        }
+    }
+
+    /// Writes gists over the raw feed blurbs in the headlines section (raw blurb stays as fallback).
+    private func applySavedGists() {
+        let gists = Self.savedGists
+        guard !gists.isEmpty,
+              let i = briefingSections.firstIndex(where: { $0.id == "headlines" }),
+              let feed = briefingSections[i].rssFeed else { return }
+        let articles = feed.articles.map { a in
+            RSSArticle(id: a.id, title: a.title, url: a.url, publishedAt: a.publishedAt,
+                       summary: gists[a.id] ?? a.summary)
+        }
+        briefingSections[i].rssFeed = RSSFeedData(id: feed.id, sourceName: feed.sourceName, articles: articles)
+    }
+
+    private func addHeadlineGists(for articles: [RSSArticle]) async {
+        var gists = Self.savedGists
+        let missing = articles.filter { gists[$0.id] == nil }
+        guard !missing.isEmpty else { return }
+        let fresh = await AIService.shared.headlineGists(for: missing)
+        guard !fresh.isEmpty else { return }
+        gists.merge(fresh) { _, new in new }
+        Self.savedGists = gists
+        applySavedGists()
+        SharedBriefingStore.update { b in
+            b.headlines = b.headlines.enumerated().map { idx, h in
+                var h = h
+                if idx < articles.count, let g = gists[articles[idx].id] { h.gist = g }
+                return h
+            }
+        }
     }
 
     /// Returns true if a section's data source toggle is enabled.
@@ -336,6 +399,7 @@ final class BriefingViewModel: ObservableObject {
     private static func saveSummary(_ text: String) {
         UserDefaults.standard.set(text, forKey: summaryKey)
         UserDefaults.standard.set(dayStamp(), forKey: summaryDayKey)
+        SharedBriefingStore.update { $0.summary = text }
     }
 
     private static func todaysSavedSummary() -> String? {

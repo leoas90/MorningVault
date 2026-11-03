@@ -8,6 +8,7 @@ struct SettingsView: View {
     @AppStorage("weather_enabled") private var weatherEnabled = true
     @AppStorage("headlines_enabled") private var headlinesEnabled = true
     @AppStorage("local_only") private var localOnly = false
+    @AppStorage("ai_private_cloud") private var privateCloud = false
     @AppStorage("theme") private var themeRaw: String = AppTheme.system.rawValue
     @AppStorage("appearance") private var appearanceRaw: String = "warm"
     @AppStorage("user_name") private var userName: String = ""
@@ -311,8 +312,13 @@ struct SettingsView: View {
     // MARK: - Privacy
 
     private var privacySection: some View {
-        Section("Privacy") {
+        Section {
             AnimatedToggle(isOn: $localOnly, icon: "lock.fill", label: "Local-Only Mode")
+            #if PCC_ENABLED
+            if #available(iOS 27.0, *) {
+                AnimatedToggle(isOn: $privateCloud, icon: "lock.icloud", label: "Private Cloud on Busy Mornings")
+            }
+            #endif
 
             NavigationLink {
                 PrivacyPolicyView()
@@ -335,6 +341,14 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+        } header: {
+            Text("Privacy")
+        } footer: {
+            #if PCC_ENABLED
+            Text("Your summary is written on your iPhone. With Private Cloud on, a morning too long for the phone is summarised by Apple's Private Cloud Compute, which keeps nothing. Health numbers are never sent.")
+            #else
+            Text("Your summary and headline lines are written on your iPhone. Nothing is sent to an AI service.")
+            #endif
         }
     }
 

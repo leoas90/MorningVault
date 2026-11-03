@@ -156,8 +156,17 @@ final class AIService {
         if result == nil,
            let genError = lastGenerationError as? LanguageModelSession.GenerationError,
            case .exceededContextWindowSize = genError {
-            // Too much input even after truncation: summarise section by section instead.
-            result = await generateChunked(sections: sanitizedSections)
+            // Too much input for the phone's model. If the user opted in (and Apple has granted
+            // the app the Private Cloud Compute entitlement), let Apple's larger model read the
+            // whole morning; otherwise summarise section by section on the phone.
+            #if PCC_ENABLED
+            if UserDefaults.standard.bool(forKey: Self.privateCloudKey), #available(iOS 27.0, *) {
+                result = await generateWithPrivateCloud(sections: sanitizedSections)
+            }
+            #endif
+            if result == nil {
+                result = await generateChunked(sections: sanitizedSections)
+            }
         }
 
         let latencyMs = Int(Date().timeIntervalSince(startTime) * 1000)
@@ -325,8 +334,8 @@ final class AIService {
     ]
     private let defaultBudget = 300
 
-    private func truncate(_ section: BriefingSection) -> BriefingSection {
-        let budget = segmentBudgets[section.id] ?? defaultBudget
+    private func truncate(_ section: BriefingSection, scale: Int = 1) -> BriefingSection {
+        let budget = (segmentBudgets[section.id] ?? defaultBudget) * scale
         guard section.content.count > budget else { return section }
         return BriefingSection(
             id: section.id,
@@ -337,13 +346,92 @@ final class AIService {
         )
     }
 
-    private func buildPrompt(from sections: [BriefingSection]) -> String {
-        let sectionTexts = sections.map(truncate).map { "\($0.title): \($0.content)" }.joined(separator: "\n")
+    private func buildPrompt(from sections: [BriefingSection], scale: Int = 1) -> String {
+        let sectionTexts = sections.map { truncate($0, scale: scale) }.map { "\($0.title): \($0.content)" }.joined(separator: "\n")
         return """
         Today's data:
         \(sectionTexts)
         """
     }
+
+    // MARK: - Headline gists
+
+    /// One plain line per story ("what happened, why it matters"), written on the phone from
+    /// the feed's own blurb. Stories with no usable blurb are skipped: a gist of a title
+    /// alone adds nothing. Returns article id -> gist.
+    func headlineGists(for articles: [RSSArticle]) async -> [String: String] {
+        guard #available(iOS 26.0, *), refreshAvailability() else { return [:] }
+        #if canImport(FoundationModels)
+        let usable: [(RSSArticle, String)] = articles.compactMap { a in
+            let blurb = Self.plainText(a.summary ?? "")
+            return blurb.count >= 60 ? (a, String(blurb.prefix(320))) : nil
+        }
+        guard !usable.isEmpty else { return [:] }
+
+        var out: [String: String] = [:]
+        // Batches of 6 keep each request far inside the 4K-token window.
+        for start in stride(from: 0, to: usable.count, by: 6) {
+            let batch = Array(usable[start..<min(start + 6, usable.count)])
+            let listing = batch.enumerated().map { i, pair in
+                "\(i + 1). \(pair.0.title)\n\(pair.1)"
+            }.joined(separator: "\n\n")
+            let session = LanguageModelSession(instructions: """
+            You turn news blurbs into one plain line each, under 18 words: what happened and             why it matters. No hype, no clickbait, no repeating the headline word for word.             Use only what the blurb says.
+            """)
+            do {
+                let r = try await session.respond(to: listing, generating: HeadlineGistBatch.self)
+                for item in r.content.items {
+                    let idx = item.number - 1
+                    guard batch.indices.contains(idx) else { continue }
+                    let line = item.line.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !line.isEmpty { out[batch[idx].0.id] = line }
+                }
+            } catch is CancellationError {
+                break
+            } catch {
+                lastError = error.localizedDescription
+                continue
+            }
+        }
+        return out
+        #else
+        return [:]
+        #endif
+    }
+
+    /// Strips HTML tags and entities from RSS blurbs.
+    static func plainText(_ html: String) -> String {
+        var s = html.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
+        for (k, v) in ["&amp;": "&", "&quot;": "\"", "&#39;": "'", "&apos;": "'", "&lt;": "<", "&gt;": ">", "&nbsp;": " "] {
+            s = s.replacingOccurrences(of: k, with: v)
+        }
+        s = s.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        return s.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    // MARK: - Private Cloud Compute (opt-in, iOS 27)
+
+    /// Settings key for "Use Apple's Private Cloud on busy mornings". Off by default.
+    static let privateCloudKey = "ai_private_cloud"
+
+    #if PCC_ENABLED && canImport(FoundationModels)
+    /// Apple's larger server model (32K context). Only used when the on-device model runs
+    /// out of room and the user opted in. Data goes to Apple's Private Cloud Compute, which
+    /// Apple does not store or log; never to MorningVault's own servers.
+    @available(iOS 27.0, *)
+    private func generateWithPrivateCloud(sections: [BriefingSection]) async -> (insight: String, sentiment: String?)? {
+        let model = PrivateCloudComputeLanguageModel()
+        guard model.isAvailable else { return nil }
+        let session = LanguageModelSession(model: model, instructions: Self.briefingInstructions)
+        do {
+            let r = try await session.respond(to: buildPrompt(from: sections, scale: 4), generating: BriefingInsight.self)
+            return ("\(r.content.insight) \(r.content.recommendation)", r.content.sentiment.rawValue)
+        } catch {
+            lastError = error.localizedDescription
+            return nil
+        }
+    }
+    #endif
 
     // MARK: - Streaming single-call path
 
@@ -391,7 +479,7 @@ final class AIService {
     private func generateChunked(sections: [BriefingSection]) async -> (insight: String, sentiment: String?)? {
         var segmentInsights: [String] = []
 
-        for section in sections.map(truncate) {
+        for section in sections.map({ truncate($0) }) {
             // Fresh session per segment: each call starts with an empty transcript.
             let session = LanguageModelSession(instructions: Self.briefingInstructions)
             do {
@@ -477,6 +565,23 @@ struct MarketSentimentOutput: Codable {
     let sentiment: Sentiment
     @Guide(description: "Confidence from 0 to 1", .range(0.0...1.0))
     let confidence: Double
+}
+
+/// Structured output for headline gists. Items carry the story number so a skipped or
+/// reordered line can't land on the wrong story.
+@available(iOS 26.0, *)
+@Generable
+struct HeadlineGistBatch: Codable {
+    let items: [HeadlineGistItem]
+}
+
+@available(iOS 26.0, *)
+@Generable
+struct HeadlineGistItem: Codable {
+    @Guide(description: "The story's number from the list")
+    let number: Int
+    @Guide(description: "One plain line, under 18 words")
+    let line: String
 }
 
 /// Structured output for meeting prep.
