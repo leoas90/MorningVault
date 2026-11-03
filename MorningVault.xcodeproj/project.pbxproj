@@ -10,11 +10,14 @@
 		001F0A2A8CFB4398E5DE99F7D99D8376 /* BriefingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F951050E0F4C265855B07DF18303D7 /* BriefingIntents.swift */; };
 		01C84101231D23F50503874D63C776DB /* BriefingSectionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD35C3FB14B743538182864CA1899D44 /* BriefingSectionCard.swift */; };
 		022EF00362556838848A36F876D22837 /* MarketAlert.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3A83DFA76D2C0A47C96483FCD25ACDE /* MarketAlert.swift */; };
+		0FDFB13527B39B292E30E4D534AF7D3D /* MorningVaultWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48B5B42BD466623AFA77DEC4569A8071 /* MorningVaultWidget.swift */; };
+		13B99FC13984248AB0B5C8457122BA11 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F60C417DCC44D79F117B8D306B7EA3CB /* WidgetKit.framework */; };
 		152CB811BC57EAFCF06BA45D09D2B5B4 /* Animations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47A4440AD2E04B7D687DCE548606C114 /* Animations.swift */; };
 		19F2121DE9AB7FB2CBF79F6ABBFC328D /* OnboardingSymbolsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBA9C338BBD6EFB8CD1B5D46A817EDB6 /* OnboardingSymbolsStep.swift */; };
 		1BF70A4ECE4574BDB9956439BC25990F /* VoiceBriefingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E8DEEC9A141B8A080C115EDCE432FB9 /* VoiceBriefingService.swift */; };
 		1ED27FB14C230DFD1EF3EA1C3D35F216 /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3867BC47FB872F6A4CD54B76D92C9EC7 /* PrivacyPolicyView.swift */; };
 		26342323D8D2BAE961116007D2223822 /* BriefingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A27C5D739FF263892E784539764E69 /* BriefingViewModel.swift */; };
+		27D73454E5511A06292362353F6F4763 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D59A1276B0A66C4F36590B5C219EA5D2 /* SwiftUI.framework */; };
 		2AFAC6FC9D6B71943BAAF02A6643B087 /* MarketsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9103CFC9B5596A76F30F951E77124FF7 /* MarketsView.swift */; };
 		314132524288EF7E31C4AC0241B3DE9C /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E53372DCE56D9D3406815A3F37F6DE /* ContentView.swift */; };
 		3198BFFB287A21E6CA2460107C2761C1 /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 43846CD46D74B41CF7F5B426659842AC /* HealthKit.framework */; };
@@ -29,6 +32,7 @@
 		5E7B91500C121DB57409E6884B185EAC /* MeetingPrepCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0D4005055984F536F9A3C0309866736 /* MeetingPrepCard.swift */; };
 		66DC019B4E6A3C95A498F8EF7112E9B2 /* MeetingPrep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28410E5F2F24FBA6A84F1A8DB11A229D /* MeetingPrep.swift */; };
 		6F501F23D05B4A79F07762FB05A333A3 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E249A63C0B140CBBF820E5C4B7F50BC5 /* SettingsView.swift */; };
+		7BCA0D4320D5D3F391ACC5A70D2D45DD /* MorningVaultWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 7F326B33C09D42D7161B80646D3D0774 /* MorningVaultWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		812FD8327BBAD37E4D2C6B37D911D374 /* WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96717330575D4D9806610694C3F4557C /* WeatherService.swift */; };
 		81FD66DB7B058CD91F68FCADA9DB5A72 /* RefreshControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A262E6202095BCC98035772CD6A3F37 /* RefreshControl.swift */; };
 		8C85495E8FA5A0EDAD5014BA3C2FA336 /* CacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B0C6160616AE04F2461D03800C4289D /* CacheService.swift */; };
@@ -52,11 +56,36 @@
 		E958B243E937814E75E2EA420C530C81 /* MarketBackendService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1927CFE7F60D2F00E0BDF16B7BA417A9 /* MarketBackendService.swift */; };
 		EDC79446E285C3A324AA8F711063A1B4 /* OnboardingNameStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96B21FB97A30B92C5A5FC0D70624402C /* OnboardingNameStep.swift */; };
 		F1A4FBEDC1BDFFE7370D10984CB03957 /* RSSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F22FA11BC4393AA0A34AC49709336FF1 /* RSSService.swift */; };
+		F3982A7059D720ABFEC66F4B6965EBFF /* SharedBriefingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA716AFE1B7CFF2B49C066F4110922E8 /* SharedBriefingStore.swift */; };
 		F5298355282870695AAA0D19E5483280 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6619476E0FF29E35D1B6F96A06C128EF /* OnboardingView.swift */; };
 		F6241F51860170BB611DFFA950EE1643 /* CoreLocation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6376F2CF2B5439BE403B053DFE73E564 /* CoreLocation.framework */; };
 		FA9F342C1B4F9D1E74751B5D12AB6079 /* AnomalyDetectionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FC73D71A41B132187D8E35402D43E8 /* AnomalyDetectionService.swift */; };
 		FE343E735324E6C35B2148C9D224F305 /* OnboardingSourcesStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19F0CE7677F525EDF60DDE61729A0421 /* OnboardingSourcesStep.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		EE0182A1F6775DEBAB01DA0F449AA05F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1F215DF61AA9EFA7D1FF823CF364EB55 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 21D97E08F95FB50255E736A4C5503655;
+			remoteInfo = MorningVaultWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		DBD7D8EDC5BE281B734449136E87EF8C /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				7BCA0D4320D5D3F391ACC5A70D2D45DD /* MorningVaultWidget.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		15DF3C17C66BBBCBBF6CEFD23017B595 /* Contacts.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Contacts.framework; path = System/Library/Frameworks/Contacts.framework; sourceTree = SDKROOT; };
@@ -75,6 +104,7 @@
 		43846CD46D74B41CF7F5B426659842AC /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
 		4646E30EED5670E0496C86E2B0F1F088 /* FeatureModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureModels.swift; sourceTree = "<group>"; };
 		47A4440AD2E04B7D687DCE548606C114 /* Animations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Animations.swift; sourceTree = "<group>"; };
+		48B5B42BD466623AFA77DEC4569A8071 /* MorningVaultWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningVaultWidget.swift; sourceTree = "<group>"; };
 		4951FC59E42AAD4CECA3E1924B2A1693 /* AlertIntelligenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertIntelligenceService.swift; sourceTree = "<group>"; };
 		4B0C6160616AE04F2461D03800C4289D /* CacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheService.swift; sourceTree = "<group>"; };
 		53A27C5D739FF263892E784539764E69 /* BriefingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingViewModel.swift; sourceTree = "<group>"; };
@@ -86,6 +116,8 @@
 		6619476E0FF29E35D1B6F96A06C128EF /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		66CF0FA6E0A29BDFA3A898DCF4678A5B /* MorningSnapshotCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningSnapshotCard.swift; sourceTree = "<group>"; };
 		744744A7C6ACBF0C75D72E34FC959DF2 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		7E6C312545326EA367B7860277301B1E /* MorningVaultWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MorningVaultWidget.entitlements; sourceTree = "<group>"; };
+		7F326B33C09D42D7161B80646D3D0774 /* MorningVaultWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = MorningVaultWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		83D59911EA5A72F47B9005007972ED36 /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
 		88242292BC38B613DCF5E115D0D1DFA0 /* EventKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = EventKit.framework; path = System/Library/Frameworks/EventKit.framework; sourceTree = SDKROOT; };
 		9103CFC9B5596A76F30F951E77124FF7 /* MarketsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketsView.swift; sourceTree = "<group>"; };
@@ -101,14 +133,17 @@
 		B5169DF9CE3C7BF70629DCB00E093250 /* NewsSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewsSource.swift; sourceTree = "<group>"; };
 		C26F9E33368D424D3AAEDFBE08DE1E60 /* SourcesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourcesView.swift; sourceTree = "<group>"; };
 		D2A9C53AC93866B046540ED0F1DCC77B /* WeatherKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WeatherKit.framework; path = System/Library/Frameworks/WeatherKit.framework; sourceTree = SDKROOT; };
+		D59A1276B0A66C4F36590B5C219EA5D2 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		DAF1AB9ADD648A1E241B6F5232265B4E /* DataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataModels.swift; sourceTree = "<group>"; };
 		DBA9C338BBD6EFB8CD1B5D46A817EDB6 /* OnboardingSymbolsStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSymbolsStep.swift; sourceTree = "<group>"; };
 		E0D4005055984F536F9A3C0309866736 /* MeetingPrepCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingPrepCard.swift; sourceTree = "<group>"; };
 		E1F951050E0F4C265855B07DF18303D7 /* BriefingIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingIntents.swift; sourceTree = "<group>"; };
 		E249A63C0B140CBBF820E5C4B7F50BC5 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		E3A83DFA76D2C0A47C96483FCD25ACDE /* MarketAlert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketAlert.swift; sourceTree = "<group>"; };
+		EE736702BBE6B0A9F0CED3F980063847 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F1E53372DCE56D9D3406815A3F37F6DE /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		F22FA11BC4393AA0A34AC49709336FF1 /* RSSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RSSService.swift; sourceTree = "<group>"; };
+		F60C417DCC44D79F117B8D306B7EA3CB /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		F95A4F8D514E38562AD1FEE92A30E57D /* MorningSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningSnapshot.swift; sourceTree = "<group>"; };
 		FA716AFE1B7CFF2B49C066F4110922E8 /* SharedBriefingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedBriefingStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -123,6 +158,15 @@
 				F6241F51860170BB611DFFA950EE1643 /* CoreLocation.framework in Frameworks */,
 				AB0A44290D97524B9315B26D9E8FA8C5 /* WeatherKit.framework in Frameworks */,
 				B6878CB3C9D9E6F907F14972E917A5E0 /* Contacts.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FF5AD674D00AADE9D68BDA6D60671A04 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				13B99FC13984248AB0B5C8457122BA11 /* WidgetKit.framework in Frameworks */,
+				27D73454E5511A06292362353F6F4763 /* SwiftUI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -186,6 +230,7 @@
 			isa = PBXGroup;
 			children = (
 				155AAA4139B6BB6FA08596F4785D8ACE /* MorningVault */,
+				40ED36F21A34ACBFD971024D8EC82908 /* MorningVaultWidget */,
 				95636A328EE4AFF5D7B29D1D5F6BAC0F /* Frameworks */,
 				4452B7F94AE6708DAAE632695B8F0EF1 /* Products */,
 			);
@@ -224,10 +269,21 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		40ED36F21A34ACBFD971024D8EC82908 /* MorningVaultWidget */ = {
+			isa = PBXGroup;
+			children = (
+				EE736702BBE6B0A9F0CED3F980063847 /* Info.plist */,
+				7E6C312545326EA367B7860277301B1E /* MorningVaultWidget.entitlements */,
+				48B5B42BD466623AFA77DEC4569A8071 /* MorningVaultWidget.swift */,
+			);
+			path = MorningVaultWidget;
+			sourceTree = "<group>";
+		};
 		4452B7F94AE6708DAAE632695B8F0EF1 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				2C1EAD34AC6A2C77C23646A3934B4E86 /* MorningVault.app */,
+				7F326B33C09D42D7161B80646D3D0774 /* MorningVaultWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -247,7 +303,9 @@
 				6376F2CF2B5439BE403B053DFE73E564 /* CoreLocation.framework */,
 				88242292BC38B613DCF5E115D0D1DFA0 /* EventKit.framework */,
 				43846CD46D74B41CF7F5B426659842AC /* HealthKit.framework */,
+				D59A1276B0A66C4F36590B5C219EA5D2 /* SwiftUI.framework */,
 				D2A9C53AC93866B046540ED0F1DCC77B /* WeatherKit.framework */,
+				F60C417DCC44D79F117B8D306B7EA3CB /* WidgetKit.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -294,6 +352,22 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		21D97E08F95FB50255E736A4C5503655 /* MorningVaultWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BAA37B505B8BD98D06F561AFDE0523F7 /* Build configuration list for PBXNativeTarget "MorningVaultWidget" */;
+			buildPhases = (
+				56908454B961374F615A38AD05A69C3F /* Sources */,
+				FF5AD674D00AADE9D68BDA6D60671A04 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MorningVaultWidget;
+			productName = MorningVaultWidget;
+			productReference = 7F326B33C09D42D7161B80646D3D0774 /* MorningVaultWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		503CFA92C92AF708C45357B51245DC80 /* MorningVault */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = EFD3689F158D4999EBC12FFC091E7556 /* Build configuration list for PBXNativeTarget "MorningVault" */;
@@ -301,10 +375,12 @@
 				E9F194A9CAA006FD524C41E298288F0F /* Sources */,
 				C767F991FE4D5E2A630605302E76945C /* Resources */,
 				F3FC08CDDBADA0477F4E3EC250BB63AA /* Frameworks */,
+				DBD7D8EDC5BE281B734449136E87EF8C /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				3BD6F929F623A4F341E92323DBE41FC0 /* PBXTargetDependency */,
 			);
 			name = MorningVault;
 			productName = MorningVault;
@@ -319,6 +395,10 @@
 			attributes = {
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
+					21D97E08F95FB50255E736A4C5503655 = {
+						DevelopmentTeam = 8ZPN58AQLD;
+						ProvisioningStyle = Manual;
+					};
 					503CFA92C92AF708C45357B51245DC80 = {
 						DevelopmentTeam = 8ZPN58AQLD;
 						ProvisioningStyle = Manual;
@@ -337,6 +417,7 @@
 			projectRoot = "";
 			targets = (
 				503CFA92C92AF708C45357B51245DC80 /* MorningVault */,
+				21D97E08F95FB50255E736A4C5503655 /* MorningVaultWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -354,6 +435,15 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		56908454B961374F615A38AD05A69C3F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0FDFB13527B39B292E30E4D534AF7D3D /* MorningVaultWidget.swift in Sources */,
+				F3982A7059D720ABFEC66F4B6965EBFF /* SharedBriefingStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E9F194A9CAA006FD524C41E298288F0F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -405,6 +495,14 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		3BD6F929F623A4F341E92323DBE41FC0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 21D97E08F95FB50255E736A4C5503655 /* MorningVaultWidget */;
+			targetProxy = EE0182A1F6775DEBAB01DA0F449AA05F /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
 		09D4CC953A62A211F79AC1598192CC65 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -454,6 +552,21 @@
 			};
 			name = Debug;
 		};
+		9394312E8051881995CC9BA732E74318 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = MorningVaultWidget/MorningVaultWidget.entitlements;
+				CURRENT_PROJECT_VERSION = 30;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = MorningVaultWidget/Info.plist;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yeziddr.morningvault.dev.widget;
+				PRODUCT_NAME = MorningVaultWidget;
+				PROVISIONING_PROFILE_SPECIFIER = MorningVaultWidgetAppStore;
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
 		994783B379FE2EF3D2C344FAD5BF5F73 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -468,6 +581,21 @@
 			};
 			name = Release;
 		};
+		CAFF860E3313816BA36A73C300790DD9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = MorningVaultWidget/MorningVaultWidget.entitlements;
+				CURRENT_PROJECT_VERSION = 30;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = MorningVaultWidget/Info.plist;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yeziddr.morningvault.dev.widget;
+				PRODUCT_NAME = MorningVaultWidget;
+				PROVISIONING_PROFILE_SPECIFIER = MorningVaultWidgetAppStore;
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -479,6 +607,15 @@
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
+		};
+		BAA37B505B8BD98D06F561AFDE0523F7 /* Build configuration list for PBXNativeTarget "MorningVaultWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9394312E8051881995CC9BA732E74318 /* Debug */,
+				CAFF860E3313816BA36A73C300790DD9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = "";
 		};
 		EFD3689F158D4999EBC12FFC091E7556 /* Build configuration list for PBXNativeTarget "MorningVault" */ = {
 			isa = XCConfigurationList;
