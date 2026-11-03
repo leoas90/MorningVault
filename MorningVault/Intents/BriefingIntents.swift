@@ -16,7 +16,7 @@ import Foundation
 struct GetMorningSummaryIntent: AppIntent {
     static let title: LocalizedStringResource = "Get Morning Summary"
     static let description = IntentDescription(
-        "Today's MorningVault summary, written on your iPhone from your briefing."
+        "Today's MorningVault summary, written on device from your briefing."
     )
     static let openAppWhenRun = false
 
