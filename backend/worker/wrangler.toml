@@ -1,0 +1,9 @@
+name = "morningvault-market"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+# Custom domain on the morningvault.app zone (Cloudflare creates the DNS record).
+routes = [
+  { pattern = "api.morningvault.app", custom_domain = true }
+]

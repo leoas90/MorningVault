@@ -1,13 +1,13 @@
 import Foundation
 
-/// Server-side Polygon proxy — API keys never ship in the iOS binary.
+/// Market quotes via MorningVault's own Cloudflare Worker (backend/worker) — the app never calls a third party.
 enum MarketBackendService {
     /// Override via UserDefaults key `market_backend_url` when you deploy a new host.
     static var baseURL: String {
         let custom = UserDefaults.standard.string(forKey: "market_backend_url")?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if let custom, !custom.isEmpty { return custom }
-        return "https://morningvault.fly.dev"
+        return "https://api.morningvault.app"
     }
 
     struct Quote: Equatable, Sendable {
