@@ -6,6 +6,8 @@
 	<array>
 		<string>com.yeziddr.morningvault.precompute</string>
 	</array>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>MorningVault</string>
 	<key>CFBundleExecutable</key>
