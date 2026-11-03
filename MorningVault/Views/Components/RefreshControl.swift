@@ -30,6 +30,7 @@ struct RefreshControl: UIViewRepresentable {
         Coordinator(onRefresh: onRefresh, isRefreshing: $isRefreshing)
     }
 
+    @MainActor
     class Coordinator: NSObject {
         let onRefresh: () async -> Void
         @Binding var isRefreshing: Bool

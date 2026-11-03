@@ -85,22 +85,23 @@ enum AlertType: String, Codable {
 }
 
 /// Stores active alerts in UserDefaults
-final class AlertStore {
+/// Sendable: no stored state — every call goes straight to UserDefaults.
+final class AlertStore: Sendable {
     static let shared = AlertStore()
 
-    private let key = "active_market_alerts"
-    private let defaults = UserDefaults.standard
+    private static let key = "active_market_alerts"
+    private var defaults: UserDefaults { .standard }
 
     private init() {}
 
     func save(_ alerts: [MarketAlert]) {
         if let data = try? JSONEncoder().encode(alerts) {
-            defaults.set(data, forKey: key)
+            defaults.set(data, forKey: Self.key)
         }
     }
 
     func load() -> [MarketAlert] {
-        guard let data = defaults.data(forKey: key),
+        guard let data = defaults.data(forKey: Self.key),
               let alerts = try? JSONDecoder().decode([MarketAlert].self, from: data) else {
             return []
         }
@@ -114,6 +115,6 @@ final class AlertStore {
     }
 
     func clearAll() {
-        defaults.removeObject(forKey: key)
+        defaults.removeObject(forKey: Self.key)
     }
 }

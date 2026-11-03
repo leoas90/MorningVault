@@ -113,7 +113,8 @@ struct MorningVaultApp: App {
 
 // MARK: - Notification Delegate (for deep-link on tap)
 
-class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+/// Sendable: it holds no state at all — each callback just posts a Notification.
+final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, Sendable {
     static let shared = NotificationDelegate()
 
     func userNotificationCenter(

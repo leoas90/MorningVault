@@ -145,6 +145,8 @@ struct ArticleReadState: Codable, Identifiable {
 
 /// Tracks read state for all articles across all feeds.
 /// Persisted to UserDefaults as JSON.
+/// Main-actor isolated: it drives `@ObservedObject` in the headline rows.
+@MainActor
 final class NewsReadStateTracker: ObservableObject {
     static let shared = NewsReadStateTracker()
 

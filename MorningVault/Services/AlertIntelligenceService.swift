@@ -2,7 +2,8 @@ import Foundation
 
 /// Generates context-aware market alerts with semantic meaning.
 /// Instead of "SPY down 1%", produces: "SPY at 200-day support, watching for breakdown below $510".
-final class AlertIntelligenceService {
+/// Sendable: its only stored property is the stateless `AlertStore`.
+final class AlertIntelligenceService: Sendable {
 
     static let shared = AlertIntelligenceService()
 

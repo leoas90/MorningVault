@@ -3,11 +3,15 @@ import Foundation
 /// RSS feed parser — fetches user-selected news sources.
 /// No user tracking, no analytics.
 /// Uses shared NewsSource enum as single source of truth for all source URLs.
-final class RSSService: ObservableObject {
+///
+/// An actor rather than a main-actor service: fetching and regex-parsing ten feeds is real
+/// work that must stay off the main thread, and nothing observes its state — callers use
+/// the value returned by `fetchAllFeeds()`.
+actor RSSService {
     static let shared = RSSService()
 
-    @Published var feeds: [RSSFeedData] = []
-    @Published var lastError: String?
+    var feeds: [RSSFeedData] = []
+    var lastError: String?
 
     private let rssCacheKey = "com.morningvault.rssCache"
 
@@ -41,10 +45,8 @@ final class RSSService: ObservableObject {
             return all
         }
 
-        await MainActor.run {
-            self.feeds = results
-            self.cacheFeeds(results)
-        }
+        feeds = results
+        cacheFeeds(results)
         return results
     }
 

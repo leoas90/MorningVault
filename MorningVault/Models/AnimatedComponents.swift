@@ -448,10 +448,16 @@ struct CustomRefreshControl: UIViewRepresentable {
         Coordinator(onRefresh: onRefresh, isRefreshing: $isRefreshing)
     }
 
+    @MainActor
     class Coordinator: NSObject {
         let onRefresh: () async -> Void
         @Binding var isRefreshing: Bool
         private var bounceTimer: Timer?
+        // Bounce state lives on the coordinator rather than being captured by the timer
+        // block, so the main actor owns it outright.
+        private var bounceScale: CGFloat = 1.0
+        private var bounceGrowing = true
+        private weak var bounceControl: UIRefreshControl?
 
         init(onRefresh: @escaping () async -> Void, isRefreshing: Binding<Bool>) {
             self.onRefresh = onRefresh
@@ -467,31 +473,49 @@ struct CustomRefreshControl: UIViewRepresentable {
         }
 
         func startBounceAnimation(in control: UIRefreshControl) {
-            guard let imageView = control.subviews.first?.subviews.compactMap({ $0 as? UIImageView }).first else { return }
-            var scale: CGFloat = 1.0
-            var growing = true
-            bounceTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] timer in
-                if growing {
-                    scale += 0.05
-                    if scale >= 1.2 { growing = false }
-                } else {
-                    scale -= 0.05
-                    if scale <= 0.9 { growing = true }
-                }
-                imageView.transform = CGAffineTransform(scaleX: scale, y: scale)
-                if self?.isRefreshing == false {
-                    self?.stopBounceAnimation(in: control)
-                    timer.invalidate()
-                }
+            guard bounceImageView(in: control) != nil else { return }
+            bounceControl = control
+            bounceScale = 1.0
+            bounceGrowing = true
+            // Target/selector form: it hands the tick back on the main run loop with no
+            // @Sendable block capturing the control or the animation state.
+            bounceTimer = Timer.scheduledTimer(
+                timeInterval: 0.08,
+                target: self,
+                selector: #selector(bounceTick(_:)),
+                userInfo: nil,
+                repeats: true
+            )
+        }
+
+        @objc private func bounceTick(_ timer: Timer) {
+            guard let control = bounceControl, let imageView = bounceImageView(in: control) else {
+                timer.invalidate()
+                return
+            }
+            if bounceGrowing {
+                bounceScale += 0.05
+                if bounceScale >= 1.2 { bounceGrowing = false }
+            } else {
+                bounceScale -= 0.05
+                if bounceScale <= 0.9 { bounceGrowing = true }
+            }
+            imageView.transform = CGAffineTransform(scaleX: bounceScale, y: bounceScale)
+            if isRefreshing == false {
+                stopBounceAnimation(in: control)
+                timer.invalidate()
             }
         }
 
         func stopBounceAnimation(in control: UIRefreshControl) {
             bounceTimer?.invalidate()
             bounceTimer = nil
-            if let imageView = control.subviews.first?.subviews.compactMap({ $0 as? UIImageView }).first {
-                imageView.transform = .identity
-            }
+            bounceControl = nil
+            bounceImageView(in: control)?.transform = .identity
+        }
+
+        private func bounceImageView(in control: UIRefreshControl) -> UIImageView? {
+            control.subviews.first?.subviews.compactMap { $0 as? UIImageView }.first
         }
     }
 }

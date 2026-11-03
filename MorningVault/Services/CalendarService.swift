@@ -3,6 +3,11 @@ import EventKit
 
 /// EventKit service — reads today's calendar events
 /// No write access requested. Data stays on-device.
+///
+/// Main-actor isolated: `isAuthorized` is read straight from SwiftUI view bodies and was
+/// previously also written from a background thread, which is the data race this removes.
+/// One store, one thread — EKEventStore is not documented as thread-safe.
+@MainActor
 final class CalendarService: ObservableObject {
     static let shared = CalendarService()
 
@@ -15,10 +20,10 @@ final class CalendarService: ObservableObject {
     func requestAuthorization() async -> Bool {
         do {
             let granted = try await store.requestFullAccessToEvents()
-            await MainActor.run { isAuthorized = granted }
+            isAuthorized = granted
             return granted
         } catch {
-            await MainActor.run { lastError = error.localizedDescription }
+            lastError = error.localizedDescription
             return false
         }
     }

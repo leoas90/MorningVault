@@ -1,33 +1,24 @@
 import Foundation
-@preconcurrency import Contacts
+import Contacts
 import UIKit
 
 /// Fetches the user's personal name for the greeting.
 /// Reads from the user's contact card (Me card in Contacts app).
 /// Falls back to device name if contact access is denied or Me card unavailable.
-final class ContactsService: @unchecked Sendable {
+///
+/// Sendable: it holds no state. `CNContactStore` is not Sendable, so it is created inside
+/// the detached task that uses it rather than stored on the (shared) service.
+final class ContactsService: Sendable {
     static let shared = ContactsService()
-
-    private let contactStore = CNContactStore()
 
     /// Async — fetches contact name off the main thread via detached task.
     func fetchDeviceName() async -> String? {
-        let store = self.contactStore
-        return await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let contactName = Self.enumerateMeCardName(using: store)
-                if let name = contactName {
-                    continuation.resume(returning: name)
-                } else {
-                    // Fallback: UIDevice.current.name must run on main thread.
-                    // We bridge to the main actor via Task and then resume.
-                    Task { @MainActor in
-                        let fallback = self.deviceNameFallback()
-                        continuation.resume(returning: fallback)
-                    }
-                }
-            }
-        }
+        let contactName = await Task.detached(priority: .userInitiated) {
+            Self.enumerateMeCardName(using: CNContactStore())
+        }.value
+        if let contactName { return contactName }
+        // Fallback: UIDevice.current.name must be read on the main actor.
+        return await deviceNameFallback()
     }
 
     // MARK: - Me Card
@@ -82,6 +73,7 @@ final class ContactsService: @unchecked Sendable {
 
     /// Fallback: reads device name set in iPhone Settings → General → AirDrop → Name.
     /// e.g. "Yezid's iPhone" → "Yezid"
+    @MainActor
     private func deviceNameFallback() -> String? {
         let name = UIDevice.current.name.trimmingCharacters(in: .whitespacesAndNewlines)
 

@@ -3,6 +3,11 @@ import HealthKit
 
 /// HealthKit data fetcher — sleep, activity, HRV
 /// Data stays on-device only
+///
+/// Main-actor isolated so `isAuthorized` / `lastError` are only ever touched from the main
+/// thread. The HealthKit queries themselves still run on HealthKit's own queues; the
+/// continuations below only suspend, so nothing heavy happens on the main thread.
+@MainActor
 final class HealthKitService: ObservableObject {
     static let shared = HealthKitService()
 
@@ -34,7 +39,7 @@ final class HealthKitService: ObservableObject {
 
     func requestAuthorization() async -> Bool {
         guard HKHealthStore.isHealthDataAvailable() else {
-            await MainActor.run { lastError = "HealthKit not available on this device" }
+            lastError = "HealthKit not available on this device"
             return false
         }
 
@@ -50,13 +55,11 @@ final class HealthKitService: ObservableObject {
             try await healthStore.requestAuthorization(toShare: [], read: types)
             // Verify read access using the async authorization check.
             let authorized = await isAuthorizedForHealthData()
-            await MainActor.run { isAuthorized = authorized }
+            isAuthorized = authorized
             return authorized
         } catch {
-            await MainActor.run {
-                lastError = error.localizedDescription
-                isAuthorized = false
-            }
+            lastError = error.localizedDescription
+            isAuthorized = false
             return false
         }
     }

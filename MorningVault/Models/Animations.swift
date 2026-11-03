@@ -14,6 +14,7 @@ enum AppAnimation {
 
 // MARK: - Reduce Motion Check
 
+@MainActor
 private var shouldReduceMotion: Bool {
     UIAccessibility.isReduceMotionEnabled || ProcessInfo.processInfo.isLowPowerModeEnabled
 }

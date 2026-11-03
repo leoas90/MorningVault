@@ -37,20 +37,46 @@ final class VoiceBriefingService: ObservableObject {
     // MARK: - Public API
 
     /// Returns the best available voice for briefing, preferring warm British/Australian/Irish female voices.
+    ///
+    /// Karen and Moira also ship as enhanced and premium downloads, under identifiers that
+    /// differ from the compact ones above, so the best installed quality of the same voice
+    /// (then of the same language) is picked before falling back to the compact voice.
     var preferredVoice: AVSpeechSynthesisVoice? {
+        let installed = AVSpeechSynthesisVoice.speechVoices()
+        let preferredNames = Set(preferredVoiceIdentifiers.compactMap { $0.split(separator: ".").last.map(String.init) })
+        let preferredLanguages = Set(preferredVoiceIdentifiers.compactMap { identifier -> String? in
+            let parts = identifier.split(separator: ".")
+            return parts.count > 4 ? String(parts[4]) : nil
+        })
+
+        if let best = bestQuality(installed.filter { preferredNames.contains($0.name) }) {
+            return best
+        }
+        if let best = bestQuality(installed.filter { preferredLanguages.contains($0.language) && $0.gender == .female }) {
+            return best
+        }
+
         for identifier in preferredVoiceIdentifiers {
             if let voice = AVSpeechSynthesisVoice(identifier: identifier) {
                 return voice
             }
         }
         // Fallback: find any English voice with female gender
-        let englishVoices = AVSpeechSynthesisVoice.speechVoices()
-            .filter { $0.language.starts(with: "en") }
+        let englishVoices = installed.filter { $0.language.starts(with: "en") }
+        if let best = bestQuality(englishVoices.filter { $0.gender == .female }) {
+            return best
+        }
         if let female = englishVoices.first(where: { $0.gender == .female }) {
             return female
         }
         // Last resort: default English voice
         return AVSpeechSynthesisVoice(language: "en-US")
+    }
+
+    /// Highest installed quality among `voices`: premium, then enhanced. `nil` when only
+    /// default-quality voices are installed, so callers keep their existing ordering.
+    private func bestQuality(_ voices: [AVSpeechSynthesisVoice]) -> AVSpeechSynthesisVoice? {
+        voices.first { $0.quality == .premium } ?? voices.first { $0.quality == .enhanced }
     }
 
     /// Generates an audio file (M4A) from briefing text.

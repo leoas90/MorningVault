@@ -94,14 +94,16 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
     // MARK: - Reverse Geocode to City
 
     private func reverseGeocodeToCity(location: CLLocation) async {
-        // CLGeocoder.reverseGeocodeLocation is deprecated in iOS 26 but there is no stable
-        // replacement API yet. The method remains functional across all supported versions.
-        let geocoder = CLGeocoder()
+        // MKReverseGeocodingRequest (iOS 26) replaces the deprecated CLGeocoder.
+        // Only the city name is read — no street-level address is kept or transmitted.
+        guard let request = MKReverseGeocodingRequest(location: location) else {
+            approximateLocation = "Unknown"
+            return
+        }
         do {
-            let placemarks: [CLPlacemark] = try await geocoder.reverseGeocodeLocation(location)
-            if let placemark = placemarks.first {
-                // Use locality (city name) — no precise address stored
-                approximateLocation = placemark.locality ?? placemark.administrativeArea ?? "Unknown"
+            let mapItems = try await request.mapItems
+            if let representations = mapItems.first?.addressRepresentations {
+                approximateLocation = representations.cityName ?? "Unknown"
             }
         } catch {
             approximateLocation = "Unknown"

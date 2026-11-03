@@ -3,7 +3,8 @@ import UserNotifications
 
 /// Detects overnight anomalies across market, calendar, and health data.
 /// Proactive alerts delivered via local notification before the user wakes up.
-final class AnomalyDetectionService {
+/// Sendable: its stored properties are the stateless `AlertStore` and the `TTLCache` actor.
+final class AnomalyDetectionService: Sendable {
 
     static let shared = AnomalyDetectionService()
 
