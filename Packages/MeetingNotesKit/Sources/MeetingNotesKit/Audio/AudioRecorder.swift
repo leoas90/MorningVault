@@ -466,7 +466,11 @@ public final class AudioRecorder: ObservableObject {
         let stream = AsyncStream<AudioChunk> { continuation in
             self.chunkContinuation = continuation
         }
-        drainTask = Task { @MainActor [weak self] in
+        drainTask = Task { [weak self] in
+            // Not @MainActor: the tap's continuation lives on the audio thread,
+            // and a main-actor task asserts its isolation from that thread and
+            // traps (build 37 crash, dispatch_assert_queue_fail). The hop happens
+            // inside handle() instead.
             for await chunk in stream {
                 guard let self else { return }
                 await self.handle(chunk)
@@ -482,7 +486,7 @@ public final class AudioRecorder: ObservableObject {
     }
 
     private func handle(_ chunk: AudioChunk) async {
-        guard state == .recording else { return }
+        guard await MainActor.run(body: { state == .recording }) else { return }
         let level = AudioRecorder.level(of: chunk.samples)
         self.level = level
         onLevel?(level)

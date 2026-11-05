@@ -64,7 +64,7 @@ struct MorningSnapshotCard: View {
                     .foregroundStyle(Color.warmTextSecondary)
             }
         case .unavailable:
-            Text("Markets offline — pull to refresh when you’re back online.")
+            Text("Market prices are off until the price server is published. Everything else in your briefing is on device.")
                 .font(.caption)
                 .foregroundStyle(Color.warmTextSecondary)
         case .live, .cached:

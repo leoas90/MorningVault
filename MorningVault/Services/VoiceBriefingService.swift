@@ -167,6 +167,14 @@ final class VoiceBriefingService: ObservableObject {
 
         stop()
 
+        #if os(iOS)
+        // Recording leaves the shared session inactive. Speech is silent until
+        // the playback category is set and the session is activated again.
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+        try? session.setActive(true)
+        #endif
+
         let utterance = AVSpeechUtterance(string: text)
         utterance.rate = speechRate
         utterance.pitchMultiplier = pitchMultiplier
