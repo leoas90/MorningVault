@@ -24,10 +24,9 @@ struct MeetingPrepCard: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8))
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Meeting Prep")
+                        Text("Meeting prep")
                             .font(.caption)
                             .foregroundStyle(Color.warmTextSecondary)
-                            .textCase(.uppercase)
 
                         Text(prep.meetingTitle)
                             .font(.headline)
@@ -74,8 +73,8 @@ struct MeetingPrepCard: View {
                 // Attendees
                 if !prep.attendees.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("ATTENDEES")
-                            .font(.caption2)
+                        Text("Attendees")
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(Color.warmTextSecondary)
                         Text(prep.attendees.joined(separator: ", "))
                             .font(.subheadline)
@@ -86,8 +85,8 @@ struct MeetingPrepCard: View {
                 // Agenda
                 if let agenda = prep.agenda, !agenda.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("AGENDA")
-                            .font(.caption2)
+                        Text("Agenda")
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(Color.warmTextSecondary)
                         Text(agenda)
                             .font(.subheadline)
@@ -98,8 +97,8 @@ struct MeetingPrepCard: View {
                 // Talking Points
                 if !prep.talkingPoints.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("TALKING POINTS")
-                            .font(.caption2)
+                        Text("Talking points")
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(Color.warmTextSecondary)
 
                         ForEach(prep.talkingPoints, id: \.self) { point in
@@ -119,8 +118,8 @@ struct MeetingPrepCard: View {
                 // Past Positions
                 if !prep.yourPastPositions.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("YOUR PAST POSITIONS")
-                            .font(.caption2)
+                        Text("Your past positions")
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(Color.warmTextSecondary)
 
                         ForEach(prep.yourPastPositions, id: \.self) { position in

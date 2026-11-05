@@ -8,9 +8,9 @@ struct OnboardingSourcesStep: View {
         VStack(spacing: 0) {
             // Header
             VStack(spacing: 8) {
-                Text("Stay Informed")
+                Text("Stay informed")
                     .font(.largeTitle.bold())
-                Text("Choose your news sources. You can change these later.")
+                Text("Choose your news sources. You can change them later in Settings › Data sources › Edit sources.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -39,11 +39,6 @@ struct OnboardingSourcesStep: View {
                 .padding(.horizontal, 16)
             }
 
-            // Page indicator
-            OnboardingPageIndicator(total: 3, current: 1)
-                .padding(.vertical, 16)
-
-            Spacer()
         }
         .onAppear {
             guard !UIAccessibility.isReduceMotionEnabled else {
@@ -87,7 +82,7 @@ struct SourceSelectionRow: View {
             HStack(spacing: 14) {
                 Image(systemName: icon)
                     .font(.title3)
-                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                    .foregroundStyle(isSelected ? Color.warmPrimaryAccent : .secondary)
                     .frame(width: 32)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -103,14 +98,14 @@ struct SourceSelectionRow: View {
                 Spacer()
 
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                    .foregroundStyle(isSelected ? Color.warmPrimaryAccent : .secondary)
                     .scaleEffect(isSelected ? 1 : 0.85)
                     .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
             }
             .padding(.vertical, 12)
             .padding(.horizontal, 16)
-            .background(Color(uiColor: .secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .background(Color.warmSurface)
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
             .opacity(hasAppeared ? 1 : 0)
             .offset(y: hasAppeared ? 0 : 16)
         }

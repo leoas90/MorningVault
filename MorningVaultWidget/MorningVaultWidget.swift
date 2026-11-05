@@ -80,10 +80,18 @@ struct SummaryWidgetView: View {
         }
     }
 
+    /// Same greeting as the Brief header ("Good morning, Yezid"), written by the app.
+    private var greeting: String {
+        let g = entry.briefing?.greeting?.trimmingCharacters(in: .whitespaces) ?? ""
+        return g.isEmpty ? "Today" : g
+    }
+
     private var header: some View {
         HStack(spacing: 4) {
             Image(systemName: "sparkles")
-            Text("Today")
+            Text(greeting)
+                .lineLimit(1)
+                .privacySensitive()
             Spacer()
             if let w = entry.briefing?.displayWeatherLine {
                 Text(w).foregroundStyle(.secondary)

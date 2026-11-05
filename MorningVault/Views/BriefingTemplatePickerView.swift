@@ -59,7 +59,7 @@ struct BriefingTemplatePickerView: View {
                     Button {
                         showingCustomOrderEditor = true
                     } label: {
-                        Label("Edit Custom Order", systemImage: "slider.horizontal.3")
+                        Label("Edit custom order", systemImage: "slider.horizontal.3")
                     }
                 } footer: {
                     Text("Drag to reorder sections. All enabled sections are shown in your briefing.")

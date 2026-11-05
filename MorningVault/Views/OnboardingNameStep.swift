@@ -15,8 +15,9 @@ struct OnboardingNameStep: View {
 
             // Icon with gentle float animation
             Image(systemName: "hand.wave.fill")
-                .font(.system(size: 60))
-                .foregroundStyle(Color.accentColor)
+                .font(.largeTitle)
+                .imageScale(.large)
+                .foregroundStyle(Color.warmPrimaryAccent)
                 .offset(y: iconOffset)
                 .onAppear {
                     guard !UIAccessibility.isReduceMotionEnabled else { return }
@@ -26,7 +27,7 @@ struct OnboardingNameStep: View {
                 }
 
             // Title with slide-up entrance
-            Text("Good Morning")
+            Text("Good morning")
                 .font(.largeTitle.bold())
                 .padding(.bottom, 8)
                 .opacity(hasAppeared ? 1 : 0)
@@ -45,8 +46,11 @@ struct OnboardingNameStep: View {
                     .font(.title2)
                     .multilineTextAlignment(.center)
                     .textInputAutocapitalization(.words)
+                    .textContentType(.givenName)
+                    .autocorrectionDisabled()
+                    .submitLabel(.done)
                     .padding(.vertical, 14)
-                    .background(Color(uiColor: .secondarySystemBackground))
+                    .background(Color.warmSurface)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .focused($isTextFieldFocused)
                     .scaleEffect(hasAppeared ? 1 : 0.95)
@@ -61,10 +65,10 @@ struct OnboardingNameStep: View {
                             } label: {
                                 Text(name)
                                     .font(.subheadline)
-                                    .foregroundStyle(Color.accentColor)
+                                    .foregroundStyle(Color.warmPrimaryAccent)
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 8)
-                                    .background(Color.accentColor.opacity(0.1))
+                                    .background(Color.warmPrimaryAccent.opacity(0.1))
                                     .clipShape(Capsule())
                                     .scaleEffect(hasAppeared ? 1 : 0)
                             }
@@ -80,16 +84,19 @@ struct OnboardingNameStep: View {
             .padding(.horizontal, 32)
             .padding(.bottom, 32)
 
-            // Navigation hint
-            Text("Tap a suggestion or enter your name to continue")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .padding(.bottom, 24)
-                .opacity(hasAppeared ? 1 : 0)
-
-            // Page indicator
-            OnboardingPageIndicator(total: 3, current: 0)
-                .padding(.bottom, 16)
+            // Navigation hint — matches what happens: Next (or a swipe) moves on, with or without a name.
+            VStack(spacing: 4) {
+                Text("Your name stays on this device")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Tap a suggestion or type a name, then tap Next. You can leave it blank.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 32)
+            .padding(.bottom, 24)
+            .opacity(hasAppeared ? 1 : 0)
 
             Spacer()
         }

@@ -10,9 +10,12 @@ struct SettingsView: View {
     @AppStorage("headlines_enabled") private var headlinesEnabled = true
     @AppStorage("local_only") private var localOnly = false
     @AppStorage("ai_private_cloud") private var privateCloud = false
-    @AppStorage("theme") private var themeRaw: String = AppTheme.system.rawValue
-    @AppStorage("appearance") private var appearanceRaw: String = "warm"
+    @AppStorage(AlarmService.weekdaysOnlyKey) private var weekdaysOnly = true
     @AppStorage("user_name") private var userName: String = ""
+    @State private var showAdvanced = false
+    @State private var showAlarmErrorDetails = false
+    /// Theme/Appearance live here so a change re-renders in place (no tab-view rebuild).
+    @Bindable private var themeStore = ThemeStore.shared
     @AppStorage(UnitsPreference.storageKey) private var unitsRaw: String = UnitsPreference.automatic.rawValue
     @AppStorage("voice_briefing_enabled") private var voiceBriefingEnabled = false
     @State private var hasAppeared = false
@@ -27,9 +30,7 @@ struct SettingsView: View {
     @ObservedObject private var weatherService = WeatherService.shared
     @StateObject private var alarmService = AlarmService.shared
 
-    private var currentTheme: AppTheme {
-        AppTheme(rawValue: themeRaw) ?? .system
-    }
+    private var currentTheme: AppTheme { themeStore.theme }
 
     private var briefingTimeBinding: Binding<Date> {
         Binding(
@@ -64,8 +65,7 @@ struct SettingsView: View {
     }
 
     private var appearanceDescription: String {
-        let appearance = ColorAppearance(rawValue: appearanceRaw) ?? .warm
-        switch appearance {
+        switch themeStore.appearance {
         case .cool: return "Cool gray-blue tones — calm and focused"
         case .warm: return "Soft cream tones — warm and energizing"
         case .calm: return "Soft sage green tones — calm and balanced"
@@ -101,6 +101,9 @@ struct SettingsView: View {
 
                 // MARK: - About
                 aboutSection
+
+                // MARK: - Advanced (collapsed)
+                advancedSection
             }
             .opacity(hasAppeared ? 1 : 0)
             .offset(y: hasAppeared ? 0 : 12)
@@ -140,109 +143,110 @@ struct SettingsView: View {
 
     private var personalizationSection: some View {
         Section("Personalization") {
-            TextField("Your Name", text: $userName)
+            TextField("Your name", text: $userName)
+                .textContentType(.givenName)
+                .autocorrectionDisabled()
                 .textInputAutocapitalization(.words)
                 .focused($isNameFieldFocused)
-            Text("Used for the greeting in your morning briefing.")
+            Text("Used for the greeting in your morning briefing. Your name stays on this device.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
     }
 
     // MARK: - Alarm
+
+    private func applyAlarm() {
+        let totalSeconds = Int(briefingTimeSeconds)
+        Task {
+            await alarmService.scheduleBriefing(hour: totalSeconds / 3600, minute: totalSeconds % 3600 / 60,
+                                                weekdaysOnly: weekdaysOnly)
+        }
+    }
+
+    /// Time picker + Weekdays-only toggle; both apply as soon as they change.
     private var alarmSection: some View {
-        Section("Alarm") {
+        Section {
             DatePicker(
-                "Briefing Time",
+                "Briefing time",
                 selection: briefingTimeBinding,
                 displayedComponents: .hourAndMinute
             )
+            .onChange(of: briefingTimeSeconds) { _, _ in applyAlarm() }
 
-            Text("Your morning briefing will be ready at this time. Tap below to apply the schedule.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Toggle("Weekdays only", isOn: $weekdaysOnly)
+                .tint(Color.warmPrimaryAccent)
+                .onChange(of: weekdaysOnly) { _, _ in applyAlarm() }
 
-            Button {
-                let totalSeconds = Int(briefingTimeSeconds)
-                let hour = totalSeconds / 3600
-                let minute = totalSeconds % 3600 / 60
-                Task { await alarmService.scheduleBriefing(hour: hour, minute: minute) }
-            } label: {
-                if alarmService.isScheduling {
-                    HStack {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                        Text("Scheduling...")
+            if let err = alarmService.lastError {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label(err, systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(Color.warmNegative)
+                    if alarmService.authorizationState != .authorized {
+                        Button("Allow notifications") {
+                            Task {
+                                await alarmService.requestAuthorization()
+                                applyAlarm()
+                            }
+                        }
+                        .font(.caption.weight(.semibold))
                     }
-                } else {
-                    Text("Schedule / Update Alarm")
-                }
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(alarmService.isScheduling)
-
-            Button {
-                Task { await AlarmService.shared.scheduleTest(seconds: 5) }
-            } label: {
-                if alarmService.isScheduling {
-                    HStack {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                        Text("Sending...")
-                    }
-                } else {
-                    Text("Send Test Notification")
-                }
-            }
-            .foregroundStyle(.blue)
-            .disabled(alarmService.isScheduling)
-
-            // Status + management (detailed view + cancel + refresh)
-            Group {
-                if !alarmService.activeAlarms.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
-                        let total = Int(briefingTimeSeconds)
-                        let h = total / 3600
-                        let m = (total % 3600) / 60
-                        let timeStr = String(format: "%02d:%02d", h, m)
-                        Text("✓ Scheduled")
-                            .font(.caption.bold())
-                            .foregroundStyle(.green)
-                        Text("Time: \(timeStr)  •  Days: Mon–Fri")
-                            .font(.caption)
-                            .foregroundStyle(.primary)
-                        Text("\(alarmService.activeAlarms.count) active notification triggers")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                } else {
-                    Text("No alarms scheduled yet")
+                    if let details = alarmService.lastErrorDetails, !details.isEmpty {
+                        DisclosureGroup("Details", isExpanded: $showAlarmErrorDetails) {
+                            Text(details)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                        }
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                }
-
-                if let err = alarmService.lastError {
-                    Text("Error: \(err)")
-                        .font(.caption2)
-                        .foregroundStyle(.red)
+                    }
                 }
             }
+        } header: {
+            Text("Alarm")
+        } footer: {
+            if let next = alarmService.nextAlarmText {
+                Text("Next alarm: \(next)")
+            } else if alarmService.lastError == nil {
+                Text("Your briefing notification fires at this time.")
+            }
+        }
+    }
 
-            HStack(spacing: 12) {
-                Button("Cancel All Alarms") {
+    /// Debug-leaning controls, collapsed by default.
+    private var advancedSection: some View {
+        Section {
+            DisclosureGroup("Advanced", isExpanded: $showAdvanced) {
+                Button {
+                    Task { await alarmService.scheduleTest(seconds: 5) }
+                } label: {
+                    HStack {
+                        Text("Send a test notification")
+                        if alarmService.isScheduling {
+                            Spacer()
+                            ProgressView().scaleEffect(0.8)
+                        }
+                    }
+                }
+                .disabled(alarmService.isScheduling)
+
+                Button("Cancel all alarms", role: .destructive) {
                     Task { await alarmService.cancelBriefingAlarm() }
                 }
-                .buttonStyle(.bordered)
                 .disabled(alarmService.isScheduling || alarmService.activeAlarms.isEmpty)
-                .foregroundStyle(.red)
 
-                Button("Refresh Status") {
+                Button("Refresh alarm status") {
                     Task { await alarmService.refreshPendingAlarms() }
                 }
-                .buttonStyle(.bordered)
                 .disabled(alarmService.isScheduling)
+
+                LabeledContent("Scheduled days", value: alarmService.activeAlarms.isEmpty ? "None" : (weekdaysOnly ? "Mon–Fri" : "Every day"))
+                    .font(.caption)
+                LabeledContent("Market proxy", value: MarketBackendService.baseURL)
+                    .font(.caption)
             }
-            .font(.caption)
         }
     }
 
@@ -251,7 +255,7 @@ struct SettingsView: View {
     private var appearanceSection: some View {
         Group {
             Section("Theme") {
-                Picker("Theme", selection: $themeRaw) {
+                Picker("Theme", selection: $themeStore.themeRaw) {
                     ForEach(AppTheme.allCases) { theme in
                         Label(theme.displayName, systemImage: theme.icon)
                             .tag(theme.rawValue)
@@ -262,7 +266,7 @@ struct SettingsView: View {
             }
 
             Section("Appearance") {
-                Picker("Appearance", selection: $appearanceRaw) {
+                Picker("Appearance", selection: $themeStore.appearanceRaw) {
                     ForEach(ColorAppearance.allCases) { appearance in
                         Label(appearance.displayName, systemImage: appearance.icon)
                             .tag(appearance.rawValue)
@@ -317,12 +321,12 @@ struct SettingsView: View {
     private var voiceSection: some View {
         Section("Voice") {
             Toggle(isOn: $voiceBriefingEnabled) {
-                Label("Voice Briefing", systemImage: "speaker.wave.2")
+                Label("Voice briefing", systemImage: "speaker.wave.2")
             }
             .tint(Color.warmPrimaryAccent)
 
             if voiceBriefingEnabled {
-                Text("Tap the 🔊 Listen button in the briefing view to hear your morning update.")
+                Text("Tap the Listen button on the Brief to hear your morning update.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -332,18 +336,30 @@ struct SettingsView: View {
     // MARK: - Data Sources
 
     private var dataSourcesSection: some View {
-        Section("Data Sources") {
+        Section {
+            // Health and Calendar are on-device; Local-only mode leaves them alone.
             AnimatedToggle(isOn: $healthEnabled, icon: "heart.fill", label: "Health")
-                .disabled(localOnly)
 
             AnimatedToggle(isOn: $calendarEnabled, icon: "calendar", label: "Calendar")
-                .disabled(localOnly)
 
             AnimatedToggle(isOn: $weatherEnabled, icon: "cloud.sun", label: "Weather")
                 .disabled(localOnly)
 
             AnimatedToggle(isOn: $headlinesEnabled, icon: "newspaper", label: "Headlines")
                 .disabled(localOnly)
+
+            NavigationLink {
+                SourcesView()
+            } label: {
+                Label("Edit sources", systemImage: "list.bullet")
+            }
+            .disabled(localOnly || !headlinesEnabled)
+        } header: {
+            Text("Data sources")
+        } footer: {
+            if localOnly {
+                Text("Local-only mode keeps Weather and Headlines off. Health and Calendar stay on your device.")
+            }
         }
     }
 
@@ -351,21 +367,21 @@ struct SettingsView: View {
 
     private var privacySection: some View {
         Section {
-            AnimatedToggle(isOn: $localOnly, icon: "lock.fill", label: "Local-Only Mode")
+            AnimatedToggle(isOn: $localOnly, icon: "lock.fill", label: "Local-only mode")
             #if PCC_ENABLED
             if #available(iOS 27.0, *) {
-                AnimatedToggle(isOn: $privateCloud, icon: "lock.icloud", label: "Private Cloud on Busy Mornings")
+                AnimatedToggle(isOn: $privateCloud, icon: "lock.icloud", label: "Private Cloud on busy mornings")
             }
             #endif
 
             NavigationLink {
                 PrivacyPolicyView()
             } label: {
-                Label("Privacy Policy", systemImage: "hand.raised")
+                Label("Privacy policy", systemImage: "hand.raised")
             }
 
             HStack {
-                Label("Location Precision", systemImage: "location.slash")
+                Label("Location precision", systemImage: "location.slash")
                 Spacer()
                 Text("Approximate only")
                     .font(.caption)
@@ -373,9 +389,9 @@ struct SettingsView: View {
             }
 
             HStack {
-                Label("Network Activity", systemImage: "network")
+                Label("Network activity", systemImage: "network")
                 Spacer()
-                Text(localOnly ? "All Local" : "External")
+                Text(localOnly ? "All local" : "External")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -466,7 +482,7 @@ struct SettingsView: View {
                     refreshMeetingPermissions()
                 }
             } label: {
-                permissionRow("Speech Recognition (Meetings)", icon: "waveform", granted: speechGranted)
+                permissionRow("Speech recognition (Meetings)", icon: "waveform", granted: speechGranted)
             }
 
             Button {
@@ -482,25 +498,6 @@ struct SettingsView: View {
                 permissionRow("Reminders (Meeting action items)", icon: "list.bullet.clipboard", granted: remindersGranted)
             }
 
-            // Alarm status
-            HStack {
-                Label("Alarm", systemImage: "alarm")
-                Spacer()
-                if alarmService.activeAlarms.isEmpty {
-                    Text("Not scheduled")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("\(alarmService.activeAlarms.count) alarm(s) active")
-                        .font(.caption)
-                        .foregroundStyle(.green)
-                }
-            }
-            if let error = alarmService.lastError {
-                Text("Last error: \(error)")
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            }
         }
     }
 

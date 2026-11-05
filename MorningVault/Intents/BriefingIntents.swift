@@ -1,5 +1,6 @@
 import AppIntents
 import Foundation
+import MeetingNotesKit
 
 // App actions for Siri, Shortcuts and Spotlight.
 //
@@ -53,6 +54,52 @@ struct GetHeadlinesIntent: AppIntent {
     }
 }
 
+// MARK: - Meetings
+
+/// "Start a meeting in MorningVault": opens the app on the Meetings tab and starts recording
+/// (the same route the widget and the Brief's Record button use).
+struct StartMeetingIntent: AppIntent {
+    static let title: LocalizedStringResource = "Start a Meeting"
+    static let description = IntentDescription(
+        "Opens MorningVault and starts recording a new meeting. Audio and transcript stay on device."
+    )
+    static let openAppWhenRun = true
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        MeetingsRouter.shared.requestRecording()
+        return .result()
+    }
+}
+
+/// "What are my action items": open items from meetings in the last two days, read from the
+/// on-device store. Nothing leaves the phone.
+struct OpenActionItemsIntent: AppIntent {
+    static let title: LocalizedStringResource = "Get Open Action Items"
+    static let description = IntentDescription(
+        "Action items still open from your meetings in the last two days."
+    )
+    static let openAppWhenRun = false
+
+    func perform() async throws -> some IntentResult & ReturnsValue<[String]> & ProvidesDialog {
+        let since = Calendar.current.date(byAdding: .day, value: -2, to: Date()) ?? Date()
+        let items = MeetingDigest.openActionItems(since: since)
+        guard !items.isEmpty else {
+            let msg = "No open action items from your meetings in the last two days."
+            return .result(value: [], dialog: IntentDialog(stringLiteral: msg))
+        }
+        let spoken: String
+        if items.count == 1 {
+            spoken = "One open action item: \(items[0])."
+        } else {
+            let listed = items.prefix(5).enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
+            let more = items.count > 5 ? "\nAnd \(items.count - 5) more." : ""
+            spoken = "\(items.count) open action items:\n\(listed)\(more)"
+        }
+        return .result(value: items, dialog: IntentDialog(stringLiteral: spoken))
+    }
+}
+
 struct MorningVaultShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
@@ -71,6 +118,27 @@ struct MorningVaultShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Headlines",
             systemImageName: "newspaper"
+        )
+        // No device-name words in phrases or descriptions (App Review error 90626).
+        AppShortcut(
+            intent: StartMeetingIntent(),
+            phrases: [
+                "Start a meeting in \(.applicationName)",
+                "Record a meeting in \(.applicationName)",
+                "New \(.applicationName) meeting",
+            ],
+            shortTitle: "Start a Meeting",
+            systemImageName: "record.circle"
+        )
+        AppShortcut(
+            intent: OpenActionItemsIntent(),
+            phrases: [
+                "What are my action items in \(.applicationName)",
+                "Get my \(.applicationName) action items",
+                "Open action items from \(.applicationName)",
+            ],
+            shortTitle: "Action Items",
+            systemImageName: "checklist"
         )
     }
 }

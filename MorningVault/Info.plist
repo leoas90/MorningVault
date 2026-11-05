@@ -39,8 +39,6 @@
 	<string>MorningVault reads your calendar to include today's events in your briefing. Data stays on your device.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>MorningVault reads your health data — including sleep, steps, heart rate, and HRV — to include in your morning briefing. Data stays on your device and is never shared.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>MorningVault writes your daily health summary to Apple Health so you can track your wellness journey over time. Data stays on your device.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Approximate location only — for weather. No precise GPS stored or transmitted.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>

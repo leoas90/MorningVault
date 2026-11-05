@@ -33,7 +33,11 @@ public final class RecordingSession: ObservableObject {
     /// Recent microphone levels, used to draw a meter.
     @Published public private(set) var levelHistory: [Double] = []
     @Published public private(set) var banner: String?
+    /// Raw framework text behind `banner`, shown under a Details disclosure.
+    @Published public private(set) var bannerDetails: String?
     @Published public private(set) var errorMessage: String?
+    /// Raw framework text behind `errorMessage`.
+    @Published public private(set) var errorDetails: String?
     /// True when `errorMessage` can only be fixed in Settings.
     @Published public private(set) var errorNeedsSettings = false
     @Published public private(set) var summary: MeetingSummary?
@@ -44,6 +48,8 @@ public final class RecordingSession: ObservableObject {
     @Published public private(set) var isIdentifyingSpeakers = false
     /// Why speakers could not be identified, when they could not.
     @Published public private(set) var speakerBanner: String?
+    /// Raw framework text behind `speakerBanner`.
+    @Published public private(set) var speakerBannerDetails: String?
     /// Speakers found in the recording, with their names.
     @Published public private(set) var speakerLabels: [SpeakerLabel] = []
     /// Who said what, one entry per finalised transcript piece.
@@ -86,6 +92,7 @@ public final class RecordingSession: ObservableObject {
         }
         recorder.onBanner = { [weak self] message in
             self?.banner = message
+            self?.bannerDetails = nil
         }
         transcriber.onUpdate = { [weak self] final, volatile in
             guard let self else { return }
@@ -116,8 +123,10 @@ public final class RecordingSession: ObservableObject {
         guard phase == .idle || phase == .finished else { return }
         phase = .starting
         errorMessage = nil
+        errorDetails = nil
         errorNeedsSettings = false
         banner = nil
+        bannerDetails = nil
         summary = nil
         summaryState = .idle
         transcript = ""
@@ -129,6 +138,7 @@ public final class RecordingSession: ObservableObject {
         speakerTask = nil
         isIdentifyingSpeakers = false
         speakerBanner = nil
+        speakerBannerDetails = nil
         speakerLabels = []
         speakerTurns = []
         levelHistory = []
@@ -279,11 +289,13 @@ public final class RecordingSession: ObservableObject {
         summaryState = .idle
         meetingID = nil
         banner = nil
+        bannerDetails = nil
     }
 
     /// Clears the error so the user can try again.
     public func clearError() {
         errorMessage = nil
+        errorDetails = nil
         errorNeedsSettings = false
     }
 
@@ -339,7 +351,9 @@ public final class RecordingSession: ObservableObject {
     // MARK: - Private
 
     private func fail(_ error: Error) {
-        errorMessage = error.localizedDescription
+        let text = UserMessage.from(error, context: "The recording could not start.")
+        errorMessage = text.message
+        errorDetails = text.details
         errorNeedsSettings = (error as? RecorderError)?.needsSettings ?? false
         phase = .idle
     }
@@ -354,6 +368,7 @@ public final class RecordingSession: ObservableObject {
             if !worked, self.isRecording {
                 let reason = self.transcriber.unavailableReason ?? "Live transcription is not available."
                 self.banner = "\(reason) The recording is transcribed when you stop."
+                self.bannerDetails = nil
             }
         }
     }
@@ -376,7 +391,9 @@ public final class RecordingSession: ObservableObject {
                 pieces = result.pieces
             }
         } catch {
-            banner = "The recording could not be transcribed: \(error.localizedDescription)"
+            let text = UserMessage.from(error, context: "The recording could not be transcribed.")
+            banner = text.message
+            bannerDetails = text.details
         }
     }
 
@@ -392,6 +409,7 @@ public final class RecordingSession: ObservableObject {
         }
         isIdentifyingSpeakers = true
         speakerBanner = nil
+        speakerBannerDetails = nil
         let profile = VoiceProfileStore.load()
         speakerTask = Task { @MainActor [weak self] in
             let outcome: Result<SpeakerIdentification, Error> = await Task.detached(priority: .utility) {
@@ -418,7 +436,9 @@ public final class RecordingSession: ObservableObject {
                 self.refreshSpeakerTurns(meeting: meeting, context: context)
                 MeetingPersistence.writeToAppGroup(for: meeting, context: context)
             case .failure(let error):
-                self.speakerBanner = "Speakers could not be identified: \(error.localizedDescription)"
+                let text = UserMessage.from(error, context: "Speakers could not be identified.")
+                self.speakerBanner = text.message
+                self.speakerBannerDetails = text.details
             }
         }
     }

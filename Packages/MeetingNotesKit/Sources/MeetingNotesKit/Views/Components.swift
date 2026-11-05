@@ -165,8 +165,14 @@ public struct ElapsedTimeLabel: View {
 }
 
 /// A short message shown above the content, for example after a phone call.
+///
+/// `details` is the raw framework text behind a collapsed "Details" disclosure, so the
+/// message itself can stay a plain sentence.
 public struct BannerView: View {
+    @Environment(\.meetingsTheme) private var theme
+    @State private var showDetails = false
     private let message: String
+    private let details: String?
     private let symbol: String
     private let actionTitle: String?
     private let action: (() -> Void)?
@@ -174,16 +180,30 @@ public struct BannerView: View {
 
     public init(
         message: String,
+        details: String? = nil,
         symbol: String = "info.circle.fill",
         actionTitle: String? = nil,
         action: (() -> Void)? = nil,
         onDismiss: (() -> Void)? = nil
     ) {
         self.message = message
+        self.details = details
         self.symbol = symbol
         self.actionTitle = actionTitle
         self.action = action
         self.onDismiss = onDismiss
+    }
+
+    /// Splits a `UserMessage.plain(...)`-style pair: plain sentence + raw details.
+    public init(
+        _ text: UserMessage,
+        symbol: String = "info.circle.fill",
+        actionTitle: String? = nil,
+        action: (() -> Void)? = nil,
+        onDismiss: (() -> Void)? = nil
+    ) {
+        self.init(message: text.message, details: text.details, symbol: symbol,
+                  actionTitle: actionTitle, action: action, onDismiss: onDismiss)
     }
 
     public var body: some View {
@@ -209,13 +229,58 @@ public struct BannerView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.small)
             }
+            if let details, !details.isEmpty {
+                DisclosureGroup("Details", isExpanded: $showDetails) {
+                    Text(details)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 4)
+                }
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            }
         }
         .padding(12)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(theme.surfaceColor, in: RoundedRectangle(cornerRadius: theme.cardRadius, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: theme.cardRadius, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
         )
+    }
+}
+
+/// A sentence a person can read, plus the raw error text for a Details disclosure.
+public struct UserMessage: Equatable, Sendable {
+    public var message: String
+    public var details: String?
+
+    public init(_ message: String, details: String? = nil) {
+        self.message = message
+        self.details = details
+    }
+
+    /// Maps a framework error to a plain sentence; the `localizedDescription` goes to `details`.
+    public static func from(_ error: Error, context: String) -> UserMessage {
+        let raw = error.localizedDescription
+        let detail = raw.isEmpty ? nil : raw
+        if let recorder = error as? RecorderError {
+            switch recorder {
+            case .microphoneDenied, .noInputAvailable:
+                return UserMessage(recorder.localizedDescription, details: nil)
+            case .audioSessionFailed(let reason):
+                return UserMessage("The audio session could not be started.", details: reason)
+            case .couldNotCreateFile(let reason):
+                return UserMessage("The recording file could not be created.", details: reason)
+            case .engineFailed(let reason):
+                return UserMessage("The microphone could not be started.", details: reason)
+            }
+        }
+        if let urlError = error as? URLError, urlError.code == .notConnectedToInternet {
+            return UserMessage("\(context) It needs a connection.", details: detail)
+        }
+        return UserMessage(context, details: detail)
     }
 }
 
@@ -268,11 +333,13 @@ public struct SectionHeader: View {
 
 /// The light, rounded card every block of content sits on.
 struct CardBackground: ViewModifier {
+    @Environment(\.meetingsTheme) private var theme
+
     func body(content: Content) -> some View {
         content
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(theme.surfaceColor, in: RoundedRectangle(cornerRadius: theme.cardRadius, style: .continuous))
     }
 }
 

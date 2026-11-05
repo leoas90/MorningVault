@@ -26,19 +26,19 @@ extension Color {
         self.init(red: red, green: green, blue: blue)
     }
 
-    static var warmBackground: Color { Color.backgroundColor }
-    static var warmSurface: Color { Color.surfaceColor }
-    static var warmCardBackground: Color { Color.surfaceColor }
-    static var warmPrimaryAccent: Color { Color.appAccentColor }
-    static var warmSecondaryAccent: Color { Color.positiveColor }
-    static var warmTextPrimary: Color { Color(UIColor { traits in traits.userInterfaceStyle == .dark ? UIColor.white : UIColor.black }) }
-    static var warmTextSecondary: Color { Color(UIColor { traits in traits.userInterfaceStyle == .dark ? UIColor(white: 0.7, alpha: 1) : UIColor(white: 0.4, alpha: 1) }) }
-    static var warmDivider: Color { Color(UIColor { traits in traits.userInterfaceStyle == .dark ? UIColor(white: 0.2, alpha: 1) : UIColor(white: 0.9, alpha: 1) }) }
-    static var warmPositive: Color { Color.positiveColor }
-    static var warmNegative: Color { Color.appAccentColor }
-    static var warmAISummary: Color { Color.aiSummaryBadgeColor }
-    static var warmLocalBadge: Color { Color.positiveColor }
-    static var warmExternalBadge: Color { Color.aiSummaryBadgeColor }
+    @MainActor static var warmBackground: Color { Color.backgroundColor }
+    @MainActor static var warmSurface: Color { Color.surfaceColor }
+    @MainActor static var warmCardBackground: Color { Color.surfaceColor }
+    @MainActor static var warmPrimaryAccent: Color { Color.appAccentColor }
+    @MainActor static var warmSecondaryAccent: Color { Color.positiveColor }
+    @MainActor static var warmTextPrimary: Color { Color(UIColor { traits in traits.userInterfaceStyle == .dark ? UIColor.white : UIColor.black }) }
+    @MainActor static var warmTextSecondary: Color { Color(UIColor { traits in traits.userInterfaceStyle == .dark ? UIColor(white: 0.7, alpha: 1) : UIColor(white: 0.4, alpha: 1) }) }
+    @MainActor static var warmDivider: Color { Color(UIColor { traits in traits.userInterfaceStyle == .dark ? UIColor(white: 0.2, alpha: 1) : UIColor(white: 0.9, alpha: 1) }) }
+    @MainActor static var warmPositive: Color { Color.positiveColor }
+    @MainActor static var warmNegative: Color { Color.negativeColor }
+    @MainActor static var warmAISummary: Color { Color.aiSummaryBadgeColor }
+    @MainActor static var warmLocalBadge: Color { Color.positiveColor }
+    @MainActor static var warmExternalBadge: Color { Color.aiSummaryBadgeColor }
 }
 
 // MARK: - NumberText View (Animated value changes)

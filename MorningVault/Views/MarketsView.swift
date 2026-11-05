@@ -15,6 +15,9 @@ struct MarketsView: View {
                 addSymbolSection
                 infoSection
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color.warmBackground.ignoresSafeArea())
             .navigationTitle("Markets")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -64,12 +67,12 @@ struct MarketsView: View {
             ForEach(Array(viewModel.trackedSymbols.enumerated()), id: \.element.symbol) { index, item in
                 SymbolRowView(
                     item: item,
-                    sparklineData: viewModel.sparklineData(for: item.symbol),
-                    isEstimated: viewModel.isEstimated(for: item.symbol),
+                    quote: viewModel.quote(for: item.symbol),
                     delay: Double(index) * AppAnimation.cardStaggerDelay,
                     onDelete: { viewModel.remove(item.symbol) },
                     onPriceChange: { price in viewModel.updatePrice(for: item.symbol, price: price) }
                 )
+                .cardRow()
             }
             .onDelete { indexSet in
                 for i in indexSet {
@@ -77,7 +80,7 @@ struct MarketsView: View {
                 }
             }
         } header: {
-            Text("Tracked Symbols")
+            Text("Tracked symbols")
         } footer: {
             Text("Entry price enables P&L tracking. Tap a price to edit.")
                 .font(.caption)
@@ -85,7 +88,7 @@ struct MarketsView: View {
     }
 
     private var addSymbolSection: some View {
-        Section("Add Symbol") {
+        Section {
             HStack {
                 TextField("Symbol (e.g. AAPL)", text: $newSymbol)
                     .textInputAutocapitalization(.characters)
@@ -101,19 +104,29 @@ struct MarketsView: View {
                     viewModel.add(symbol: sym, entryPrice: Double(newEntryPrice))
                     newSymbol = ""
                     newEntryPrice = ""
+                    Task { await viewModel.fetchLivePrices() }
                 } label: {
                     Image(systemName: "plus.circle.fill")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(viewModel.isAtLimit ? Color.warmTextSecondary : Color.warmPositive)
                 }
                 .buttonStyle(.plain)
-                .disabled(newSymbol.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(newSymbol.trimmingCharacters(in: .whitespaces).isEmpty || viewModel.isAtLimit)
+                .accessibilityLabel("Add symbol")
+            }
+            .cardRow()
+            .disabled(viewModel.isAtLimit)
+        } header: {
+            Text("Add symbol")
+        } footer: {
+            if viewModel.isAtLimit {
+                Text("You're tracking \(MarketsViewModel.maxSymbols) symbols, the maximum. Remove one to add another.")
             }
         }
     }
 
     private var infoSection: some View {
         Section {
-            Text("Track up to 10 symbols. Prices are stored locally on your device.")
+            Text("Track up to \(MarketsViewModel.maxSymbols) symbols. Prices come through MorningVault's own proxy and are stored only on your device.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -145,6 +158,7 @@ final class MarketsViewModel: ObservableObject {
     }
 
     func add(symbol: String, entryPrice: Double?) {
+        guard !isAtLimit, !trackedSymbols.contains(where: { $0.symbol == symbol }) else { return }
         trackedSymbols.append(TrackedSymbol(symbol: symbol, entryPrice: entryPrice))
         save()
     }
@@ -162,26 +176,21 @@ final class MarketsViewModel: ObservableObject {
         }
     }
 
+    /// The UI states this cap; the add button and `add` enforce it.
+    static let maxSymbols = 10
+
+    var isAtLimit: Bool { trackedSymbols.count >= Self.maxSymbols }
+
     // MARK: - Fetch live prices (api.morningvault.app proxy — the phone never calls a market vendor directly)
 
     func fetchLivePrices() async {
         isLoadingPrices = true
         defer { isLoadingPrices = false }
 
-        await withTaskGroup(of: (String, Double, Double)?.self) { group in
-            for symbol in trackedSymbols.map({ $0.symbol }) {
-                group.addTask {
-                    if let data = await self.fetchFromBackend(symbol: symbol) {
-                        return (symbol, data.price, data.change)
-                    }
-                    return nil
-                }
-            }
-            for await result in group {
-                if let (symbol, price, change) = result {
-                    prices[symbol] = (price, change)
-                }
-            }
+        // One batched request for every tracked symbol (per-symbol fallback lives in the service).
+        let quotes = await MarketBackendService.fetchBatch(symbols: trackedSymbols.map { $0.symbol })
+        for row in quotes where row.error == nil && row.price > 0 {
+            prices[row.symbol] = (row.price, row.change24h)
         }
     }
 
@@ -195,65 +204,15 @@ final class MarketsViewModel: ObservableObject {
 
     @Published private(set) var lastPriceFetch: Date?
 
-    private func fetchFromBackend(symbol: String) async -> (price: Double, change: Double)? {
-        let batch = await MarketBackendService.fetchBatch(symbols: [symbol])
-        guard let row = batch.first, row.error == nil, row.price > 0 else { return nil }
-        return (row.price, row.change24h)
-    }
-
-    // MARK: - Sparkline — seeded demo, shown when no live price available
-
-    func sparklineData(for symbol: String) -> [Double] {
-        // If we have a live price, don't show fake sparkline — return empty
-        guard prices[symbol] == nil else { return [] }
-
-        // Demo sparkline: mix symbol hash with day-of-year so shape varies daily
-        let dayComponent = Int(Date().timeIntervalSince1970 / 86400)
-        var generator = SeededRandom(seed: symbol.hashValue ^ dayComponent)
-        var values: [Double] = []
-        let basePrice: Double = {
-            switch symbol.uppercased() {
-            case "BTC": return 67500
-            case "SPY": return 520
-            case "AAPL": return 185
-            case "NVDA": return 850
-            default: return Double(abs(symbol.hashValue) % 1000 + 50)
-            }
-        }()
-        var value = basePrice * 0.95
-        for _ in 0..<20 {
-            let change = (generator.random() - 0.5) * basePrice * 0.02
-            value += change
-            values.append(value)
-        }
-        return values
-    }
-
-    /// True when showing estimated/demo sparkline data (no live price available)
-    func isEstimated(for symbol: String) -> Bool {
-        return prices[symbol] == nil
-    }
-}
-
-private struct SeededRandom {
-    private var seed: Int
-    private var state: UInt64
-
-    init(seed: Int) {
-        self.seed = seed
-        self.state = UInt64(bitPattern: Int64(abs(seed)))
-    }
-
-    mutating func random() -> Double {
-        state = (state &* 6364136223846793009) &+ 1
-        return Double(state) / Double(UInt64.max)
+    /// Live quote for a symbol, or nil until the proxy answers (the row shows a dash).
+    func quote(for symbol: String) -> (price: Double, change: Double)? {
+        prices[symbol]
     }
 }
 
 private struct SymbolRowView: View {
     let item: TrackedSymbol
-    let sparklineData: [Double]
-    let isEstimated: Bool
+    let quote: (price: Double, change: Double)?
     let delay: Double
     let onDelete: () -> Void
     let onPriceChange: (Double) -> Void
@@ -263,9 +222,16 @@ private struct SymbolRowView: View {
     @FocusState private var isPriceFocused: Bool
 
     private var trend: NumberText.Trend {
-        guard sparklineData.count >= 2 else { return .neutral }
-        let diff = sparklineData.last! - sparklineData.first!
-        return diff > 0 ? .up : (diff < 0 ? .down : .neutral)
+        guard let quote else { return .neutral }
+        return quote.change > 0 ? .up : (quote.change < 0 ? .down : .neutral)
+    }
+
+    private var trendColor: Color {
+        switch trend {
+        case .up: return Color.warmPositive
+        case .down: return Color.warmNegative
+        case .neutral: return Color.warmTextSecondary
+        }
     }
 
     private func dismissKeyboard() {
@@ -289,22 +255,23 @@ private struct SymbolRowView: View {
 
             Spacer()
 
-            // Live price + change OR demo sparkline
-            if !sparklineData.isEmpty {
-                VStack(alignment: .trailing, spacing: 2) {
-                    SparklineView(
-                        dataPoints: sparklineData,
-                        color: trend == .up ? Color.warmPositive : (trend == .down ? Color.warmNegative : Color.warmSecondaryAccent),
-                        showGradient: true
-                    )
-                    .frame(width: 80, height: 30)
-                    if isEstimated {
-                        Text("demo")
-                            .font(.system(size: 8))
-                            .foregroundStyle(Color.warmTextSecondary.opacity(0.6))
-                    }
+            // Live price + 24h change; a dash until the proxy has answered. No invented data.
+            VStack(alignment: .trailing, spacing: 2) {
+                if let quote {
+                    Text(MarketBackendService.formatPrice(symbol: item.symbol, price: quote.price))
+                        .font(.system(.subheadline, design: .monospaced).weight(.semibold))
+                        .foregroundStyle(Color.warmTextPrimary)
+                    Text(String(format: "%@%.2f%%", quote.change >= 0 ? "+" : "", quote.change))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(trendColor)
+                } else {
+                    Text("—")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.warmTextSecondary)
+                        .accessibilityLabel("No quote yet")
                 }
             }
+            .animation(.default, value: quote?.price)
 
             // Entry price input
             TextField("Entry $", text: $priceText)
@@ -353,6 +320,24 @@ private struct SymbolRowView: View {
                 }
         )
     }
+}
+
+/// Brief card language inside a `List`: each row on `warmSurface` with `AppRadius.card`,
+/// separators hidden. Rows stay in a List so swipe-to-delete keeps working.
+struct CardListRow: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .listRowSeparator(.hidden)
+            .listRowBackground(
+                RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+                    .fill(Color.warmSurface)
+                    .padding(.vertical, 4)
+            )
+    }
+}
+
+extension View {
+    func cardRow() -> some View { modifier(CardListRow()) }
 }
 
 #Preview {

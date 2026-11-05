@@ -50,7 +50,7 @@ struct OnboardingSymbolsStep: View {
         VStack(spacing: 0) {
             // Header
             VStack(spacing: 8) {
-                Text("Track Markets")
+                Text("Track markets")
                     .font(.largeTitle.bold())
                 Text("Select symbols to watch. You can edit these anytime in the Markets tab.")
                     .font(.subheadline)
@@ -96,15 +96,10 @@ struct OnboardingSymbolsStep: View {
             }
 
             // Selected count
-            Text("\(selectedSymbols.count) symbol\(selectedSymbols.count == 1 ? "" : "s") selected")
+            Text("\(selectedSymbols.count) of \(MarketsViewModel.maxSymbols) symbol\(selectedSymbols.count == 1 ? "" : "s") selected")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.vertical, 8)
-                .opacity(hasAppeared ? 1 : 0)
-
-            // Page indicator
-            OnboardingPageIndicator(total: 3, current: 2)
-                .padding(.vertical, 12)
                 .opacity(hasAppeared ? 1 : 0)
 
             // Done button
@@ -112,16 +107,16 @@ struct OnboardingSymbolsStep: View {
                 saveSymbols()
                 onComplete()
             } label: {
-                Text(selectedSymbols.isEmpty ? "Skip for Now" : "Get Started")
+                Text(selectedSymbols.isEmpty ? "Skip for now" : "Get started")
                     .font(.headline)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(selectedSymbols.isEmpty ? Color.primary.opacity(0.85) : Color.accentColor)
+                    .background(selectedSymbols.isEmpty ? Color.primary.opacity(0.85) : Color.warmPrimaryAccent)
                     .clipShape(RoundedRectangle(cornerRadius: AppRadius.button))
             }
             .padding(.horizontal, 16)
-            .padding(.bottom, 32)
+            .padding(.bottom, 8)
             .opacity(hasAppeared ? 1 : 0)
             .offset(y: hasAppeared ? 0 : 20)
         }
@@ -139,7 +134,7 @@ struct OnboardingSymbolsStep: View {
     private func toggleSymbol(_ id: String) {
         if selectedSymbols.contains(id) {
             selectedSymbols.remove(id)
-        } else {
+        } else if selectedSymbols.count < MarketsViewModel.maxSymbols {
             selectedSymbols.insert(id)
         }
     }
@@ -182,7 +177,7 @@ struct SymbolChip: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
-            .background(isSelected ? Color.accentColor : Color(uiColor: .secondarySystemBackground))
+            .background(isSelected ? Color.warmPrimaryAccent : Color.warmSurface)
             .foregroundStyle(isSelected ? .white : .primary)
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .scaleEffect(hasAppeared ? pressScale : 0.7)

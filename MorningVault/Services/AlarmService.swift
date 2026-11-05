@@ -9,8 +9,21 @@ final class AlarmService: ObservableObject {
 
     @Published var authorizationState: UNAuthorizationStatus = .notDetermined
     @Published var activeAlarms: [String] = []
+    /// Plain-sentence problem for the user ("Notifications are off for MorningVault.").
     @Published var lastError: String?
+    /// Raw framework text behind `lastError`, for a Details disclosure.
+    @Published var lastErrorDetails: String?
     @Published var isScheduling = false
+    /// When the next briefing notification fires, from the pending requests.
+    @Published var nextAlarmDate: Date?
+
+    static let weekdaysOnlyKey = "alarm_weekdays_only"
+
+    /// "Thu 6:30 AM" style text for the next alarm, or nil when nothing is scheduled.
+    var nextAlarmText: String? {
+        guard let next = nextAlarmDate else { return nil }
+        return next.formatted(.dateTime.weekday(.abbreviated).hour().minute())
+    }
 
     private let notificationIDKey = "morning_brief_notification_id"
     private let fallbackScheduledKey = "fallback_notification_scheduled"
@@ -22,7 +35,8 @@ final class AlarmService: ObservableObject {
             _ = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
             await refreshAuthorizationState()
         } catch {
-            lastError = "Authorization failed: \(error.localizedDescription)"
+            lastError = "Notifications could not be turned on."
+            lastErrorDetails = error.localizedDescription
         }
     }
 
@@ -33,10 +47,10 @@ final class AlarmService: ObservableObject {
 
     // MARK: - Schedule
 
-    /// Schedule Mon-Fri morning briefing at `hour`:`minute`.
+    /// Schedule the morning briefing at `hour`:`minute`, Mon–Fri or every day.
     /// Uses separate UNCalendarNotificationTrigger per weekday — fires at system level,
     /// not app level. Works even if the app has been killed.
-    func scheduleBriefing(hour: Int, minute: Int) async {
+    func scheduleBriefing(hour: Int, minute: Int, weekdaysOnly: Bool = true) async {
         isScheduling = true
         defer { isScheduling = false }
 
@@ -45,11 +59,14 @@ final class AlarmService: ObservableObject {
         // Check authorization first
         let settings = await center.notificationSettings()
         if settings.authorizationStatus != .authorized {
-            lastError = "Notifications not authorized. Please enable in Settings > Notifications."
+            lastError = "Notifications are off for MorningVault. Turn them on in Settings › Notifications."
+            lastErrorDetails = nil
             activeAlarms = []
+            nextAlarmDate = nil
             return
         }
         lastError = nil
+        lastErrorDetails = nil
 
         // Cancel any existing first
         await cancelBriefingAlarm()
@@ -68,10 +85,10 @@ final class AlarmService: ObservableObject {
         )
         center.setNotificationCategories([briefingCategory])
 
-        // Build one trigger per weekday (Mon=2 … Fri=6)
+        // Build one trigger per weekday (Sun=1 … Sat=7; Mon–Fri when weekdaysOnly).
         // Each fires only on its own weekday — system-level enforcement,
         // not app delegate, so works even after app kill.
-        let weekdayComponents: [Int] = [2, 3, 4, 5, 6] // Mon through Fri
+        let weekdayComponents: [Int] = weekdaysOnly ? [2, 3, 4, 5, 6] : Array(1...7)
 
         let content = UNMutableNotificationContent()
         content.title = "MorningVault ☀️"
@@ -92,7 +109,8 @@ final class AlarmService: ObservableObject {
                 try await center.add(request)
                 scheduledIds.append(id)
             } catch {
-                lastError = "Failed to schedule weekday \(wd): \(error.localizedDescription)"
+                lastError = "The alarm could not be scheduled."
+                lastErrorDetails = "Weekday \(wd): \(error.localizedDescription)"
             }
         }
 
@@ -146,13 +164,11 @@ final class AlarmService: ObservableObject {
 
     func cancelBriefingAlarm() async {
         UNUserNotificationCenter.current().removePendingNotificationRequests(
-            withIdentifiers: ["morning_brief_weekday_2", "morning_brief_weekday_3",
-                               "morning_brief_weekday_4", "morning_brief_weekday_5",
-                               "morning_brief_weekday_6", notificationIDKey,
-                               "test_briefing_notification"]
+            withIdentifiers: (1...7).map { "morning_brief_weekday_\($0)" } + [notificationIDKey, "test_briefing_notification"]
         )
         await MainActor.run {
             activeAlarms = []
+            nextAlarmDate = nil
             UserDefaults.standard.set(false, forKey: fallbackScheduledKey)
         }
     }
@@ -161,8 +177,13 @@ final class AlarmService: ObservableObject {
 
     func refreshPendingAlarms() async {
         let pending = await UNUserNotificationCenter.current().pendingNotificationRequests()
+        let briefing = pending.filter { $0.identifier.hasPrefix("morning_brief_weekday_") }
+        let next = briefing
+            .compactMap { ($0.trigger as? UNCalendarNotificationTrigger)?.nextTriggerDate() }
+            .min()
         await MainActor.run {
-            activeAlarms = pending.map { $0.identifier }
+            activeAlarms = briefing.map { $0.identifier }
+            nextAlarmDate = next
         }
     }
 

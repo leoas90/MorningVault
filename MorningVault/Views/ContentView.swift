@@ -7,8 +7,6 @@ struct ContentView: View {
     @AppStorage("user_name") private var userName: String = ""
     @AppStorage("local_only") private var localOnly = false
     @AppStorage("has_completed_onboarding") private var hasCompletedOnboarding = false
-    @AppStorage("theme") private var themeRaw: String = AppTheme.system.rawValue
-    @AppStorage("appearance") private var appearanceRaw: String = "warm"
 
     @StateObject private var viewModel = BriefingViewModel()
     @ObservedObject private var meetingsRouter = MeetingsRouter.shared
@@ -102,8 +100,16 @@ struct ContentView: View {
             }
             .tag(Tab.settings)
         }
-        .id(themeRaw + appearanceRaw)
         .tint(Color.warmPrimaryAccent)
+        // Meetings reads these through the environment, so it follows Theme and Appearance
+        // without carrying brand colors itself. Changing a theme updates in place.
+        .meetingsTheme(MeetingsTheme(
+            background: Color.warmBackground,
+            surface: Color.warmSurface,
+            accent: Color.warmPrimaryAccent,
+            negative: Color.warmNegative,
+            cardRadius: AppRadius.card
+        ))
         .task {
             AIService.shared.prewarm()
             await viewModel.silentRefresh()
@@ -147,7 +153,7 @@ struct TabIcon: View {
     var body: some View {
         VStack(spacing: 2) {
             Image(systemName: isSelected ? tab.filledIcon : tab.icon)
-                .font(.system(size: 20))
+                .font(.title3)
                 .scaleEffect(scales[tab] ?? 1.0)
         }
         .onChange(of: isSelected) { _, newValue in
@@ -179,27 +185,17 @@ struct BriefTabView: View {
     @ObservedObject private var voiceService = VoiceBriefingService.shared
     @State private var isRefreshing = false
     @State private var headerHasAppeared = false
+    @AppStorage("calendar_enabled") private var calendarEnabled = true
+    @AppStorage("health_enabled") private var healthEnabled = true
+    @AppStorage("headlines_enabled") private var headlinesEnabled = true
+    private let greeting = GreetingService.shared
 
-    private var greetingLine: String {
-        let name = userName.trimmingCharacters(in: .whitespaces)
-        return name.isEmpty ? "\(greetingText)." : "\(greetingText), \(name)."
-    }
-
-    private var greetingText: String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        switch hour {
-        case 5..<12: return "Good morning"
-        case 12..<17: return "Good afternoon"
-        case 17..<21: return "Good evening"
-        default: return "Hello"
-        }
-    }
+    private var greetingLine: String { greeting.line }
 
     private func networkBadgeText() -> String {
         switch viewModel.networkBadge {
         case .local: return "LOCAL"
         case .online: return "LIVE"
-        case .email: return "EMAIL"
         case .none: return ""
         }
     }
@@ -208,9 +204,24 @@ struct BriefTabView: View {
         switch viewModel.networkBadge {
         case .local: return Color.warmLocalBadge
         case .online: return Color.warmExternalBadge
-        case .email: return .orange
         case .none: return .clear
         }
+    }
+
+    /// Why the Brief is empty, in the user's terms: no source on, no Calendar access, or
+    /// nothing loaded yet. The alarm has nothing to do with it.
+    private var emptyState: (title: String, message: String, icon: String) {
+        let anySourceOn = healthEnabled || calendarEnabled || weatherEnabled || headlinesEnabled
+        if !anySourceOn {
+            return ("Turn on a source in Settings", "Health, Calendar, Weather and Headlines are all off. Turn one on under Settings › Data Sources.", "switch.2")
+        }
+        if calendarEnabled, !CalendarService.shared.isAuthorized {
+            return ("Allow Calendar access", "Your day's events show here once MorningVault can read your calendar. Allow it under Settings › Permissions.", "calendar.badge.exclamationmark")
+        }
+        if localOnly, !healthEnabled, !calendarEnabled {
+            return ("Turn on an on-device source", "Local-only mode keeps Headlines and Markets off. Turn on Health or Calendar to fill the Brief.", "lock.fill")
+        }
+        return ("Pull to refresh", "Nothing loaded yet. Pull down to load today's Brief.", "arrow.clockwise")
     }
 
     private var networkBadgeIcon: String {
@@ -236,10 +247,11 @@ struct BriefTabView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 40)
                     } else if viewModel.briefingSections.isEmpty && viewModel.meetingPrep == nil {
+                        let state = emptyState
                         EmptyStateView(
-                            title: "Set Your Alarm",
-                            message: "Configure your briefing time in Settings to get started.",
-                            systemImage: "alarm"
+                            title: state.title,
+                            message: state.message,
+                            systemImage: state.icon
                         )
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 40)
@@ -347,6 +359,10 @@ struct BriefTabView: View {
                 guard !viewModel.hasLoaded else { return }
                 await viewModel.loadData()
             }
+            .task(id: greetingTaskKey) {
+                // Once per day per name; a cached greeting returns immediately.
+                await greeting.refresh(name: userName, context: greetingContext)
+            }
             .onChange(of: weatherEnabled) { _, _ in
                 Task { await viewModel.loadData(force: true) }
             }
@@ -359,6 +375,18 @@ struct BriefTabView: View {
                     .presentationDetents([.medium, .large])
             }
         }
+    }
+
+    /// Re-runs the greeting task when the name or the day changes, or when the first
+    /// event/weather first arrive (the opener mentions one of them).
+    private var greetingTaskKey: String {
+        let b = SharedBriefingStore.loadToday()
+        return "\(SharedBriefing.today())|\(userName)|\(b?.firstEventTitle ?? "")|\(b?.weatherLine ?? "")"
+    }
+
+    private var greetingContext: GreetingService.Context {
+        let b = SharedBriefingStore.loadToday()
+        return .init(firstEventTitle: b?.firstEventTitle, firstEventStart: b?.firstEventStart, weatherLine: b?.weatherLine)
     }
 
     private func briefingShareText() -> String {
@@ -379,11 +407,18 @@ struct BriefTabView: View {
                         .fontWeight(.bold)
                         .foregroundStyle(Color.warmTextPrimary)
 
+                    if let opener = greeting.opener {
+                        Text(opener)
+                            .font(.subheadline)
+                            .foregroundStyle(Color.warmTextSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
                     // AI Summary badge and text (badge above, so the summary gets full width)
                     if let summary = viewModel.aiDaySummary {
                         VStack(alignment: .leading, spacing: 4) {
                             BounceLabel(
-                                text: "AI Summary",
+                                text: "AI summary",
                                 color: Color.warmAISummary,
                                 icon: "sparkles"
                             )
@@ -415,7 +450,7 @@ struct BriefTabView: View {
 
                 Spacer()
 
-                // Network badge — 3-state: LOCAL, LIVE (online), EMAIL
+                // Network badge — LOCAL or LIVE (online)
                 if viewModel.networkBadge != .none {
                     BounceLabel(
                         text: networkBadgeText(),

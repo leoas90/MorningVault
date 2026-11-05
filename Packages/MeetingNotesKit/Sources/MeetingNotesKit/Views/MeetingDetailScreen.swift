@@ -58,6 +58,7 @@ struct MeetingDetailScreen: View {
             .padding(.bottom, 24)
         }
         .scrollDismissesKeyboard(.interactively)
+        .themedPageBackground()
         .navigationTitle("")
         .safeAreaInset(edge: .bottom) {
             if summary == nil || summarizer.state == .working {

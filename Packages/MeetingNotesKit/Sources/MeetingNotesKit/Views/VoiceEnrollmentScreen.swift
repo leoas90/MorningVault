@@ -11,7 +11,7 @@ final class VoiceEnrollmentSession: ObservableObject {
         case recording
         case processing
         case done
-        case failed(String)
+        case failed(UserMessage)
     }
 
     /// Target length of the reading.
@@ -56,11 +56,11 @@ final class VoiceEnrollmentSession: ObservableObject {
     func start() async {
         guard phase == .idle || phase == .done || isFailed else { return }
         guard SpeakerDiarizer.isAvailable else {
-            phase = .failed("Speaker models are not available in this build.")
+            phase = .failed(UserMessage("Speaker models are not available in this build."))
             return
         }
         guard await RecordingPermissions.requestMicrophone() else {
-            phase = .failed(RecorderError.microphoneDenied.localizedDescription)
+            phase = .failed(UserMessage(RecorderError.microphoneDenied.localizedDescription))
             return
         }
         samples = []
@@ -70,7 +70,7 @@ final class VoiceEnrollmentSession: ObservableObject {
             try await recorder.start(meetingID: sessionID)
             phase = .recording
         } catch {
-            phase = .failed(error.localizedDescription)
+            phase = .failed(UserMessage.from(error, context: "The recording could not start."))
             deleteRecording()
         }
     }
@@ -83,7 +83,7 @@ final class VoiceEnrollmentSession: ObservableObject {
         let clip = samples
         samples = []
         guard Double(clip.count) / AudioFileSamples.targetSampleRate >= Self.minimumSeconds else {
-            phase = .failed("That was too short. Read for at least \(Int(Self.minimumSeconds)) seconds.")
+            phase = .failed(UserMessage("That was too short. Read for at least \(Int(Self.minimumSeconds)) seconds."))
             return
         }
         let toggle = learnsFromRenames
@@ -102,10 +102,10 @@ final class VoiceEnrollmentSession: ObservableObject {
                 profile = saved
                 phase = .done
             } catch {
-                phase = .failed("The voice profile could not be saved: \(error.localizedDescription)")
+                phase = .failed(UserMessage.from(error, context: "The voice profile could not be saved."))
             }
         case .failure(let error):
-            phase = .failed(error.localizedDescription)
+            phase = .failed(UserMessage.from(error, context: "Your voice could not be analyzed."))
         }
     }
 
@@ -151,6 +151,7 @@ final class VoiceEnrollmentSession: ObservableObject {
 /// The "Your voice" screen: read a paragraph, get recognised as "You".
 public struct VoiceEnrollmentScreen: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.meetingsTheme) private var theme
     @StateObject private var session = VoiceEnrollmentSession()
     @State private var confirmDelete = false
 
@@ -249,9 +250,9 @@ public struct VoiceEnrollmentScreen: View {
         case .done:
             Label("Your voice is saved. Meetings will label you as You.", systemImage: "checkmark.circle.fill")
                 .font(.subheadline)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(theme.accentColor)
         case .failed(let message):
-            BannerView(message: message, symbol: "exclamationmark.triangle.fill")
+            BannerView(message, symbol: "exclamationmark.triangle.fill")
         }
     }
 

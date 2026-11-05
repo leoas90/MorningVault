@@ -308,12 +308,12 @@ struct ArticleRowView: View {
                     Button {
                         onRead()
                     } label: {
-                        Label("Mark as Read", systemImage: "checkmark")
+                        Label("Mark as read", systemImage: "checkmark")
                     }
                     Button {
                         onLater()
                     } label: {
-                        Label("Save for Later", systemImage: "bookmark")
+                        Label("Save for later", systemImage: "bookmark")
                     }
 
                     Button {

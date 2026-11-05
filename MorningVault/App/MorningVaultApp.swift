@@ -7,11 +7,13 @@ import MeetingNotesKit
 struct MorningVaultApp: App {
     // BGTaskScheduler registration ID
     private let precomputationTaskID = "com.yeziddr.morningvault.precompute"
-    @AppStorage("theme") private var themeRaw: String = AppTheme.system.rawValue
     @Environment(\.scenePhase) private var scenePhase
+    /// Observed in place: a theme or appearance change re-renders views that read the
+    /// `Color.warm…` accessors, without rebuilding the tab view or losing navigation.
+    private let themeStore = ThemeStore.shared
 
     private var currentTheme: AppTheme {
-        AppTheme(rawValue: themeRaw) ?? .system
+        themeStore.theme
     }
 
     var body: some Scene {
@@ -22,7 +24,6 @@ struct MorningVaultApp: App {
                 }
                 .appTheme(currentTheme)
                 .preferredColorScheme(preferredColorScheme)
-                .id(themeRaw)  // Force full UI rebuild when theme or appearance changes
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         // Refresh on foreground. Not `.viewBriefingRequested`: that one also
@@ -216,24 +217,22 @@ enum ColorAppearance: String, CaseIterable, Identifiable {
 
 // MARK: - Adaptive Color System
 
-// Static accessors — reads stored theme from UserDefaults; views using @AppStorage re-render on theme change.
+// Static accessors — read `ThemeStore.shared`, which is @Observable, so any view body that
+// uses them re-renders in place when the theme or appearance changes.
 
 extension Color {
-    static var backgroundColor: Color {
-        let themeRaw = UserDefaults.standard.string(forKey: "theme") ?? AppTheme.system.rawValue
-        let theme = AppTheme(rawValue: themeRaw) ?? .system
+    @MainActor static var backgroundColor: Color {
+        let theme = ThemeStore.shared.theme
         return backgroundColor(for: theme)
     }
 
-    static var surfaceColor: Color {
-        let themeRaw = UserDefaults.standard.string(forKey: "theme") ?? AppTheme.system.rawValue
-        let theme = AppTheme(rawValue: themeRaw) ?? .system
+    @MainActor static var surfaceColor: Color {
+        let theme = ThemeStore.shared.theme
         return surfaceColor(for: theme)
     }
 
-    static func backgroundColor(for theme: AppTheme) -> Color {
-        let appearanceRaw = UserDefaults.standard.string(forKey: "appearance") ?? "warm"
-        let appearance = ColorAppearance(rawValue: appearanceRaw) ?? .warm
+    @MainActor static func backgroundColor(for theme: AppTheme) -> Color {
+        let appearance = ThemeStore.shared.appearance
         switch theme {
         case .system:
             return Color(UIColor { traits in
@@ -254,9 +253,8 @@ extension Color {
         }
     }
 
-    static func surfaceColor(for theme: AppTheme) -> Color {
-        let appearanceRaw = UserDefaults.standard.string(forKey: "appearance") ?? "warm"
-        let appearance = ColorAppearance(rawValue: appearanceRaw) ?? .warm
+    @MainActor static func surfaceColor(for theme: AppTheme) -> Color {
+        let appearance = ThemeStore.shared.appearance
         switch theme {
         case .system:
             return Color(UIColor { traits in
@@ -277,15 +275,13 @@ extension Color {
         }
     }
 
-    static var appAccentColor: Color {
-        let themeRaw = UserDefaults.standard.string(forKey: "theme") ?? AppTheme.system.rawValue
-        let theme = AppTheme(rawValue: themeRaw) ?? .system
+    @MainActor static var appAccentColor: Color {
+        let theme = ThemeStore.shared.theme
         return appAccentColor(for: theme)
     }
 
-    static func appAccentColor(for theme: AppTheme) -> Color {
-        let appearanceRaw = UserDefaults.standard.string(forKey: "appearance") ?? "warm"
-        let appearance = ColorAppearance(rawValue: appearanceRaw) ?? .warm
+    @MainActor static func appAccentColor(for theme: AppTheme) -> Color {
+        let appearance = ThemeStore.shared.appearance
         switch theme {
         case .system:
             if appearance == .warm {
@@ -308,15 +304,13 @@ extension Color {
         }
     }
 
-    static var positiveColor: Color {
-        let themeRaw = UserDefaults.standard.string(forKey: "theme") ?? AppTheme.system.rawValue
-        let theme = AppTheme(rawValue: themeRaw) ?? .system
+    @MainActor static var positiveColor: Color {
+        let theme = ThemeStore.shared.theme
         return _positiveColor(for: theme)
     }
 
-    static func _positiveColor(for theme: AppTheme) -> Color {
-        let appearanceRaw = UserDefaults.standard.string(forKey: "appearance") ?? "warm"
-        let appearance = ColorAppearance(rawValue: appearanceRaw) ?? .warm
+    @MainActor static func _positiveColor(for theme: AppTheme) -> Color {
+        let appearance = ThemeStore.shared.appearance
         switch theme {
         case .system:
             return appearance == .calm ? Color(UIColor(hex: "81B29A")) : .green
@@ -333,15 +327,35 @@ extension Color {
         }
     }
 
-    static var aiSummaryBadgeColor: Color {
-        let themeRaw = UserDefaults.standard.string(forKey: "theme") ?? AppTheme.system.rawValue
-        let theme = AppTheme(rawValue: themeRaw) ?? .system
+    /// Down moves and bearish badges. Distinct from the accent in every appearance, and a
+    /// clearly red hue in Dark so "down" never looks like "neutral".
+    @MainActor static var negativeColor: Color {
+        let theme = ThemeStore.shared.theme
+        let appearance = ThemeStore.shared.appearance
+        let light: UIColor
+        switch appearance {
+        case .warm: light = UIColor(hex: "C8553D")   // terracotta red
+        case .cool: light = UIColor(hex: "C0392B")   // cool crimson
+        case .calm: light = UIColor(hex: "B5564B")   // muted brick
+        }
+        let dark = UIColor(hex: "FF6B6B")            // readable red on the dark surface
+        switch theme {
+        case .system:
+            return Color(UIColor { traits in traits.userInterfaceStyle == .dark ? dark : light })
+        case .light:
+            return Color(light)
+        case .dark:
+            return Color(dark)
+        }
+    }
+
+    @MainActor static var aiSummaryBadgeColor: Color {
+        let theme = ThemeStore.shared.theme
         return aiSummaryBadgeColor(for: theme)
     }
 
-    static func aiSummaryBadgeColor(for theme: AppTheme) -> Color {
-        let appearanceRaw = UserDefaults.standard.string(forKey: "appearance") ?? "warm"
-        let appearance = ColorAppearance(rawValue: appearanceRaw) ?? .warm
+    @MainActor static func aiSummaryBadgeColor(for theme: AppTheme) -> Color {
+        let appearance = ThemeStore.shared.appearance
         switch theme {
         case .system:
             return appearance == .warm ? Color(UIColor(hex: "E07A5F")) : Color(UIColor(hex: "7E8EA8"))

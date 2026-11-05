@@ -148,6 +148,7 @@ struct EnhancedNotesView: View {
 /// Checkable action items of one meeting, read live from the store.
 struct ActionItemsList: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.meetingsTheme) private var theme
     @Query private var items: [ActionItemRecord]
     private let fallback: [ActionItem]
 
@@ -173,7 +174,7 @@ struct ActionItemsList: View {
                 } label: {
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(item.isDone ? Color.accentColor : Color.secondary)
+                            .foregroundStyle(item.isDone ? theme.accentColor : Color.secondary)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.text)
                                 .font(.body)
@@ -308,6 +309,7 @@ struct TranscriptSheet: View {
 
 /// "Name: text" blocks, one per turn, with tap-to-rename on the name.
 struct SpeakerTurnsView: View {
+    @Environment(\.meetingsTheme) private var theme
     let turns: [SpokenTurn]
     var onRename: ((String, String) -> Void)?
     @State private var renaming: SpokenTurn?
@@ -324,7 +326,7 @@ struct SpeakerTurnsView: View {
                         } label: {
                             Label(turn.name ?? "Unknown", systemImage: "person.fill")
                                 .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(turn.name == SpeakerLabel.youName ? Color.accentColor : Color.primary)
+                                .foregroundStyle(turn.name == SpeakerLabel.youName ? theme.accentColor : Color.primary)
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Speaker \(turn.name ?? "Unknown")")

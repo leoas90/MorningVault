@@ -21,6 +21,7 @@ struct NewMeetingRequest: Identifiable {
 /// start a new meeting.
 struct HomeScreen: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.meetingsTheme) private var theme
     @Query(sort: \Meeting.startedAt, order: .reverse) private var meetings: [Meeting]
     @StateObject private var calendar = CalendarService()
     @ObservedObject private var router = MeetingsRouter.shared
@@ -40,9 +41,10 @@ struct HomeScreen: View {
                             UpNextRow(event: event, now: now) {
                                 newMeeting = NewMeetingRequest(event: event)
                             }
+                            .themedListRow()
                         }
                     } header: {
-                        Text("Up next")
+                        ThemedSectionHeader(title: "Up next")
                     }
                 }
 
@@ -71,17 +73,20 @@ struct HomeScreen: View {
                                 NavigationLink(value: meeting.id) {
                                     MeetingRow(meeting: meeting)
                                 }
+                                .themedListRow()
                             }
                             .onDelete { offsets in
                                 delete(offsets.map { bucket.items[$0] })
                             }
                         } header: {
-                            Text(bucket.group.title)
+                            ThemedSectionHeader(title: bucket.group.title)
                         }
                     }
                 }
             }
-            .listStyle(.automatic)
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .themedPageBackground()
             .navigationTitle("Meetings")
             .inlineTitle()
             .navigationDestination(for: UUID.self) { meetingID in

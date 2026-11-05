@@ -17,6 +17,10 @@ struct SharedBriefing: Codable, Equatable {
     var weatherCondition: String?
     var headlines: [Headline]
     var updatedAt: Date
+    /// "Good morning, Yezid" as shown on the Brief; the widget shows the same line.
+    var greeting: String?
+    /// Optional one-line opener from the on-device model.
+    var greetingOpener: String?
 
     /// Weather line in the user's current units (falls back to the saved text).
     var displayWeatherLine: String? {

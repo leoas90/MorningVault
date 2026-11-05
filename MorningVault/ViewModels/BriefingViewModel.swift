@@ -790,7 +790,6 @@ final class BriefingViewModel: ObservableObject {
 enum NetworkBadge {
     case local      // 🟢 LOCAL — localOnly mode, no external calls
     case online     // 🟡 ONLINE — normal mode, live data from weather/markets/RSS
-    case email      // ⚠️ EMAIL — email/integration routing active (opt-in)
     case none       // No data loaded yet
 }
 

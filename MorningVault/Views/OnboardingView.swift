@@ -5,24 +5,51 @@ struct OnboardingView: View {
     @AppStorage("has_completed_onboarding") private var hasCompletedOnboarding = false
 
     @State private var currentPage = 0
+    private let pageCount = 4
 
     var body: some View {
         ZStack {
-            Color(uiColor: .systemBackground)
+            Color.warmBackground
                 .ignoresSafeArea()
 
-            TabView(selection: $currentPage) {
-                OnboardingNameStep()
-                    .tag(0)
+            VStack(spacing: 0) {
+                TabView(selection: $currentPage) {
+                    OnboardingNameStep()
+                        .tag(0)
 
-                OnboardingSourcesStep()
-                    .tag(1)
+                    OnboardingSourcesStep()
+                        .tag(1)
 
-                OnboardingSymbolsStep(onComplete: completeOnboarding)
-                    .tag(2)
+                    OnboardingMeetingsStep()
+                        .tag(2)
+
+                    OnboardingSymbolsStep(onComplete: completeOnboarding)
+                        .tag(3)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .animation(.easeInOut, value: currentPage)
+
+                // Every page advances with a real button; swiping still works.
+                VStack(spacing: 14) {
+                    OnboardingPageIndicator(total: pageCount, current: currentPage)
+                    if currentPage < pageCount - 1 {
+                        Button {
+                            withAnimation(.easeInOut) { currentPage += 1 }
+                        } label: {
+                            Text("Next")
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(Color.warmPrimaryAccent)
+                                .clipShape(RoundedRectangle(cornerRadius: AppRadius.button))
+                        }
+                        .accessibilityHint("Goes to the next step")
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 24)
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .animation(.easeInOut, value: currentPage)
         }
     }
 
@@ -41,11 +68,13 @@ struct OnboardingPageIndicator: View {
         HStack(spacing: 8) {
             ForEach(0..<total, id: \.self) { index in
                 Capsule()
-                    .fill(index == current ? Color.accentColor : Color.secondary.opacity(0.3))
+                    .fill(index == current ? Color.warmPrimaryAccent : Color.secondary.opacity(0.3))
                     .frame(width: index == current ? 24 : 8, height: 8)
                     .animation(.spring(response: 0.35, dampingFraction: 0.7), value: current)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Step \(current + 1) of \(total)")
     }
 }
 

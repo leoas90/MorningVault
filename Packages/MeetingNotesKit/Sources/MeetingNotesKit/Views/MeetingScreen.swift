@@ -91,6 +91,7 @@ struct MeetingScreen: View {
             .padding(.bottom, 24)
         }
         .scrollDismissesKeyboard(.interactively)
+        .themedPageBackground()
         .safeAreaInset(edge: .bottom) { bottomBar }
         .toolbar { toolbarContent }
         .sheet(isPresented: $showTranscript) {
@@ -167,6 +168,7 @@ struct MeetingScreen: View {
         if let error = session.errorMessage {
             BannerView(
                 message: error,
+                details: session.errorDetails,
                 symbol: "mic.slash.fill",
                 actionTitle: session.errorNeedsSettings ? "Open Settings" : nil,
                 action: session.errorNeedsSettings ? { RecordingPermissions.openSettings() } : nil,
@@ -174,7 +176,7 @@ struct MeetingScreen: View {
             )
         }
         if let banner = session.banner {
-            BannerView(message: banner, onDismiss: { session.recorder.clearBanner() })
+            BannerView(message: banner, details: session.bannerDetails, onDismiss: { session.recorder.clearBanner() })
         }
         if session.isTranscribingFile {
             HStack(spacing: 8) {
@@ -193,7 +195,7 @@ struct MeetingScreen: View {
             }
             .accessibilityElement(children: .combine)
         } else if let speakerBanner = session.speakerBanner {
-            BannerView(message: speakerBanner, symbol: "person.2.slash")
+            BannerView(message: speakerBanner, details: session.speakerBannerDetails, symbol: "person.2.slash")
         }
     }
 

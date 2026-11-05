@@ -5,15 +5,15 @@ struct SourcesView: View {
 
     var body: some View {
         List {
-            Section("News Sources") {
+            Section("News sources") {
                 if sources.isEmpty {
-                    Text("No sources selected. Go to Settings to add sources.")
+                    Text("No sources selected. Tap Manage sources to pick some.")
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(sources) { source in
                         HStack {
                             Image(systemName: source.icon)
-                                .foregroundStyle(Color.accentColor)
+                                .foregroundStyle(Color.warmPrimaryAccent)
                                 .frame(width: 28)
                             VStack(alignment: .leading) {
                                 Text(source.displayName)
@@ -32,7 +32,7 @@ struct SourcesView: View {
                 NavigationLink {
                     SourceEditorView()
                 } label: {
-                    Label("Manage Sources", systemImage: "plus.circle")
+                    Label("Manage sources", systemImage: "plus.circle")
                 }
             }
         }
@@ -63,7 +63,7 @@ struct SourceEditorView: View {
                 } label: {
                     HStack {
                         Image(systemName: source.icon)
-                            .foregroundStyle(selectedSources.contains(source) ? Color.accentColor : .secondary)
+                            .foregroundStyle(selectedSources.contains(source) ? Color.warmPrimaryAccent : .secondary)
                             .frame(width: 28)
                         VStack(alignment: .leading) {
                             Text(source.displayName)
@@ -74,7 +74,7 @@ struct SourceEditorView: View {
                         }
                         Spacer()
                         Image(systemName: selectedSources.contains(source) ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(selectedSources.contains(source) ? Color.accentColor : .secondary)
+                            .foregroundStyle(selectedSources.contains(source) ? Color.warmPrimaryAccent : .secondary)
                     }
                 }
                 .buttonStyle(.plain)
