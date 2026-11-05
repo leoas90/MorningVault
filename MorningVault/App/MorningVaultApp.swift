@@ -235,11 +235,9 @@ extension Color {
         let appearance = ThemeStore.shared.appearance
         switch theme {
         case .system:
-            return Color(UIColor { traits in
-                traits.userInterfaceStyle == .dark
-                    ? UIColor(hex: "0D0D0F")
-                    : (appearance == .warm ? UIColor(hex: "FBF8F3") : (appearance == .cool ? UIColor(hex: "F0F4F8") : UIColor(hex: "F5F7F5")))
-            })
+            return Color(UIColor.dynamic(
+                light: appearance == .warm ? UIColor(hex: "FBF8F3") : (appearance == .cool ? UIColor(hex: "F0F4F8") : UIColor(hex: "F5F7F5")),
+                dark: UIColor(hex: "0D0D0F")))
         case .light:
             if appearance == .warm {
                 return Color(UIColor(hex: "FBF8F3"))
@@ -257,11 +255,9 @@ extension Color {
         let appearance = ThemeStore.shared.appearance
         switch theme {
         case .system:
-            return Color(UIColor { traits in
-                traits.userInterfaceStyle == .dark
-                    ? UIColor(hex: "1C1C1E")
-                    : (appearance == .warm ? UIColor(hex: "FFFDF9") : (appearance == .cool ? UIColor(hex: "FFFFFF") : UIColor(hex: "FAFCFA")))
-            })
+            return Color(UIColor.dynamic(
+                light: appearance == .warm ? UIColor(hex: "FFFDF9") : (appearance == .cool ? UIColor(hex: "FFFFFF") : UIColor(hex: "FAFCFA")),
+                dark: UIColor(hex: "1C1C1E")))
         case .light:
             if appearance == .warm {
                 return Color(UIColor(hex: "FFFDF9"))
@@ -341,7 +337,7 @@ extension Color {
         let dark = UIColor(hex: "FF6B6B")            // readable red on the dark surface
         switch theme {
         case .system:
-            return Color(UIColor { traits in traits.userInterfaceStyle == .dark ? dark : light })
+            return Color(UIColor.dynamic(light: light, dark: dark))
         case .light:
             return Color(light)
         case .dark:
@@ -393,6 +389,13 @@ extension View {
 }
 
 extension UIColor {
+    /// Trait-dependent color whose provider is nonisolated. SwiftUI resolves colors on its
+    /// async render thread; a provider closure formed inside a @MainActor getter inherits
+    /// main-actor isolation and traps there under Swift 6 (builds 45/46 crash).
+    nonisolated static func dynamic(light: UIColor, dark: UIColor) -> UIColor {
+        UIColor { @Sendable traits in traits.userInterfaceStyle == .dark ? dark : light }
+    }
+
     convenience init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
         var int: UInt64 = 0

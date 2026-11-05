@@ -31,9 +31,9 @@ extension Color {
     @MainActor static var warmCardBackground: Color { Color.surfaceColor }
     @MainActor static var warmPrimaryAccent: Color { Color.appAccentColor }
     @MainActor static var warmSecondaryAccent: Color { Color.positiveColor }
-    @MainActor static var warmTextPrimary: Color { Color(UIColor { traits in traits.userInterfaceStyle == .dark ? UIColor.white : UIColor.black }) }
-    @MainActor static var warmTextSecondary: Color { Color(UIColor { traits in traits.userInterfaceStyle == .dark ? UIColor(white: 0.7, alpha: 1) : UIColor(white: 0.4, alpha: 1) }) }
-    @MainActor static var warmDivider: Color { Color(UIColor { traits in traits.userInterfaceStyle == .dark ? UIColor(white: 0.2, alpha: 1) : UIColor(white: 0.9, alpha: 1) }) }
+    @MainActor static var warmTextPrimary: Color { Color(UIColor.dynamic(light: .black, dark: .white)) }
+    @MainActor static var warmTextSecondary: Color { Color(UIColor.dynamic(light: UIColor(white: 0.4, alpha: 1), dark: UIColor(white: 0.7, alpha: 1))) }
+    @MainActor static var warmDivider: Color { Color(UIColor.dynamic(light: UIColor(white: 0.9, alpha: 1), dark: UIColor(white: 0.2, alpha: 1))) }
     @MainActor static var warmPositive: Color { Color.positiveColor }
     @MainActor static var warmNegative: Color { Color.negativeColor }
     @MainActor static var warmAISummary: Color { Color.aiSummaryBadgeColor }
