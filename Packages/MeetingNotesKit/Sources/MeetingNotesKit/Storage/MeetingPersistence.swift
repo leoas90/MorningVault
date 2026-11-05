@@ -42,13 +42,14 @@ public enum MeetingPersistence {
         for item in existing {
             context.delete(item)
         }
-        for item in items {
+        for (index, item) in items.enumerated() {
             let record = ActionItemRecord(
                 meetingID: meeting.id,
                 text: item.text,
                 owner: item.owner,
                 due: parseDue(item.due),
-                createdAt: meeting.startedAt
+                // Offset by a second each so the list keeps the model's order.
+                createdAt: meeting.startedAt.addingTimeInterval(Double(index))
             )
             context.insert(record)
         }

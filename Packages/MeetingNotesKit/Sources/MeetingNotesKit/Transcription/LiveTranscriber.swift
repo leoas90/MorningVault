@@ -22,8 +22,9 @@ public final class LiveTranscriber: ObservableObject {
     /// Speech that may still change, shown in lighter grey.
     @Published public private(set) var volatileText: String = ""
 
-    /// Called on the main actor whenever the transcript changes.
-    public var onUpdate: (@MainActor @Sendable (String) -> Void)?
+    /// Called on the main actor whenever the transcript changes, with the
+    /// finalised text first and the part that may still change second.
+    public var onUpdate: (@MainActor @Sendable (String, String) -> Void)?
 
     private var transcriber: SpeechTranscriber?
     private var analyzer: SpeechAnalyzer?
@@ -40,7 +41,18 @@ public final class LiveTranscriber: ObservableObject {
         return finalText + " " + trimmedVolatile
     }
 
+    /// Why live transcription is off, when it is.
+    public var unavailableReason: String? {
+        switch status {
+        case .unavailable(let message), .failed(let message): return message
+        case .idle, .preparing, .listening: return nil
+        }
+    }
+
     /// Starts the analyser. Returns `false` when live transcription is not possible.
+    ///
+    /// Safe to cancel: the language pack download and the analyser start both
+    /// stop cleanly, and a cancelled start reports `false`.
     @discardableResult
     public func start(locale: Locale = Locale.current) async -> Bool {
         guard transcriber == nil else { return true }
@@ -51,6 +63,14 @@ public final class LiveTranscriber: ObservableObject {
             return false
         }
 
+        // SpeechAnalyzer runs fully on device, but the Speech framework still
+        // honours the speech recognition switch in Settings.
+        guard await RecordingPermissions.requestSpeech() else {
+            status = .unavailable("Speech recognition is off in Settings.")
+            return false
+        }
+        guard !Task.isCancelled else { status = .idle; return false }
+
         let transcriber = SpeechTranscriber(
             locale: locale,
             transcriptionOptions: [],
@@ -60,21 +80,37 @@ public final class LiveTranscriber: ObservableObject {
         self.transcriber = transcriber
 
         let assetStatus = await AssetInventory.status(forModules: [transcriber])
-        if assetStatus == .supported {
-            if let request = try? await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
-                try? await request.downloadAndInstall()
-            }
-        } else if assetStatus == .unsupported {
+        switch assetStatus {
+        case .unsupported:
             status = .unavailable("The language pack for \(locale.identifier) is not supported on this device.")
+            self.transcriber = nil
             return false
+        case .installed:
+            break
+        default:
+            // Downloading the language pack can take a while on first use. The
+            // recording keeps running meanwhile; a failure here only means the
+            // file is transcribed when the meeting ends.
+            do {
+                if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
+                    try await request.downloadAndInstall()
+                }
+            } catch {
+                status = .failed("The language pack is not ready: \(error.localizedDescription)")
+                self.transcriber = nil
+                return false
+            }
         }
+        guard !Task.isCancelled else { await teardown(); status = .idle; return false }
 
         do {
             feeder = try await makeFeeder(for: transcriber)
         } catch {
             status = .failed("Could not prepare the audio pipeline: \(error.localizedDescription)")
+            await teardown()
             return false
         }
+        guard !Task.isCancelled else { await teardown(); status = .idle; return false }
 
         let stream = AsyncStream<AnalyzerInput> { continuation in
             self.continuation = continuation
@@ -180,7 +216,7 @@ public final class LiveTranscriber: ObservableObject {
                 finalText += " " + piece
             }
         }
-        onUpdate?(self.text)
+        onUpdate?(finalText, volatileText)
     }
 
     private func teardown() async {
@@ -189,6 +225,8 @@ public final class LiveTranscriber: ObservableObject {
         continuation?.finish()
         continuation = nil
         if let analyzer {
+            // Immediate stop; the volatile tail is kept by the caller as plain
+            // text, so nothing the user saw disappears.
             await analyzer.cancelAndFinishNow()
         }
         analyzer = nil

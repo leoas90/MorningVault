@@ -33,7 +33,7 @@ public enum MeetingDigest {
             .filter { meetingIDs.contains($0.meetingID) }
             .map { item in
                 if let owner = item.owner, !owner.isEmpty {
-                    return "\(item.text) (\(owner))"
+                    return "\(item.text) — \(owner)"
                 }
                 return item.text
             }

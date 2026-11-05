@@ -2,8 +2,8 @@ import SwiftUI
 
 /// A button that starts a recording, optionally attached to a calendar event.
 ///
-/// MorningVault can put this on the calendar card: the recording opens in a
-/// sheet and is filed under the meeting the button belongs to.
+/// MorningVault can put this on the calendar card: the meeting page opens in a
+/// sheet, asks for permission, starts recording and is filed under the event.
 public struct MeetingRecordButton: View {
     private let calendarEventID: String?
     private let title: String
@@ -37,11 +37,14 @@ public struct MeetingRecordButton: View {
         } label: {
             Label(label, systemImage: "record.circle")
         }
+        .accessibilityLabel(title.isEmpty ? label : "\(label) \(title)")
         .sheet(isPresented: $isPresenting) {
-            RecordSheetView(
+            MeetingScreen(
+                initialTitle: title,
+                initialAttendees: attendees,
                 calendarEventID: calendarEventID,
-                title: title,
-                attendees: attendees
+                autoStart: true,
+                isModal: true
             )
         }
     }

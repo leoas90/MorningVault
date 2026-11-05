@@ -1,208 +1,199 @@
 import SwiftData
 import SwiftUI
 
-/// One meeting, with notes, transcript and audio.
+/// A saved meeting: the same notes-first page as the live one, without the recorder.
 struct MeetingDetailScreen: View {
     @Bindable var meeting: Meeting
     @Environment(\.modelContext) private var context
     @StateObject private var playback = AudioPlaybackController()
     @StateObject private var reminders = RemindersService()
-    @State private var tab: DetailTab = .notes
-    @State private var message: String?
-
-    enum DetailTab: String, CaseIterable, Identifiable {
-        case notes
-        case transcript
-        case audio
-
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .notes: return "Notes"
-            case .transcript: return "Transcript"
-            case .audio: return "Audio"
-            }
-        }
-    }
+    @StateObject private var summarizer = MeetingSummarizer()
+    @State private var notesMode: NotesMode = .enhanced
+    @State private var showTranscript = false
+    @State private var infoMessage: String?
+    @FocusState private var notesFocused: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            Picker("Section", selection: $tab) {
-                ForEach(DetailTab.allCases) { item in
-                    Text(item.title).tag(item)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                MeetingTitleField(title: $meeting.title)
+
+                HStack(spacing: 6) {
+                    Text(meeting.startedAt.formatted(date: .abbreviated, time: .shortened))
+                    Text("·")
+                    Text(MarkdownExporter.durationText(meeting.duration))
+                    if !meeting.attendeeNames.isEmpty {
+                        Text("·")
+                        Text(meeting.attendeeNames.joined(separator: ", "))
+                            .lineLimit(1)
+                    }
+                }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+                if let error = playback.errorMessage {
+                    BannerView(message: error)
+                }
+                if case .unavailable(let message) = summarizer.state {
+                    BannerView(message: message)
+                } else if case .failed(let message) = summarizer.state {
+                    BannerView(message: message)
+                }
+
+                if let summary {
+                    NotesModeToggle(mode: $notesMode)
+                    switch notesMode {
+                    case .enhanced:
+                        EnhancedNotesView(summary: summary, meetingID: meeting.id)
+                    case .mine:
+                        NotesEditor(text: $meeting.scratchpad, focus: $notesFocused)
+                    }
+                } else {
+                    NotesEditor(text: $meeting.scratchpad, focus: $notesFocused)
                 }
             }
-            .pickerStyle(.segmented)
             .padding(.horizontal)
-            .padding(.vertical, 8)
-
-            switch tab {
-            case .notes: notesTab
-            case .transcript: transcriptTab
-            case .audio: audioTab
+            .padding(.top, 8)
+            .padding(.bottom, 24)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .navigationTitle("")
+        .safeAreaInset(edge: .bottom) {
+            if summary == nil || summarizer.state == .working {
+                bottomBar
             }
         }
-        .navigationTitle(meeting.displayTitle)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                ShareLink(item: MeetingPersistence.markdown(for: meeting, context: context)) {
-                    Label("Share", systemImage: "square.and.arrow.up")
-                }
-            }
+        .toolbar { toolbarContent }
+        .sheet(isPresented: $showTranscript) {
+            TranscriptSheet(finalText: meeting.transcript, volatileText: "", isLive: false)
         }
         .alert("Reminders", isPresented: Binding(
-            get: { reminders.message != nil || message != nil },
-            set: { if !$0 { reminders.message = nil; message = nil } }
+            get: { reminders.message != nil || infoMessage != nil },
+            set: { if !$0 { reminders.message = nil; infoMessage = nil } }
         )) {
-            Button("OK", role: .cancel) { reminders.message = nil; message = nil }
+            Button("OK", role: .cancel) { reminders.message = nil; infoMessage = nil }
         } message: {
-            Text(reminders.message ?? message ?? "")
+            Text(reminders.message ?? infoMessage ?? "")
         }
+        .onChange(of: meeting.scratchpad) { _, _ in try? context.save() }
+        .onChange(of: meeting.title) { _, _ in try? context.save() }
+        .onDisappear { playback.stop() }
     }
 
-    private var notesTab: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                if let summary = MeetingPersistence.summary(of: meeting) {
-                    SummaryCard(summary: summary)
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    SectionHeader("My notes", systemImage: "square.and.pencil")
-                    TextEditor(text: $meeting.scratchpad)
-                        .font(.body)
-                        .scrollContentBackground(.hidden)
-                        .padding(8)
-                        .frame(minHeight: 120)
-                        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .onChange(of: meeting.scratchpad) {
-                            try? context.save()
-                        }
-                }
-
-                actionItems
-            }
-            .padding(.horizontal)
-            .padding(.bottom, 24)
-        }
+    private var summary: MeetingSummary? {
+        MeetingPersistence.summary(of: meeting)
     }
 
-    private var actionItems: some View {
-        let items = MeetingPersistence.fetchActionItems(for: meeting.id, context: context)
-        return VStack(alignment: .leading, spacing: 8) {
-            SectionHeader("Action items", systemImage: "checklist")
-            if items.isEmpty {
-                Text("No action items yet. Enhance the notes to pull them out.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(items) { item in
-                    Button {
-                        item.isDone.toggle()
-                        try? context.save()
-                    } label: {
-                        HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(item.isDone ? Color.accentColor : Color.secondary)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(item.text)
-                                    .strikethrough(item.isDone)
-                                    .foregroundStyle(item.isDone ? Color.secondary : Color.primary)
-                                if let owner = item.owner, !owner.isEmpty {
-                                    Text(owner)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            Spacer(minLength: 0)
-                        }
+    private var bottomBar: some View {
+        VStack(spacing: 0) {
+            Divider()
+            Group {
+                if summarizer.state == .working {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text("Writing the notes on device…")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
-                    .buttonStyle(.plain)
-                }
-
-                Button {
-                    let drafts = items.filter { !$0.isDone }.map {
-                        ActionItem(text: $0.text, owner: $0.owner, due: $0.due.map { DueFormatter.string(from: $0) })
-                    }
-                    Task {
-                        do {
-                            let count = try await reminders.export(drafts)
-                            for item in items {
-                                item.exportedToReminders = true
-                            }
-                            try? context.save()
-                            if count == 0 {
-                                message = "There was nothing open to send."
-                            }
-                        } catch {
-                            message = error.localizedDescription
-                        }
-                    }
-                } label: {
-                    Label("Send open items to Reminders", systemImage: "list.bullet.clipboard")
-                }
-                .buttonStyle(.bordered)
-            }
-        }
-    }
-
-    private var transcriptTab: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                if meeting.transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    EmptyStateView(
-                        symbol: "text.alignleft",
-                        title: "No transcript",
-                        message: "This recording was not transcribed on device."
-                    )
+                    .frame(maxWidth: .infinity)
                 } else {
-                    Text(meeting.transcript)
-                        .font(.body)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button {
+                        Task { await enhance() }
+                    } label: {
+                        Label("Enhance notes", systemImage: "sparkles")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
                 }
             }
             .padding(.horizontal)
-            .padding(.bottom, 24)
+            .padding(.vertical, 12)
         }
+        .background(.bar)
     }
 
-    private var audioTab: some View {
-        VStack(spacing: 16) {
-            if let url = audioURL, FileManager.default.fileExists(atPath: url.path) {
-                Button {
-                    playback.toggle(url: url)
-                } label: {
-                    Label(
-                        playback.isPlaying ? "Pause" : "Play recording",
-                        systemImage: playback.isPlaying ? "pause.circle.fill" : "play.circle.fill"
-                    )
-                    .font(.title2)
-                }
-                .buttonStyle(.plain)
-
-                Text(MarkdownExporter.durationText(meeting.duration))
-                    .font(.system(.body, design: .monospaced))
-                    .foregroundStyle(.secondary)
-            } else {
-                EmptyStateView(
-                    symbol: "waveform",
-                    title: "No recording",
-                    message: "The audio file for this meeting is not on this device."
-                )
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                showTranscript = true
+            } label: {
+                Label("Transcript", systemImage: "text.quote")
             }
-
-            if let error = playback.errorMessage {
-                BannerView(message: error)
-            }
+            .accessibilityLabel("Show transcript")
         }
-        .padding()
-        .frame(maxWidth: .infinity)
+        ToolbarItem(placement: .primaryAction) {
+            Menu {
+                Button {
+                    sendToReminders()
+                } label: {
+                    Label("Add to Reminders", systemImage: "list.bullet.clipboard")
+                }
+                .disabled(summary == nil)
+                ShareLink(item: MeetingPersistence.markdown(for: meeting, context: context)) {
+                    Label("Share notes", systemImage: "square.and.arrow.up")
+                }
+                if summary != nil {
+                    Button {
+                        Task { await enhance() }
+                    } label: {
+                        Label("Enhance again", systemImage: "sparkles")
+                    }
+                    .disabled(summarizer.state == .working)
+                }
+                if let url = audioURL, FileManager.default.fileExists(atPath: url.path) {
+                    Button {
+                        playback.toggle(url: url)
+                    } label: {
+                        Label(
+                            playback.isPlaying ? "Pause recording" : "Play recording",
+                            systemImage: playback.isPlaying ? "pause.circle" : "play.circle"
+                        )
+                    }
+                }
+            } label: {
+                Label("More", systemImage: "ellipsis.circle")
+            }
+            .accessibilityLabel("More actions")
+        }
     }
 
     private var audioURL: URL? {
         guard let fileName = meeting.audioFileName else { return nil }
         return MeetingNotesStore.audioFolder(for: meeting.id).appendingPathComponent(fileName)
+    }
+
+    private func enhance() async {
+        try? context.save()
+        await summarizer.summarize(transcript: meeting.transcript, scratchpad: meeting.scratchpad, title: meeting.title)
+        if case .finished(let result) = summarizer.state {
+            MeetingPersistence.update(meeting: meeting, summary: result, context: context)
+            MeetingPersistence.replaceActionItems(of: meeting, with: result.actionItems, context: context)
+            if meeting.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !result.title.isEmpty {
+                meeting.title = result.title
+            }
+            try? context.save()
+            MeetingPersistence.writeToAppGroup(for: meeting, context: context)
+            notesMode = .enhanced
+        }
+    }
+
+    private func sendToReminders() {
+        let items = MeetingPersistence.fetchActionItems(for: meeting.id, context: context)
+        let drafts = items.filter { !$0.isDone }.map {
+            ActionItem(text: $0.text, owner: $0.owner, due: $0.due.map { DueFormatter.string(from: $0) })
+        }
+        Task {
+            do {
+                let count = try await reminders.export(drafts)
+                for item in items { item.exportedToReminders = true }
+                try? context.save()
+                if count == 0 { infoMessage = "There was nothing open to send." }
+            } catch {
+                infoMessage = error.localizedDescription
+            }
+        }
     }
 }

@@ -2,33 +2,46 @@ import Foundation
 import SwiftData
 
 /// Drives one recording: audio in, saved meeting out.
+///
+/// Live transcription is best effort. If it cannot start, or produces nothing,
+/// the recording keeps going and the saved file is transcribed when the user
+/// stops. Nothing in here can take the recording down with it.
 @MainActor
 public final class RecordingSession: ObservableObject {
     public enum Phase: Equatable, Sendable {
         case idle
+        case starting
         case recording
         case paused
         case finished
     }
 
+    /// Title the meeting is saved with. Editable while recording.
+    @Published public var title: String = ""
     /// The user's own notes, typed while the meeting runs.
     @Published public var scratchpad: String = ""
-    /// What has been said so far.
+    /// What has been said so far, finalised and volatile text joined.
     @Published public private(set) var transcript: String = ""
+    /// Speech the recogniser has settled on.
+    @Published public private(set) var finalTranscript: String = ""
+    /// Speech that may still change.
+    @Published public private(set) var volatileTranscript: String = ""
     @Published public private(set) var phase: Phase = .idle
     @Published public private(set) var elapsed: TimeInterval = 0
     /// Current microphone level, 0 to 1.
     @Published public private(set) var level: Double = 0
-    /// Recent microphone levels, used to draw the meter.
+    /// Recent microphone levels, used to draw a meter.
     @Published public private(set) var levelHistory: [Double] = []
     @Published public private(set) var banner: String?
     @Published public private(set) var errorMessage: String?
+    /// True when `errorMessage` can only be fixed in Settings.
+    @Published public private(set) var errorNeedsSettings = false
     @Published public private(set) var summary: MeetingSummary?
     @Published public private(set) var summaryState: MeetingSummarizer.State = .idle
+    /// True while the saved file is being transcribed after Stop.
+    @Published public private(set) var isTranscribingFile = false
     /// Identifier of the meeting that was saved.
     @Published public private(set) var meetingID: UUID?
-    /// Title the meeting starts with.
-    @Published public private(set) var title: String = ""
     /// People taking part.
     @Published public private(set) var attendees: [String] = []
     /// Calendar event the recording belongs to.
@@ -41,6 +54,8 @@ public final class RecordingSession: ObservableObject {
     private var startedAt = Date()
     private var recordingID = UUID()
     private var liveTranscriptionWorked = false
+    private var speechAuthorized = false
+    private var liveStartTask: Task<Void, Never>?
 
     public init() {
         recorder.onChunk = { [weak self] chunk in
@@ -60,8 +75,11 @@ public final class RecordingSession: ObservableObject {
         recorder.onBanner = { [weak self] message in
             self?.banner = message
         }
-        transcriber.onUpdate = { [weak self] text in
-            self?.transcript = text
+        transcriber.onUpdate = { [weak self] final, volatile in
+            guard let self else { return }
+            self.finalTranscript = final
+            self.volatileTranscript = volatile
+            self.transcript = Self.join(final: final, volatile: volatile)
         }
     }
 
@@ -70,56 +88,74 @@ public final class RecordingSession: ObservableObject {
         phase == .recording || phase == .paused
     }
 
-    /// Starts a new recording.
+    /// Starts a new recording. Asks for permissions first and never throws.
     public func start(
         calendarEventID: String? = nil,
         title: String = "",
         attendees: [String] = []
     ) async {
-        guard !isRecording else { return }
+        guard phase == .idle || phase == .finished else { return }
+        phase = .starting
         errorMessage = nil
+        errorNeedsSettings = false
+        banner = nil
         summary = nil
         summaryState = .idle
         transcript = ""
+        finalTranscript = ""
+        volatileTranscript = ""
+        transcriber.reset()
         levelHistory = []
         elapsed = 0
         scratchpad = ""
+        meetingID = nil
         recordingID = UUID()
         startedAt = Date()
         self.calendarEventID = calendarEventID
         self.title = title
         self.attendees = attendees
 
+        // Microphone first: without it there is nothing to record.
+        guard await RecordingPermissions.requestMicrophone() else {
+            fail(RecorderError.microphoneDenied)
+            return
+        }
+        // Speech second, so both prompts show before the timer starts. A
+        // refusal only turns transcription off.
+        speechAuthorized = await RecordingPermissions.requestSpeech()
+
         do {
             try await recorder.start(meetingID: recordingID)
         } catch {
-            errorMessage = error.localizedDescription
-            phase = .idle
+            fail(error)
             return
         }
 
         phase = .recording
-        liveTranscriptionWorked = await transcriber.start()
-        if !liveTranscriptionWorked {
-            banner = "Live transcription is not available. The recording is transcribed when you stop."
-        }
+        startLiveTranscription()
     }
 
     /// Pauses the recording.
     public func pause() {
+        guard phase == .recording else { return }
         recorder.pause()
         phase = .paused
     }
 
     /// Resumes the recording.
     public func resume() {
+        guard phase == .paused else { return }
         recorder.resume()
-        phase = .recording
+        if recorder.state == .recording {
+            phase = .recording
+        }
     }
 
     /// Stops the recording and saves the meeting.
     public func stop(context: ModelContext) async {
         guard isRecording else { return }
+        liveStartTask?.cancel()
+        liveStartTask = nil
         let duration = await recorder.stop()
         await transcriber.stop()
         phase = .finished
@@ -127,7 +163,7 @@ public final class RecordingSession: ObservableObject {
 
         let meeting = Meeting(
             id: recordingID,
-            title: title,
+            title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             startedAt: startedAt,
             endedAt: Date(),
             duration: duration,
@@ -141,8 +177,16 @@ public final class RecordingSession: ObservableObject {
         try? context.save()
         meetingID = meeting.id
 
-        if !liveTranscriptionWorked, let url = recorder.recordingURL {
+        // Fall back to transcribing the file when live transcription was off
+        // or came back empty (for example when the language pack finished
+        // downloading after the meeting had already started).
+        let liveText = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        if liveText.isEmpty, speechAuthorized, let url = recorder.recordingURL, duration > 1 {
             await transcribeSavedRecording(url: url)
+            meeting.transcript = transcript
+            try? context.save()
+        } else if liveText.isEmpty, !speechAuthorized {
+            banner = "Speech recognition is off in Settings, so this meeting has no transcript."
         }
 
         MeetingPersistence.writeToAppGroup(for: meeting, context: context)
@@ -150,34 +194,53 @@ public final class RecordingSession: ObservableObject {
 
     /// Throws the recording away.
     public func cancel() async {
+        liveStartTask?.cancel()
+        liveStartTask = nil
         await recorder.cancel()
         await transcriber.stop()
         phase = .idle
         transcript = ""
+        finalTranscript = ""
+        volatileTranscript = ""
         elapsed = 0
         summary = nil
         summaryState = .idle
         meetingID = nil
+        banner = nil
     }
 
-    /// Saves the notes the user typed.
-    public func saveScratchpad(context: ModelContext) {
+    /// Clears the error so the user can try again.
+    public func clearError() {
+        errorMessage = nil
+        errorNeedsSettings = false
+    }
+
+    /// Saves the title and notes the user typed after the meeting was stored.
+    public func persistEdits(context: ModelContext) {
         guard let meetingID, let meeting = fetchMeeting(meetingID, context: context) else { return }
-        meeting.scratchpad = scratchpad
-        try? context.save()
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        var changed = false
+        if meeting.title != trimmed { meeting.title = trimmed; changed = true }
+        if meeting.scratchpad != scratchpad { meeting.scratchpad = scratchpad; changed = true }
+        if changed { try? context.save() }
     }
 
     /// Runs the on-device model over the transcript and the user's notes.
     public func enhance(context: ModelContext) async {
         guard let meetingID, let meeting = fetchMeeting(meetingID, context: context) else { return }
-        meeting.scratchpad = scratchpad
+        persistEdits(context: context)
+        summaryState = .working
         await summarizer.summarize(transcript: meeting.transcript, scratchpad: scratchpad, title: meeting.title)
         switch summarizer.state {
         case .finished(let result):
             summary = result
+            summaryState = .finished(result)
             MeetingPersistence.update(meeting: meeting, summary: result, context: context)
             MeetingPersistence.replaceActionItems(of: meeting, with: result.actionItems, context: context)
-            meeting.title = result.title.isEmpty ? meeting.title : result.title
+            if meeting.title.isEmpty, !result.title.isEmpty {
+                meeting.title = result.title
+                title = result.title
+            }
             try? context.save()
             MeetingPersistence.writeToAppGroup(for: meeting, context: context)
         case .unavailable(let message):
@@ -185,7 +248,29 @@ public final class RecordingSession: ObservableObject {
         case .failed(let message):
             summaryState = .failed(message)
         case .idle, .working:
-            break
+            summaryState = .idle
+        }
+    }
+
+    // MARK: - Private
+
+    private func fail(_ error: Error) {
+        errorMessage = error.localizedDescription
+        errorNeedsSettings = (error as? RecorderError)?.needsSettings ?? false
+        phase = .idle
+    }
+
+    private func startLiveTranscription() {
+        liveStartTask?.cancel()
+        liveStartTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let worked = await self.transcriber.start()
+            guard !Task.isCancelled else { return }
+            self.liveTranscriptionWorked = worked
+            if !worked, self.isRecording {
+                let reason = self.transcriber.unavailableReason ?? "Live transcription is not available."
+                self.banner = "\(reason) The recording is transcribed when you stop."
+            }
         }
     }
 
@@ -196,13 +281,24 @@ public final class RecordingSession: ObservableObject {
     }
 
     private func transcribeSavedRecording(url: URL) async {
+        isTranscribingFile = true
+        defer { isTranscribingFile = false }
         do {
             let text = try await FileTranscriptionService.transcribe(fileURL: url)
             if !text.isEmpty {
+                finalTranscript = text
+                volatileTranscript = ""
                 transcript = text
             }
         } catch {
             banner = "The recording could not be transcribed: \(error.localizedDescription)"
         }
+    }
+
+    private static func join(final: String, volatile: String) -> String {
+        let tail = volatile.trimmingCharacters(in: .whitespacesAndNewlines)
+        if tail.isEmpty { return final }
+        if final.isEmpty { return tail }
+        return final + " " + tail
     }
 }

@@ -2,17 +2,31 @@ import AVFoundation
 import Foundation
 
 /// Errors surfaced by the recorder.
-public enum RecorderError: LocalizedError, Sendable {
+public enum RecorderError: LocalizedError, Sendable, Equatable {
+    case microphoneDenied
     case noInputAvailable
+    case audioSessionFailed(String)
     case couldNotCreateFile(String)
+    case engineFailed(String)
 
     public var errorDescription: String? {
         switch self {
+        case .microphoneDenied:
+            return "Microphone access is off. Turn it on in Settings to record meetings."
         case .noInputAvailable:
-            return "No microphone is available on this device."
+            return "No microphone is available right now. Check your audio input and try again."
+        case .audioSessionFailed(let reason):
+            return "The audio session could not be started: \(reason)"
         case .couldNotCreateFile(let reason):
             return "Could not create the recording file: \(reason)"
+        case .engineFailed(let reason):
+            return "The microphone could not be started: \(reason)"
         }
+    }
+
+    /// True when the fix lives in Settings rather than in the app.
+    public var needsSettings: Bool {
+        self == .microphoneDenied
     }
 }
 
@@ -31,11 +45,16 @@ public struct AudioChunk: Sendable {
 ///
 /// The writer lives in an actor so the capture tap never touches the file
 /// system directly: it hands plain samples over and the actor does the writing.
+/// Samples that arrive at a different rate (after a route change, for example)
+/// are resampled so the file stays valid.
 actor AudioFileSink {
     private var file: AVAudioFile?
-    private var targetFormat: AVAudioFormat?
+    private var fileFormat: AVAudioFormat?
+    private var converter: AVAudioConverter?
+    private var converterSampleRate: Double = 0
 
     func begin(url: URL, sampleRate: Double) throws {
+        try? FileManager.default.removeItem(at: url)
         let settings: [String: Any] = [
             AVFormatIDKey: kAudioFormatMPEG4AAC,
             AVSampleRateKey: sampleRate,
@@ -51,37 +70,82 @@ actor AudioFileSink {
                 interleaved: false
             )
             file = newFile
-            targetFormat = newFile.processingFormat
+            fileFormat = newFile.processingFormat
         } catch {
             throw RecorderError.couldNotCreateFile(error.localizedDescription)
         }
     }
 
-    func append(samples: [Float]) {
-        guard let file, let targetFormat else { return }
-        let frames = samples.count
-        guard frames > 0 else { return }
-        guard let buffer = AVAudioPCMBuffer(
-            pcmFormat: targetFormat,
-            frameCapacity: AVAudioFrameCount(frames)
-        ) else { return }
-        buffer.frameLength = AVAudioFrameCount(frames)
-        if let channel = buffer.floatChannelData?[0] {
-            samples.withUnsafeBufferPointer { pointer in
-                guard let base = pointer.baseAddress else { return }
-                channel.update(from: base, count: frames)
+    func append(samples: [Float], sampleRate: Double) {
+        guard let file, let fileFormat, !samples.isEmpty else { return }
+        guard let input = AudioRecorder.monoBuffer(samples: samples, sampleRate: sampleRate) else { return }
+
+        if abs(sampleRate - fileFormat.sampleRate) < 1 {
+            try? file.write(from: input)
+            return
+        }
+
+        if converter == nil || converterSampleRate != sampleRate {
+            converterSampleRate = sampleRate
+            converter = nil
+            if let inputFormat = AVAudioFormat(
+                commonFormat: .pcmFormatFloat32,
+                sampleRate: sampleRate,
+                channels: 1,
+                interleaved: false
+            ) {
+                converter = AVAudioConverter(from: inputFormat, to: fileFormat)
             }
         }
-        try? file.write(from: buffer)
+        guard let converter else { return }
+        guard let output = AudioResampler.resample(input, with: converter, to: fileFormat) else { return }
+        try? file.write(from: output)
     }
 
     func finish() {
         file = nil
-        targetFormat = nil
+        fileFormat = nil
+        converter = nil
+        converterSampleRate = 0
+    }
+}
+
+/// One-shot sample rate conversion of a single buffer.
+enum AudioResampler {
+    static func resample(
+        _ input: AVAudioPCMBuffer,
+        with converter: AVAudioConverter,
+        to format: AVAudioFormat
+    ) -> AVAudioPCMBuffer? {
+        guard input.format.sampleRate > 0 else { return nil }
+        let ratio = format.sampleRate / input.format.sampleRate
+        let capacity = AVAudioFrameCount(Double(input.frameLength) * ratio) + 1_024
+        guard let output = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: capacity) else { return nil }
+
+        var supplied = false
+        var conversionError: NSError?
+        let status = converter.convert(to: output, error: &conversionError) { _, outStatus in
+            if supplied {
+                outStatus.pointee = .noDataNow
+                return nil
+            }
+            supplied = true
+            outStatus.pointee = .haveData
+            return input
+        }
+        guard status != .error, conversionError == nil, output.frameLength > 0 else { return nil }
+        return output
     }
 }
 
 /// Records mono audio from the microphone into an `.m4a` file while the app runs.
+///
+/// Hard rules that keep this from trapping:
+/// - microphone permission is requested before anything touches the engine;
+/// - the tap uses the input node's own format (never a hand-built one) and the
+///   kit downmixes to mono itself, so stereo, Bluetooth and USB inputs all work;
+/// - a fresh `AVAudioEngine` is built for every recording so no stale input
+///   format from a previous route can leak into the next session.
 @MainActor
 public final class AudioRecorder: ObservableObject {
     public enum State: Equatable, Sendable {
@@ -109,25 +173,30 @@ public final class AudioRecorder: ObservableObject {
 
     public private(set) var recordingURL: URL?
 
-    private let engine = AVAudioEngine()
+    private var engine: AVAudioEngine?
     private let sink = AudioFileSink()
+    /// Captured chunks, in order. The tap yields here from its own thread; one
+    /// main-actor task drains it so the file and the transcriber both see the
+    /// audio in the order it was recorded.
+    private var chunkContinuation: AsyncStream<AudioChunk>.Continuation?
+    private var drainTask: Task<Void, Never>?
     private var ticker: Task<Void, Never>?
     private var startedAt: Date?
     private var pausedAt: Date?
     private var accumulated: TimeInterval = 0
     private var interruptionObserver: NSObjectProtocol?
     private var routeObserver: NSObjectProtocol?
+    private var configurationObserver: NSObjectProtocol?
 
     public init() {
         installObservers()
     }
 
     isolated deinit {
-        if let interruptionObserver {
-            NotificationCenter.default.removeObserver(interruptionObserver)
-        }
-        if let routeObserver {
-            NotificationCenter.default.removeObserver(routeObserver)
+        for observer in [interruptionObserver, routeObserver, configurationObserver] {
+            if let observer {
+                NotificationCenter.default.removeObserver(observer)
+            }
         }
     }
 
@@ -140,88 +209,87 @@ public final class AudioRecorder: ObservableObject {
     public func start(meetingID: UUID) async throws {
         guard !isRecording else { return }
 
-        #if os(iOS)
-        let session = AVAudioSession.sharedInstance()
-        do {
-            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
-            try session.setActive(true)
-        } catch {
-            throw RecorderError.couldNotCreateFile(error.localizedDescription)
+        guard await RecordingPermissions.requestMicrophone() else {
+            state = .failed(RecorderError.microphoneDenied.localizedDescription)
+            throw RecorderError.microphoneDenied
         }
-        #endif
 
+        do {
+            try activateSession()
+        } catch {
+            state = .failed(error.localizedDescription)
+            throw error
+        }
+
+        // A brand new engine every time: the input node of a reused engine can
+        // keep reporting the format of the previous route, and a mismatch
+        // between that and the real hardware traps inside AVAudioEngine.
+        let engine = AVAudioEngine()
+        self.engine = engine
         let input = engine.inputNode
+
+        // Read the format only now, after the session is active and permission
+        // is granted. Before that it is 0 Hz / 0 channels.
         let hardwareFormat = input.outputFormat(forBus: 0)
         guard hardwareFormat.sampleRate > 0, hardwareFormat.channelCount > 0 else {
+            self.engine = nil
+            releaseSession()
+            state = .failed(RecorderError.noInputAvailable.localizedDescription)
             throw RecorderError.noInputAvailable
         }
 
-        let captureFormat = AVAudioFormat(
-            commonFormat: .pcmFormatFloat32,
-            sampleRate: hardwareFormat.sampleRate,
-            channels: 1,
-            interleaved: false
-        )
-
         let url = MeetingNotesStore.audioURL(for: meetingID)
-        try await sink.begin(url: url, sampleRate: hardwareFormat.sampleRate)
-
-        input.installTap(onBus: 0, bufferSize: 4096, format: captureFormat) { [weak self] buffer, _ in
-            guard let self else { return }
-            guard let channel = buffer.floatChannelData?[0] else { return }
-            let frames = Int(buffer.frameLength)
-            guard frames > 0 else { return }
-
-            var samples = [Float](repeating: 0, count: frames)
-            samples.withUnsafeMutableBufferPointer { destination in
-                guard let base = destination.baseAddress else { return }
-                base.update(from: channel, count: frames)
-            }
-
-            var sum: Float = 0
-            for sample in samples { sum += sample * sample }
-            let rms = (sum / Float(frames)).squareRoot()
-            let normalised = max(0, min(1, Double((rms - 0.004) * 14)))
-            let rate = buffer.format.sampleRate
-
-            Task { @MainActor in
-                self.handle(samples: samples, sampleRate: rate, level: normalised)
-            }
+        do {
+            try await sink.begin(url: url, sampleRate: hardwareFormat.sampleRate)
+        } catch {
+            self.engine = nil
+            releaseSession()
+            state = .failed(error.localizedDescription)
+            throw error
         }
 
-        engine.prepare()
+        startDraining()
         do {
+            try installTap(on: input)
+            engine.prepare()
             try engine.start()
         } catch {
             input.removeTap(onBus: 0)
-            throw RecorderError.couldNotCreateFile(error.localizedDescription)
+            self.engine = nil
+            stopDraining()
+            await sink.finish()
+            releaseSession()
+            let failure = RecorderError.engineFailed(error.localizedDescription)
+            state = .failed(failure.localizedDescription)
+            throw failure
         }
 
         recordingURL = url
         accumulated = 0
         elapsed = 0
         startedAt = Date()
+        pausedAt = nil
         state = .recording
+        banner = nil
         startTicker()
     }
 
     /// Pauses capture, keeping the recording file intact.
     public func pause() {
         guard state == .recording else { return }
-        engine.pause()
+        engine?.pause()
         pausedAt = Date()
         state = .paused
-        banner = "Recording paused."
-        onBanner?(banner)
     }
 
     /// Resumes a paused recording.
     public func resume() {
-        guard state == .paused else { return }
+        guard state == .paused, let engine else { return }
         do {
+            try activateSession()
             try engine.start()
             if let pausedAt {
-                accumulated += Date().timeIntervalSince(pausedAt)
+                accumulated -= Date().timeIntervalSince(pausedAt)
                 self.pausedAt = nil
             }
             state = .recording
@@ -236,25 +304,30 @@ public final class AudioRecorder: ObservableObject {
     /// Stops capture and finalises the `.m4a` file.
     public func stop() async -> TimeInterval {
         guard isRecording else { return elapsed }
-        engine.inputNode.removeTap(onBus: 0)
-        engine.stop()
+        if let engine {
+            engine.inputNode.removeTap(onBus: 0)
+            engine.stop()
+        }
+        engine = nil
+        // Let everything already captured reach the file before closing it.
+        chunkContinuation?.finish()
+        chunkContinuation = nil
+        await drainTask?.value
+        drainTask = nil
         await sink.finish()
 
         if let startedAt {
-            let end = Date()
+            let end = pausedAt ?? Date()
             accumulated += end.timeIntervalSince(startedAt)
             self.startedAt = nil
         }
         pausedAt = nil
         stopTicker()
-
-        #if os(iOS)
-        try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
-        #endif
+        releaseSession()
 
         state = .idle
-        elapsed = accumulated
-        return accumulated
+        elapsed = max(0, accumulated)
+        return elapsed
     }
 
     /// Discards the current recording and deletes the file.
@@ -274,20 +347,181 @@ public final class AudioRecorder: ObservableObject {
         onBanner?(nil)
     }
 
-    private func handle(samples: [Float], sampleRate: Double, level: Double) {
+    // MARK: - Capture
+
+    private func installTap(on input: AVAudioInputNode) throws {
+        // `format: nil` means "whatever the node produces". Passing a format with
+        // a different sample rate or channel count than the hardware is the
+        // classic `IsFormatSampleRateAndChannelCountValid` trap.
+        let continuation = chunkContinuation
+        let block: AVAudioNodeTapBlock = { buffer, _ in
+            guard let samples = AudioRecorder.monoSamples(from: buffer) else { return }
+            continuation?.yield(AudioChunk(samples: samples, sampleRate: buffer.format.sampleRate))
+        }
+        if #available(iOS 27.0, macOS 27.0, *) {
+            // iOS 27 reports a bad tap as an error instead of trapping. The
+            // refined import keeps the `error:` label with an empty argument.
+            do {
+                try input.__installTap(onBus: 0, bufferSize: 4_096, format: nil, error: (), block: block)
+            } catch {
+                throw RecorderError.engineFailed(error.localizedDescription)
+            }
+        } else {
+            #if os(iOS)
+            input.installTap(onBus: 0, bufferSize: 4_096, format: nil, block: block)
+            #endif
+        }
+    }
+
+    private func startDraining() {
+        stopDraining()
+        let stream = AsyncStream<AudioChunk> { continuation in
+            self.chunkContinuation = continuation
+        }
+        drainTask = Task { @MainActor [weak self] in
+            for await chunk in stream {
+                guard let self else { return }
+                await self.handle(chunk)
+            }
+        }
+    }
+
+    private func stopDraining() {
+        chunkContinuation?.finish()
+        chunkContinuation = nil
+        drainTask?.cancel()
+        drainTask = nil
+    }
+
+    private func handle(_ chunk: AudioChunk) async {
+        guard state == .recording else { return }
+        let level = AudioRecorder.level(of: chunk.samples)
         self.level = level
         onLevel?(level)
-        onChunk?(AudioChunk(samples: samples, sampleRate: sampleRate))
+        onChunk?(chunk)
+        await sink.append(samples: chunk.samples, sampleRate: chunk.sampleRate)
     }
+
+    /// Averages every channel of `buffer` into one mono channel.
+    nonisolated static func monoSamples(from buffer: AVAudioPCMBuffer) -> [Float]? {
+        let frames = Int(buffer.frameLength)
+        let channels = Int(buffer.format.channelCount)
+        guard frames > 0, channels > 0 else { return nil }
+        let scale = 1 / Float(channels)
+
+        if let data = buffer.floatChannelData {
+            if channels == 1 {
+                return Array(UnsafeBufferPointer(start: data[0], count: frames))
+            }
+            var out = [Float](repeating: 0, count: frames)
+            if buffer.format.isInterleaved {
+                let base = data[0]
+                for frame in 0..<frames {
+                    var sum: Float = 0
+                    for channel in 0..<channels { sum += base[frame * channels + channel] }
+                    out[frame] = sum * scale
+                }
+            } else {
+                for channel in 0..<channels {
+                    let source = data[channel]
+                    for frame in 0..<frames { out[frame] += source[frame] }
+                }
+                for frame in 0..<frames { out[frame] *= scale }
+            }
+            return out
+        }
+
+        if let data = buffer.int16ChannelData {
+            var out = [Float](repeating: 0, count: frames)
+            let norm = scale / Float(Int16.max)
+            if buffer.format.isInterleaved {
+                let base = data[0]
+                for frame in 0..<frames {
+                    var sum: Float = 0
+                    for channel in 0..<channels { sum += Float(base[frame * channels + channel]) }
+                    out[frame] = sum * norm
+                }
+            } else {
+                for channel in 0..<channels {
+                    let source = data[channel]
+                    for frame in 0..<frames { out[frame] += Float(source[frame]) }
+                }
+                for frame in 0..<frames { out[frame] *= norm }
+            }
+            return out
+        }
+
+        return nil
+    }
+
+    /// A buffer holding `samples` as float32 mono at `sampleRate`.
+    nonisolated static func monoBuffer(samples: [Float], sampleRate: Double) -> AVAudioPCMBuffer? {
+        guard !samples.isEmpty, sampleRate > 0 else { return nil }
+        guard let format = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: sampleRate,
+            channels: 1,
+            interleaved: false
+        ) else { return nil }
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)) else {
+            return nil
+        }
+        buffer.frameLength = AVAudioFrameCount(samples.count)
+        guard let channel = buffer.floatChannelData?[0] else { return nil }
+        samples.withUnsafeBufferPointer { pointer in
+            guard let base = pointer.baseAddress else { return }
+            channel.update(from: base, count: samples.count)
+        }
+        return buffer
+    }
+
+    /// RMS level of `samples` mapped to 0...1 for a meter.
+    nonisolated static func level(of samples: [Float]) -> Double {
+        guard !samples.isEmpty else { return 0 }
+        var sum: Float = 0
+        for sample in samples { sum += sample * sample }
+        let rms = (sum / Float(samples.count)).squareRoot()
+        return max(0, min(1, Double((rms - 0.004) * 14)))
+    }
+
+    // MARK: - Session
+
+    private func activateSession() throws {
+        #if os(iOS)
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setCategory(
+                .playAndRecord,
+                mode: .default,
+                options: [.defaultToSpeaker, .allowBluetoothHFP]
+            )
+            try session.setActive(true, options: [])
+        } catch {
+            throw RecorderError.audioSessionFailed(error.localizedDescription)
+        }
+        #endif
+    }
+
+    /// Hands the session back in a playback-friendly shape so the host's
+    /// spoken briefing (AVSpeechSynthesizer) keeps working after a recording.
+    private func releaseSession() {
+        #if os(iOS)
+        let session = AVAudioSession.sharedInstance()
+        try? session.setActive(false, options: [.notifyOthersOnDeactivation])
+        try? session.setCategory(.playback, mode: .spokenAudio, options: [])
+        #endif
+    }
+
+    // MARK: - Timer
 
     private func startTicker() {
         ticker?.cancel()
         ticker = Task { @MainActor [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(100))
+                try? await Task.sleep(for: .milliseconds(200))
                 guard let self else { return }
                 if self.state == .recording, let startedAt = self.startedAt {
-                    self.elapsed = self.accumulated + Date().timeIntervalSince(startedAt)
+                    self.elapsed = max(0, self.accumulated + Date().timeIntervalSince(startedAt))
                     self.onElapsed?(self.elapsed)
                 }
             }
@@ -298,6 +532,8 @@ public final class AudioRecorder: ObservableObject {
         ticker?.cancel()
         ticker = nil
     }
+
+    // MARK: - Observers
 
     private func installObservers() {
         #if os(iOS)
@@ -325,14 +561,48 @@ public final class AudioRecorder: ObservableObject {
             let rawReason = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt
             let reason = rawReason.flatMap { AVAudioSession.RouteChangeReason(rawValue: $0) }
             Task { @MainActor in
-                guard let self, let reason else { return }
+                guard let self, let reason, self.isRecording else { return }
                 if reason == .oldDeviceUnavailable {
-                    self.banner = "Headphones were unplugged. Recording continues with the built-in microphone."
+                    self.banner = "Headphones were disconnected. Recording continues with the built-in microphone."
                     self.onBanner?(self.banner)
                 }
             }
         }
         #endif
+
+        configurationObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let changed = notification.object as? AVAudioEngine
+            Task { @MainActor in
+                self?.handleConfigurationChange(of: changed)
+            }
+        }
+    }
+
+    /// The hardware format changed under a running engine (new route, new
+    /// sample rate). The engine stops itself; rebuild the tap and restart.
+    private func handleConfigurationChange(of changed: AVAudioEngine?) {
+        guard let engine, changed === engine, state == .recording else { return }
+        let input = engine.inputNode
+        input.removeTap(onBus: 0)
+        let format = input.outputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            banner = "The microphone went away. Recording is paused."
+            onBanner?(banner)
+            pause()
+            return
+        }
+        do {
+            try installTap(on: input)
+            try engine.start()
+        } catch {
+            banner = "The audio route changed and recording could not continue: \(error.localizedDescription)"
+            onBanner?(banner)
+            pause()
+        }
     }
 
     #if os(iOS)
@@ -348,10 +618,11 @@ public final class AudioRecorder: ObservableObject {
                 onBanner?(banner)
             }
         case .ended:
+            guard state == .paused else { return }
             if options?.contains(.shouldResume) == true {
                 resume()
             } else {
-                banner = "Recording stayed paused after the interruption."
+                banner = "Recording stayed paused after the interruption. Tap Resume to continue."
                 onBanner?(banner)
             }
         default:
