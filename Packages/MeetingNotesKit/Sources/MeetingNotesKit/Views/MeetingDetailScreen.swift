@@ -8,10 +8,15 @@ struct MeetingDetailScreen: View {
     @StateObject private var playback = AudioPlaybackController()
     @StateObject private var reminders = RemindersService()
     @StateObject private var summarizer = MeetingSummarizer()
+    @StateObject private var calendar = CalendarService()
     @State private var notesMode: NotesMode = .enhanced
     @State private var showTranscript = false
     @State private var infoMessage: String?
     @State private var speakerTurns: [SpokenTurn] = []
+    /// The calendar event this meeting was recorded for, when it still exists.
+    @State private var linkedEvent: CalendarEventInfo?
+    /// A write to the store that failed, shown until dismissed.
+    @State private var saveError: UserMessage?
     @FocusState private var notesFocused: Bool
 
     var body: some View {
@@ -32,6 +37,13 @@ struct MeetingDetailScreen: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
+                if let linkedEvent {
+                    LinkedEventRow(event: linkedEvent)
+                }
+
+                if let saveError {
+                    BannerView(saveError, symbol: "exclamationmark.triangle.fill", onDismiss: { self.saveError = nil })
+                }
                 if let error = playback.errorMessage {
                     BannerView(message: error)
                 }
@@ -73,13 +85,20 @@ struct MeetingDetailScreen: View {
                 isLive: false,
                 turns: speakerTurns,
                 onRename: { key, name in
-                    MeetingPersistence.renameSpeaker(key: key, to: name, in: meeting, context: context)
+                    attempt("The speaker name could not be saved.") {
+                        try MeetingPersistence.renameSpeaker(key: key, to: name, in: meeting, context: context)
+                    }
                     loadSpeakerTurns()
                     MeetingPersistence.writeToAppGroup(for: meeting, context: context)
                 }
             )
         }
-        .onAppear { loadSpeakerTurns() }
+        .onAppear {
+            loadSpeakerTurns()
+            if let id = meeting.calendarEventID {
+                linkedEvent = calendar.resolveEvent(identifier: id)
+            }
+        }
         .alert("Reminders", isPresented: Binding(
             get: { reminders.message != nil || infoMessage != nil },
             set: { if !$0 { reminders.message = nil; infoMessage = nil } }
@@ -88,9 +107,11 @@ struct MeetingDetailScreen: View {
         } message: {
             Text(reminders.message ?? infoMessage ?? "")
         }
-        .onChange(of: meeting.scratchpad) { _, _ in try? context.save() }
+        .onChange(of: meeting.scratchpad) { _, _ in
+            attempt("Your notes could not be saved.") { try context.save() }
+        }
         .onChange(of: meeting.title) { oldTitle, _ in
-            try? context.save()
+            attempt("The title could not be saved.") { try context.save() }
             MeetingPersistence.appGroupCopyRetitled(meeting, from: oldTitle)
             MeetingsSnapshotPublisher.publishStoreChanges(context: context)
         }
@@ -99,6 +120,15 @@ struct MeetingDetailScreen: View {
 
     private var summary: MeetingSummary? {
         MeetingPersistence.summary(of: meeting)
+    }
+
+    /// Runs a store write and turns a failure into the banner.
+    private func attempt(_ what: String, _ work: () throws -> Void) {
+        do {
+            try work()
+        } catch {
+            saveError = UserMessage.from(error, context: what)
+        }
     }
 
     private func loadSpeakerTurns() {
@@ -189,22 +219,25 @@ struct MeetingDetailScreen: View {
 
     private var audioURL: URL? {
         guard let fileName = meeting.audioFileName else { return nil }
-        return MeetingNotesStore.audioFolder(for: meeting.id).appendingPathComponent(fileName)
+        return MeetingNotesStore.audioURL(for: meeting.id, fileName: fileName)
     }
 
     private func enhance() async {
-        try? context.save()
+        attempt("Your notes could not be saved.") { try context.save() }
         let material = MeetingPersistence.labelledTranscript(for: meeting, context: context)
         await summarizer.summarize(transcript: material, scratchpad: meeting.scratchpad, title: meeting.title)
         if case .finished(let result) = summarizer.state {
-            MeetingPersistence.update(meeting: meeting, summary: result, context: context)
-            MeetingPersistence.replaceActionItems(of: meeting, with: result.actionItems, context: context)
-            if meeting.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !result.title.isEmpty {
-                let oldTitle = meeting.title
-                meeting.title = result.title
-                MeetingPersistence.appGroupCopyRetitled(meeting, from: oldTitle)
+            attempt("The enhanced notes could not be saved.") {
+                try MeetingPersistence.update(meeting: meeting, summary: result, context: context)
+                // Matched by text, so ticked and exported items keep their state.
+                try MeetingPersistence.replaceActionItems(of: meeting, with: result.actionItems, context: context)
+                if meeting.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !result.title.isEmpty {
+                    let oldTitle = meeting.title
+                    meeting.title = result.title
+                    MeetingPersistence.appGroupCopyRetitled(meeting, from: oldTitle)
+                }
+                try context.save()
             }
-            try? context.save()
             MeetingPersistence.writeToAppGroup(for: meeting, context: context)
             MeetingsSnapshotPublisher.publishStoreChanges(context: context)
             notesMode = .enhanced
@@ -213,18 +246,58 @@ struct MeetingDetailScreen: View {
 
     private func sendToReminders() {
         let items = MeetingPersistence.fetchActionItems(for: meeting.id, context: context)
-        let drafts = items.filter { !$0.isDone }.map {
+        // Items already sent are skipped, so a second tap does not duplicate them.
+        let pending = MeetingPersistence.actionItemsToExport(from: items)
+        let drafts = pending.map {
             ActionItem(text: $0.text, owner: $0.owner, due: $0.due.map { DueFormatter.string(from: $0) })
         }
         Task {
             do {
                 let count = try await reminders.export(drafts)
-                for item in items { item.exportedToReminders = true }
-                try? context.save()
-                if count == 0 { infoMessage = "There was nothing open to send." }
+                if count == 0 {
+                    infoMessage = items.contains(where: \.exportedToReminders)
+                        ? "Everything open was already sent to Reminders."
+                        : "There was nothing open to send."
+                } else {
+                    try MeetingPersistence.markExported(pending, context: context)
+                }
             } catch {
                 infoMessage = error.localizedDescription
             }
         }
+    }
+}
+
+/// The calendar event a meeting was recorded for: its time and place.
+struct LinkedEventRow: View {
+    let event: CalendarEventInfo
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: "calendar")
+                .foregroundStyle(.tint)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(event.title.isEmpty ? "Calendar event" : event.title)
+                    .font(.footnote.weight(.medium))
+                    .lineLimit(1)
+                Text(timeText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let location = event.location, !location.isEmpty {
+                    Text(location)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var timeText: String {
+        let day = event.start.formatted(date: .abbreviated, time: .omitted)
+        let from = event.start.formatted(date: .omitted, time: .shortened)
+        let to = event.end.formatted(date: .omitted, time: .shortened)
+        return "\(day) · \(from) – \(to)"
     }
 }

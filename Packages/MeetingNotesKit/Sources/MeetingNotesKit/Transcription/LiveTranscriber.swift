@@ -17,10 +17,14 @@ public final class LiveTranscriber: ObservableObject {
     }
 
     @Published public private(set) var status: Status = .idle
+    /// Finalised and volatile text, kept apart so a final result can replace
+    /// the draft it supersedes instead of being shown twice.
+    @Published private var assembler = TranscriptAssembler()
+
     /// Speech that has been finalised by the recogniser.
-    @Published public private(set) var finalText: String = ""
+    public var finalText: String { assembler.finalText }
     /// Speech that may still change, shown in lighter grey.
-    @Published public private(set) var volatileText: String = ""
+    public var volatileText: String { assembler.volatileText }
 
     /// Called on the main actor whenever the transcript changes, with the
     /// finalised text first and the part that may still change second.
@@ -37,12 +41,7 @@ public final class LiveTranscriber: ObservableObject {
     private var captureFormat: AVAudioFormat?
 
     /// The transcript as the user should read it right now.
-    public var text: String {
-        let trimmedVolatile = volatileText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmedVolatile.isEmpty { return finalText }
-        if finalText.isEmpty { return trimmedVolatile }
-        return finalText + " " + trimmedVolatile
-    }
+    public var text: String { assembler.text }
 
     /// Why live transcription is off, when it is.
     public var unavailableReason: String? {
@@ -137,9 +136,13 @@ public final class LiveTranscriber: ObservableObject {
         resultsTask = Task.detached { [weak self] in
             do {
                 for try await result in results {
+                    // The SDK says whether a result is settled. The analyser's
+                    // `volatileRange` is its current window, not a property of
+                    // this result, so it is not used to decide that.
                     let text = String(result.text.characters)
                     let range = result.range
-                    await self?.apply(text: text, range: range)
+                    let isFinal = result.isFinal
+                    await self?.apply(text: text, isFinal: isFinal, range: range)
                 }
             } catch {
                 // The recogniser stopped. Whatever was recognised stays on screen.
@@ -195,38 +198,19 @@ public final class LiveTranscriber: ObservableObject {
 
     /// Clears the transcript.
     public func reset() {
-        finalText = ""
-        volatileText = ""
+        assembler.reset()
     }
 
-    private func apply(text: String, range: CMTimeRange) async {
-        let volatileRange = await analyzer?.volatileRange
-        let isVolatile: Bool
-        if let volatileRange {
-            isVolatile = CMTimeCompare(range.start, volatileRange.start) >= 0
-        } else {
-            isVolatile = false
+    private func apply(text: String, isFinal: Bool, range: CMTimeRange) {
+        if let piece = assembler.apply(text: text, isFinal: isFinal),
+           range.start.isNumeric, range.end.isNumeric {
+            onPiece?(TranscriptPiece(
+                text: piece,
+                start: CMTimeGetSeconds(range.start),
+                end: CMTimeGetSeconds(range.end)
+            ))
         }
-
-        if isVolatile {
-            volatileText = text
-        } else {
-            let piece = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !piece.isEmpty else { return }
-            if finalText.isEmpty {
-                finalText = piece
-            } else {
-                finalText += " " + piece
-            }
-            if range.start.isNumeric, range.end.isNumeric {
-                onPiece?(TranscriptPiece(
-                    text: piece,
-                    start: CMTimeGetSeconds(range.start),
-                    end: CMTimeGetSeconds(range.end)
-                ))
-            }
-        }
-        onUpdate?(finalText, volatileText)
+        onUpdate?(assembler.finalText, assembler.volatileText)
     }
 
     private func teardown() async {

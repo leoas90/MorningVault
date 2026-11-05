@@ -31,10 +31,18 @@ struct HomeScreen: View {
     @State private var showVoiceEnrollment = false
     @State private var now = Date()
     @State private var path: [UUID] = []
+    /// A delete that the store refused, shown until dismissed.
+    @State private var saveError: UserMessage?
 
     var body: some View {
         NavigationStack(path: $path) {
             List {
+                if let saveError {
+                    Section {
+                        BannerView(saveError, symbol: "exclamationmark.triangle.fill", onDismiss: { self.saveError = nil })
+                            .listRowBackground(Color.clear)
+                    }
+                }
                 if isSearching == false, !upcomingEvents.isEmpty {
                     Section {
                         ForEach(upcomingEvents) { event in
@@ -130,6 +138,7 @@ struct HomeScreen: View {
                 )
             }
             .task {
+                sweepOrphanedAudio()
                 await refresh()
             }
             .onReceive(router.$pending) { route in
@@ -145,6 +154,16 @@ struct HomeScreen: View {
                 if id == nil { MeetingsSnapshotPublisher.publishStoreChanges(context: context) }
             }
         }
+    }
+
+    /// Removes recording folders with no meeting row (once per launch, off the
+    /// main actor). The running recording, if any, is left alone.
+    private func sweepOrphanedAudio() {
+        let active = ActiveRecordingRegistry.shared.session?.activeRecordingID
+        MeetingNotesStore.sweepOrphanedAudioOnce(
+            container: context.container,
+            activeRecordingIDs: active.map { [$0] } ?? []
+        )
     }
 
     /// Reloads the calendar and republishes the widget snapshot.
@@ -227,7 +246,11 @@ struct HomeScreen: View {
         for meeting in items {
             MeetingPersistence.delete(meeting, context: context)
         }
-        try? context.save()
+        do {
+            try context.save()
+        } catch {
+            saveError = UserMessage.from(error, context: "The meeting could not be deleted.")
+        }
         MeetingsSnapshotPublisher.publishStoreChanges(context: context)
     }
 }

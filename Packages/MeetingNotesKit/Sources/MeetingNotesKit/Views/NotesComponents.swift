@@ -150,6 +150,7 @@ struct ActionItemsList: View {
     @Environment(\.modelContext) private var context
     @Environment(\.meetingsTheme) private var theme
     @Query private var items: [ActionItemRecord]
+    @State private var saveError: UserMessage?
     private let fallback: [ActionItem]
 
     init(meetingID: UUID, fallback: [ActionItem] = []) {
@@ -166,10 +167,18 @@ struct ActionItemsList: View {
                 BulletRow(text: Self.detail(for: item.text, owner: item.owner, due: item.due))
             }
         } else {
+            if let saveError {
+                BannerView(saveError, symbol: "exclamationmark.triangle.fill", onDismiss: { self.saveError = nil })
+            }
             ForEach(items) { item in
                 Button {
                     item.isDone.toggle()
-                    try? context.save()
+                    do {
+                        try context.save()
+                        saveError = nil
+                    } catch {
+                        saveError = UserMessage.from(error, context: "The change could not be saved.")
+                    }
                     MeetingsSnapshotPublisher.publishStoreChanges(context: context)
                 } label: {
                     HStack(alignment: .firstTextBaseline, spacing: 10) {

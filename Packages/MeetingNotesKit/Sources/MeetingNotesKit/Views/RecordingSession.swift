@@ -61,6 +61,12 @@ public final class RecordingSession: ObservableObject {
     /// Calendar event the recording belongs to.
     @Published public private(set) var calendarEventID: String?
 
+    /// Identifier of the recording in progress (its folder has no `Meeting`
+    /// row until Stop), or `nil` when nothing is being recorded.
+    public var activeRecordingID: UUID? {
+        isRecording ? recordingID : nil
+    }
+
     public let recorder = AudioRecorder()
     public let transcriber = LiveTranscriber()
     public let summarizer = MeetingSummarizer()
@@ -227,7 +233,7 @@ public final class RecordingSession: ObservableObject {
             attendeeNames: attendees
         )
         context.insert(meeting)
-        try? context.save()
+        save(context, what: "The meeting could not be saved.")
         meetingID = meeting.id
 
         // Fall back to transcribing the file when live transcription was off
@@ -237,7 +243,7 @@ public final class RecordingSession: ObservableObject {
         if liveText.isEmpty, speechAuthorized, let url = recorder.recordingURL, duration > 1 {
             await transcribeSavedRecording(url: url)
             meeting.transcript = transcript
-            try? context.save()
+            save(context, what: "The transcript could not be saved.")
         } else if liveText.isEmpty, !speechAuthorized {
             banner = "Speech recognition is off in Settings, so this meeting has no transcript."
         } else if !liveText.isEmpty, pieces.isEmpty {
@@ -245,7 +251,11 @@ public final class RecordingSession: ObservableObject {
             // the transcript sheet and exports still have something to show.
             pieces = [TranscriptPiece(text: liveText, start: 0, end: duration)]
         }
-        MeetingPersistence.replaceTranscriptPieces(of: meeting, with: pieces, context: context)
+        do {
+            try MeetingPersistence.replaceTranscriptPieces(of: meeting, with: pieces, context: context)
+        } catch {
+            report(error, what: "The transcript could not be saved.")
+        }
         refreshSpeakerTurns(meeting: meeting, context: context)
 
         MeetingPersistence.writeToAppGroup(for: meeting, context: context)
@@ -260,7 +270,11 @@ public final class RecordingSession: ObservableObject {
     /// Renames a speaker of the saved meeting.
     public func renameSpeaker(key: String, to name: String, context: ModelContext) {
         guard let meetingID, let meeting = fetchMeeting(meetingID, context: context) else { return }
-        MeetingPersistence.renameSpeaker(key: key, to: name, in: meeting, context: context)
+        do {
+            try MeetingPersistence.renameSpeaker(key: key, to: name, in: meeting, context: context)
+        } catch {
+            report(error, what: "The speaker name could not be saved.")
+        }
         refreshSpeakerTurns(meeting: meeting, context: context)
         MeetingPersistence.writeToAppGroup(for: meeting, context: context)
     }
@@ -312,7 +326,7 @@ public final class RecordingSession: ObservableObject {
         }
         if meeting.scratchpad != scratchpad { meeting.scratchpad = scratchpad; changed = true }
         if changed {
-            try? context.save()
+            save(context, what: "Your edits could not be saved.")
             MeetingsSnapshotPublisher.publishStoreChanges(context: context)
         }
     }
@@ -328,15 +342,19 @@ public final class RecordingSession: ObservableObject {
         case .finished(let result):
             summary = result
             summaryState = .finished(result)
-            MeetingPersistence.update(meeting: meeting, summary: result, context: context)
-            MeetingPersistence.replaceActionItems(of: meeting, with: result.actionItems, context: context)
-            if meeting.title.isEmpty, !result.title.isEmpty {
-                let oldTitle = meeting.title
-                meeting.title = result.title
-                title = result.title
-                MeetingPersistence.appGroupCopyRetitled(meeting, from: oldTitle)
+            do {
+                try MeetingPersistence.update(meeting: meeting, summary: result, context: context)
+                try MeetingPersistence.replaceActionItems(of: meeting, with: result.actionItems, context: context)
+                if meeting.title.isEmpty, !result.title.isEmpty {
+                    let oldTitle = meeting.title
+                    meeting.title = result.title
+                    title = result.title
+                    MeetingPersistence.appGroupCopyRetitled(meeting, from: oldTitle)
+                }
+                try context.save()
+            } catch {
+                report(error, what: "The enhanced notes could not be saved.")
             }
-            try? context.save()
             MeetingPersistence.writeToAppGroup(for: meeting, context: context)
             MeetingsSnapshotPublisher.publishStoreChanges(context: context)
         case .unavailable(let message):
@@ -349,6 +367,21 @@ public final class RecordingSession: ObservableObject {
     }
 
     // MARK: - Private
+
+    /// Saves `context`, turning a failure into a banner instead of losing it quietly.
+    private func save(_ context: ModelContext, what: String) {
+        do {
+            try context.save()
+        } catch {
+            report(error, what: what)
+        }
+    }
+
+    private func report(_ error: Error, what: String) {
+        let text = UserMessage.from(error, context: what)
+        banner = text.message
+        bannerDetails = text.details
+    }
 
     private func fail(_ error: Error) {
         let text = UserMessage.from(error, context: "The recording could not start.")
@@ -432,7 +465,13 @@ public final class RecordingSession: ObservableObject {
             guard let meeting = self.fetchMeeting(meetingID, context: context) else { return }
             switch outcome {
             case .success(let identification):
-                MeetingPersistence.applySpeakers(identification, to: meeting, context: context)
+                do {
+                    try MeetingPersistence.applySpeakers(identification, to: meeting, context: context)
+                } catch {
+                    let text = UserMessage.from(error, context: "Speaker names could not be saved.")
+                    self.speakerBanner = text.message
+                    self.speakerBannerDetails = text.details
+                }
                 self.refreshSpeakerTurns(meeting: meeting, context: context)
                 MeetingPersistence.writeToAppGroup(for: meeting, context: context)
             case .failure(let error):
@@ -455,9 +494,6 @@ public final class RecordingSession: ObservableObject {
     }
 
     private static func join(final: String, volatile: String) -> String {
-        let tail = volatile.trimmingCharacters(in: .whitespacesAndNewlines)
-        if tail.isEmpty { return final }
-        if final.isEmpty { return tail }
-        return final + " " + tail
+        TranscriptAssembler.join(final: final, volatile: volatile)
     }
 }

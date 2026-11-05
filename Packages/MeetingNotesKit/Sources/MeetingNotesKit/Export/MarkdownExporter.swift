@@ -129,12 +129,22 @@ public enum MarkdownExporter {
     /// File name used inside the shared app group, for example
     /// `2026-11-04-team-sync.md`.
     public static func fileName(for document: Document) -> String {
+        "\(datePart(for: document.date))-\(slug(for: document.title)).md"
+    }
+
+    /// File name used inside the shared app group for a stored meeting, for example
+    /// `2026-11-04-team-sync-0f8fad5b-d9cb-469f-a165-70867728950e.md`. The id keeps
+    /// two same-titled meetings on one day apart and lets a rename find the old file.
+    public static func fileName(for document: Document, id: UUID) -> String {
+        "\(datePart(for: document.date))-\(slug(for: document.title))-\(id.uuidString.lowercased()).md"
+    }
+
+    private static func datePart(for date: Date) -> String {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd"
-        let datePart = formatter.string(from: document.date)
-        return "\(datePart)-\(slug(for: document.title)).md"
+        return formatter.string(from: date)
     }
 
     /// A lower case, dash separated version of a title.

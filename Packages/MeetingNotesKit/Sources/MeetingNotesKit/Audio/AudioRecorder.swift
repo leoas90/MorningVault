@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import Synchronization
 
 /// Errors surfaced by the recorder.
 public enum RecorderError: LocalizedError, Sendable, Equatable {
@@ -110,6 +111,48 @@ actor AudioFileSink {
     }
 }
 
+/// A handful of preallocated sample arrays shared between the capture tap and
+/// the main-actor drain.
+///
+/// The tap takes an array, fills it and yields it; the drain gives it back once
+/// the file sink and the transcriber copied what they needed. While the pool
+/// has arrays the realtime thread never allocates. If a consumer still holds a
+/// reference when the tap reuses an array, copy-on-write keeps it correct and
+/// only that block pays for an allocation.
+final class SamplePool: Sendable {
+    private let slots: Mutex<[[Float]]>
+    private let capacity: Int
+    private let maxSlots: Int
+
+    init(slots: Int, capacity: Int) {
+        self.capacity = capacity
+        self.maxSlots = slots
+        var pool: [[Float]] = []
+        pool.reserveCapacity(slots)
+        for _ in 0..<slots {
+            var array: [Float] = []
+            array.reserveCapacity(capacity)
+            pool.append(array)
+        }
+        self.slots = Mutex(pool)
+    }
+
+    /// An empty array with reserved capacity, or `nil` when the pool ran dry.
+    func take() -> [Float]? {
+        slots.withLock { $0.popLast() }
+    }
+
+    /// Returns `samples` to the pool. Anything beyond `slots` is dropped.
+    func recycle(_ samples: [Float]) {
+        var array = samples
+        array.removeAll(keepingCapacity: true)
+        slots.withLock { pool in
+            guard pool.count < maxSlots else { return }
+            pool.append(array)
+        }
+    }
+}
+
 /// One-shot sample rate conversion of a single buffer.
 enum AudioResampler {
     static func resample(
@@ -175,6 +218,9 @@ public final class AudioRecorder: ObservableObject {
 
     private var engine: AVAudioEngine?
     private let sink = AudioFileSink()
+    /// Sample arrays the tap writes into and the drain hands back, so the
+    /// realtime thread does not allocate once the pool has warmed up.
+    private let samplePool = SamplePool(slots: 8, capacity: Int(AudioRecorder.tapBufferSize))
     /// Captured chunks, in order. The tap yields here from its own thread; one
     /// main-actor task drains it so the file and the transcriber both see the
     /// audio in the order it was recorded.
@@ -207,6 +253,19 @@ public final class AudioRecorder: ObservableObject {
 
     /// Starts capture. The file lands in Application Support/Meetings/<id>/.
     public func start(meetingID: UUID) async throws {
+        let folder: URL
+        do {
+            folder = try MeetingNotesStore.ensureAudioFolder(for: meetingID)
+        } catch {
+            let failure = RecorderError.couldNotCreateFile(error.localizedDescription)
+            state = .failed(failure.localizedDescription)
+            throw failure
+        }
+        try await start(fileURL: folder.appendingPathComponent("recording.m4a"))
+    }
+
+    /// Starts capture into `fileURL`. Its folder must exist.
+    public func start(fileURL url: URL) async throws {
         guard !isRecording else { return }
 
         guard await RecordingPermissions.requestMicrophone() else {
@@ -238,7 +297,6 @@ public final class AudioRecorder: ObservableObject {
             throw RecorderError.noInputAvailable
         }
 
-        let url = MeetingNotesStore.audioURL(for: meetingID)
         do {
             try await sink.begin(url: url, sampleRate: hardwareFormat.sampleRate)
         } catch {
@@ -354,22 +412,52 @@ public final class AudioRecorder: ObservableObject {
         // a different sample rate or channel count than the hardware is the
         // classic `IsFormatSampleRateAndChannelCountValid` trap.
         let continuation = chunkContinuation
+        let pool = samplePool
         let block: AVAudioNodeTapBlock = { buffer, _ in
-            guard let samples = AudioRecorder.monoSamples(from: buffer) else { return }
+            // Realtime thread: the mixdown writes into a pooled array, so the
+            // steady state allocates nothing here. (`yield` itself may enqueue.)
+            guard let samples = AudioRecorder.monoSamples(from: buffer, reusing: pool.take()) else { return }
             continuation?.yield(AudioChunk(samples: samples, sampleRate: buffer.format.sampleRate))
         }
         if #available(iOS 27.0, macOS 27.0, *) {
             // iOS 27 reports a bad tap as an error instead of trapping. The
             // refined import keeps the `error:` label with an empty argument.
             do {
-                try input.__installTap(onBus: 0, bufferSize: 4_096, format: nil, error: (), block: block)
+                try input.__installTap(onBus: 0, bufferSize: Self.tapBufferSize, format: nil, error: (), block: block)
             } catch {
                 throw RecorderError.engineFailed(error.localizedDescription)
             }
         } else {
             #if os(iOS)
-            input.installTap(onBus: 0, bufferSize: 4_096, format: nil, block: block)
+            // iOS 26 (the deployment target) has only the older `installTap`,
+            // which traps instead of throwing when the node's format is unusable:
+            // 0 Hz / 0 channels, or a node format that no longer matches the
+            // hardware after a route change. Check both first so the worst case
+            // is a thrown error, never a crash.
+            try Self.validateTapFormat(of: input)
+            input.installTap(onBus: 0, bufferSize: Self.tapBufferSize, format: nil, block: block)
             #endif
+        }
+    }
+
+    /// Frames per tap callback.
+    private static let tapBufferSize: AVAudioFrameCount = 4_096
+
+    /// Throws when the node's output format is empty or disagrees with the
+    /// hardware input format, the two states `installTap` traps on.
+    static func validateTapFormat(of input: AVAudioInputNode) throws {
+        let output = input.outputFormat(forBus: 0)
+        let hardware = input.inputFormat(forBus: 0)
+        guard output.sampleRate > 0, output.channelCount > 0 else {
+            throw RecorderError.noInputAvailable
+        }
+        guard hardware.sampleRate > 0, hardware.channelCount > 0 else {
+            throw RecorderError.noInputAvailable
+        }
+        guard output.sampleRate == hardware.sampleRate, output.channelCount == hardware.channelCount else {
+            throw RecorderError.engineFailed(
+                "the input format (\(Int(hardware.sampleRate)) Hz, \(hardware.channelCount) ch) does not match the node (\(Int(output.sampleRate)) Hz, \(output.channelCount) ch)"
+            )
         }
     }
 
@@ -400,53 +488,71 @@ public final class AudioRecorder: ObservableObject {
         onLevel?(level)
         onChunk?(chunk)
         await sink.append(samples: chunk.samples, sampleRate: chunk.sampleRate)
+        // Everyone above copied what they needed; hand the storage back to the tap.
+        samplePool.recycle(chunk.samples)
     }
 
     /// Averages every channel of `buffer` into one mono channel.
     nonisolated static func monoSamples(from buffer: AVAudioPCMBuffer) -> [Float]? {
+        monoSamples(from: buffer, reusing: nil)
+    }
+
+    /// Averages every channel of `buffer` into one mono channel, writing into
+    /// `storage` when given so a uniquely held array of enough capacity is
+    /// filled without a new allocation.
+    nonisolated static func monoSamples(from buffer: AVAudioPCMBuffer, reusing storage: [Float]?) -> [Float]? {
         let frames = Int(buffer.frameLength)
         let channels = Int(buffer.format.channelCount)
         guard frames > 0, channels > 0 else { return nil }
         let scale = 1 / Float(channels)
 
+        var out = storage ?? []
+        out.removeAll(keepingCapacity: true)
+        if out.capacity < frames { out.reserveCapacity(frames) }
+
         if let data = buffer.floatChannelData {
             if channels == 1 {
-                return Array(UnsafeBufferPointer(start: data[0], count: frames))
+                out.append(contentsOf: UnsafeBufferPointer(start: data[0], count: frames))
+                return out
             }
-            var out = [Float](repeating: 0, count: frames)
-            if buffer.format.isInterleaved {
-                let base = data[0]
-                for frame in 0..<frames {
-                    var sum: Float = 0
-                    for channel in 0..<channels { sum += base[frame * channels + channel] }
-                    out[frame] = sum * scale
+            out.append(contentsOf: repeatElement(0, count: frames))
+            out.withUnsafeMutableBufferPointer { mixed in
+                if buffer.format.isInterleaved {
+                    let base = data[0]
+                    for frame in 0..<frames {
+                        var sum: Float = 0
+                        for channel in 0..<channels { sum += base[frame * channels + channel] }
+                        mixed[frame] = sum * scale
+                    }
+                } else {
+                    for channel in 0..<channels {
+                        let source = data[channel]
+                        for frame in 0..<frames { mixed[frame] += source[frame] }
+                    }
+                    for frame in 0..<frames { mixed[frame] *= scale }
                 }
-            } else {
-                for channel in 0..<channels {
-                    let source = data[channel]
-                    for frame in 0..<frames { out[frame] += source[frame] }
-                }
-                for frame in 0..<frames { out[frame] *= scale }
             }
             return out
         }
 
         if let data = buffer.int16ChannelData {
-            var out = [Float](repeating: 0, count: frames)
             let norm = scale / Float(Int16.max)
-            if buffer.format.isInterleaved {
-                let base = data[0]
-                for frame in 0..<frames {
-                    var sum: Float = 0
-                    for channel in 0..<channels { sum += Float(base[frame * channels + channel]) }
-                    out[frame] = sum * norm
+            out.append(contentsOf: repeatElement(0, count: frames))
+            out.withUnsafeMutableBufferPointer { mixed in
+                if buffer.format.isInterleaved {
+                    let base = data[0]
+                    for frame in 0..<frames {
+                        var sum: Float = 0
+                        for channel in 0..<channels { sum += Float(base[frame * channels + channel]) }
+                        mixed[frame] = sum * norm
+                    }
+                } else {
+                    for channel in 0..<channels {
+                        let source = data[channel]
+                        for frame in 0..<frames { mixed[frame] += Float(source[frame]) }
+                    }
+                    for frame in 0..<frames { mixed[frame] *= norm }
                 }
-            } else {
-                for channel in 0..<channels {
-                    let source = data[channel]
-                    for frame in 0..<frames { out[frame] += Float(source[frame]) }
-                }
-                for frame in 0..<frames { out[frame] *= norm }
             }
             return out
         }
@@ -584,24 +690,28 @@ public final class AudioRecorder: ObservableObject {
 
     /// The hardware format changed under a running engine (new route, new
     /// sample rate). The engine stops itself; rebuild the tap and restart.
+    ///
+    /// State moves first and the banner follows, so anyone reading both sees
+    /// `.paused` together with the reason, never "recording" with a failure.
     private func handleConfigurationChange(of changed: AVAudioEngine?) {
         guard let engine, changed === engine, state == .recording else { return }
         let input = engine.inputNode
-        input.removeTap(onBus: 0)
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0, format.channelCount > 0 else {
+            input.removeTap(onBus: 0)
+            pause()
             banner = "The microphone went away. Recording is paused."
             onBanner?(banner)
-            pause()
             return
         }
+        input.removeTap(onBus: 0)
         do {
             try installTap(on: input)
             try engine.start()
         } catch {
+            pause()
             banner = "The audio route changed and recording could not continue: \(error.localizedDescription)"
             onBanner?(banner)
-            pause()
         }
     }
 

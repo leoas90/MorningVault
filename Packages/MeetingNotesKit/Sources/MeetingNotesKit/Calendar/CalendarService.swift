@@ -32,7 +32,10 @@ public struct CalendarEventInfo: Identifiable, Hashable, Sendable {
 public final class CalendarService: ObservableObject {
     public enum Access: Equatable, Sendable {
         case unknown
+        /// Full access: events can be listed.
         case granted
+        /// The user allowed adding events only. Nothing can be listed.
+        case writeOnly
         case denied
         case restricted
     }
@@ -53,38 +56,43 @@ public final class CalendarService: ObservableObject {
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? Date()
         let predicate = store.predicateForEvents(withStart: startOfDay, end: endOfDay, calendars: nil)
         let matches = store.events(matching: predicate)
-        var infos: [CalendarEventInfo] = []
-        for event in matches {
-            let identifier = event.eventIdentifier ?? event.calendarItemIdentifier
-            let names: [String] = (event.attendees ?? []).map { $0.name ?? "" }
-            infos.append(
-                CalendarEventInfo(
-                    id: identifier,
-                    title: event.title ?? "",
-                    start: event.startDate,
-                    end: event.endDate,
-                    attendeeNames: names,
-                    location: event.location
-                )
-            )
-        }
-        events = infos.sorted { $0.start < $1.start }
+        events = matches.map(Self.info(for:)).sorted { $0.start < $1.start }
         message = nil
     }
 
-    /// Finds one event by identifier.
+    /// Finds one of today's loaded events by identifier.
     public func event(with identifier: String) -> CalendarEventInfo? {
         events.first { $0.id == identifier }
     }
 
-    /// Asks the system for calendar access.
+    /// Looks an event up in the calendar by the identifier a meeting stored.
+    ///
+    /// Reads only; never prompts. Returns `nil` without full access or when
+    /// the event is gone.
+    public func resolveEvent(identifier: String) -> CalendarEventInfo? {
+        guard Self.currentStatus() == .fullAccess else { return nil }
+        if let event = store.event(withIdentifier: identifier) {
+            return Self.info(for: event)
+        }
+        if let event = store.calendarItem(withIdentifier: identifier) as? EKEvent {
+            return Self.info(for: event)
+        }
+        return nil
+    }
+
+    /// Asks the system for calendar access. Only full access counts: listing
+    /// events needs it, and write-only access would make `events(matching:)`
+    /// come back empty.
     @discardableResult
     public func requestAccess() async -> Bool {
-        let status = EKEventStore.authorizationStatus(for: .event)
-        switch status {
-        case .fullAccess, .writeOnly:
+        switch Self.currentStatus() {
+        case .fullAccess:
             access = .granted
             return true
+        case .writeOnly:
+            access = .writeOnly
+            message = "Calendar access is add-only. Allow full access in Settings › MorningVault › Calendar to see today's events."
+            return false
         case .denied:
             access = .denied
             message = "Calendar access is off. Turn it on in Settings › MorningVault › Calendar."
@@ -107,5 +115,26 @@ public final class CalendarService: ObservableObject {
                 return false
             }
         }
+    }
+
+    /// The system's answer right now. The class method is the only form
+    /// EventKit offers (there is no instance variant in the iOS 27.2 SDK).
+    static func currentStatus() -> EKAuthorizationStatus {
+        EKEventStore.authorizationStatus(for: .event)
+    }
+
+    private static func info(for event: EKEvent) -> CalendarEventInfo {
+        let identifier = event.eventIdentifier ?? event.calendarItemIdentifier
+        let names = (event.attendees ?? [])
+            .compactMap { $0.name?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return CalendarEventInfo(
+            id: identifier,
+            title: event.title ?? "",
+            start: event.startDate,
+            end: event.endDate,
+            attendeeNames: names,
+            location: event.location
+        )
     }
 }

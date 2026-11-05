@@ -2,6 +2,9 @@ import Foundation
 import SwiftData
 
 /// Saves and reads meeting data in the SwiftData store.
+///
+/// Every write throws when the store refuses it, so the screen that asked can
+/// say so instead of showing work that was never saved.
 @MainActor
 public enum MeetingPersistence {
     /// Stores the transcript, notes and summary on the meeting.
@@ -11,7 +14,7 @@ public enum MeetingPersistence {
         scratchpad: String? = nil,
         summary: MeetingSummary? = nil,
         context: ModelContext
-    ) {
+    ) throws {
         if let transcript {
             meeting.transcript = transcript
         }
@@ -19,11 +22,10 @@ public enum MeetingPersistence {
             meeting.scratchpad = scratchpad
         }
         if let summary {
-            if let data = try? JSONEncoder().encode(summary) {
-                meeting.summaryJSON = String(data: data, encoding: .utf8)
-            }
+            let data = try JSONEncoder().encode(summary)
+            meeting.summaryJSON = String(data: data, encoding: .utf8)
         }
-        try? context.save()
+        try context.save()
     }
 
     /// Reads the stored summary of a meeting.
@@ -32,28 +34,50 @@ public enum MeetingPersistence {
         return try? JSONDecoder().decode(MeetingSummary.self, from: data)
     }
 
-    /// Replaces the action items of a meeting with the ones from a summary.
+    // MARK: - Action items
+
+    /// Brings the action items of a meeting in line with the ones from a summary
+    /// without losing what the user did to them.
+    ///
+    /// Rows are matched to incoming items by their normalized text. A match keeps
+    /// its `isDone` and `exportedToReminders` flags and takes the new owner and due
+    /// date; items with no row are inserted; rows with no item are deleted.
     public static func replaceActionItems(
         of meeting: Meeting,
         with items: [ActionItem],
         context: ModelContext
-    ) {
+    ) throws {
         let existing = fetchActionItems(for: meeting.id, context: context)
-        for item in existing {
-            context.delete(item)
-        }
+        let plan = ActionItemReconciler.plan(
+            existing: existing.map { ActionItemReconciler.Row(id: $0.id, text: $0.text) },
+            incoming: items
+        )
+        let byID = Dictionary(uniqueKeysWithValues: existing.map { ($0.id, $0) })
+
         for (index, item) in items.enumerated() {
-            let record = ActionItemRecord(
-                meetingID: meeting.id,
-                text: item.text,
-                owner: item.owner,
-                due: parseDue(item.due),
-                // Offset by a second each so the list keeps the model's order.
-                createdAt: meeting.startedAt.addingTimeInterval(Double(index))
-            )
-            context.insert(record)
+            let createdAt = meeting.startedAt.addingTimeInterval(Double(index))
+            if let rowID = plan.matches[index], let record = byID[rowID] {
+                record.text = item.text
+                record.owner = item.owner
+                record.due = parseDue(item.due)
+                record.createdAt = createdAt
+            } else {
+                context.insert(ActionItemRecord(
+                    meetingID: meeting.id,
+                    text: item.text,
+                    owner: item.owner,
+                    due: parseDue(item.due),
+                    // Offset by a second each so the list keeps the model's order.
+                    createdAt: createdAt
+                ))
+            }
         }
-        try? context.save()
+        for rowID in plan.deletions {
+            if let record = byID[rowID] {
+                context.delete(record)
+            }
+        }
+        try context.save()
     }
 
     /// Action items belonging to a meeting.
@@ -65,15 +89,29 @@ public enum MeetingPersistence {
         return (try? context.fetch(descriptor)) ?? []
     }
 
+    /// The action items that still have to go to Reminders: open ones that
+    /// were not sent before.
+    public static func actionItemsToExport(from items: [ActionItemRecord]) -> [ActionItemRecord] {
+        items.filter { !$0.isDone && !$0.exportedToReminders }
+    }
+
+    /// Remembers that `items` went to Reminders, so a second tap does not send
+    /// them again.
+    public static func markExported(_ items: [ActionItemRecord], context: ModelContext) throws {
+        for item in items {
+            item.exportedToReminders = true
+        }
+        try context.save()
+    }
+
     // MARK: - Transcript segments and speakers
 
     /// Replaces the timed transcript of a meeting.
     public static func replaceTranscriptPieces(
         of meeting: Meeting,
         with pieces: [TranscriptPiece],
-        speakerKeys: [String?] = [],
         context: ModelContext
-    ) {
+    ) throws {
         for segment in fetchTranscriptSegments(for: meeting.id, context: context) {
             context.delete(segment)
         }
@@ -83,12 +121,11 @@ public enum MeetingPersistence {
                 index: index,
                 text: piece.text,
                 startTime: piece.start,
-                endTime: piece.end,
-                speakerKey: index < speakerKeys.count ? speakerKeys[index] : nil
+                endTime: piece.end
             )
             context.insert(record)
         }
-        try? context.save()
+        try context.save()
     }
 
     /// Timed transcript of a meeting, in order.
@@ -105,7 +142,7 @@ public enum MeetingPersistence {
         _ identification: SpeakerIdentification,
         to meeting: Meeting,
         context: ModelContext
-    ) {
+    ) throws {
         let segments = fetchTranscriptSegments(for: meeting.id, context: context)
         let pieces = segments.map { TranscriptPiece(text: $0.text, start: $0.startTime, end: $0.endTime) }
         let keys = SpeakerAssignment.assign(pieces: pieces, to: identification.turns)
@@ -113,12 +150,12 @@ public enum MeetingPersistence {
             segment.speakerKey = key
         }
         meeting.speakerLabels = identification.labels
-        try? context.save()
+        try context.save()
     }
 
     /// Renames a speaker. Renaming to "You" teaches the voice profile when the
     /// user allowed that, and takes the name away from any other "You".
-    public static func renameSpeaker(key: String, to newName: String, in meeting: Meeting, context: ModelContext) {
+    public static func renameSpeaker(key: String, to newName: String, in meeting: Meeting, context: ModelContext) throws {
         let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return }
         var labels = meeting.speakerLabels
@@ -136,7 +173,7 @@ public enum MeetingPersistence {
         }
         labels[index].name = becomesYou ? SpeakerLabel.youName : name
         meeting.speakerLabels = labels
-        try? context.save()
+        try context.save()
     }
 
     /// The transcript with speaker names, as `[Name] text` lines. Falls back to
@@ -190,6 +227,8 @@ public enum MeetingPersistence {
         return MarkdownExporter.markdown(for: document)
     }
 
+    // MARK: - App group copies
+
     /// Writes the meeting (notes, summary, action items and the full transcript) as a
     /// Markdown file in the shared app group. Off unless the user turned on
     /// "Also save Markdown copies"; failures are ignored on purpose.
@@ -200,6 +239,9 @@ public enum MeetingPersistence {
     }
 
     /// File name the app group copy of `meeting` uses (for `title`, when given).
+    ///
+    /// Carries the meeting id, so two meetings with the same title on one day
+    /// get two files and a rename can find the old one.
     public static func appGroupFileName(for meeting: Meeting, title: String? = nil) -> String {
         let name = (title ?? meeting.title).trimmingCharacters(in: .whitespacesAndNewlines)
         let document = MarkdownExporter.Document(
@@ -208,7 +250,7 @@ public enum MeetingPersistence {
             duration: meeting.duration,
             attendees: meeting.attendeeNames
         )
-        return MarkdownExporter.fileName(for: document)
+        return MarkdownExporter.fileName(for: document, id: meeting.id)
     }
 
     /// Removes the app group copy of a meeting, if there is one.
@@ -225,11 +267,13 @@ public enum MeetingPersistence {
         AppGroupMarkdownWriter.move(fileName: old, to: new)
     }
 
-    /// Removes the recording files of a meeting.
+    // MARK: - Deleting
+
+    /// Removes the recording folder of a meeting, whatever is in it.
     public static func deleteRecordings(for meeting: Meeting) {
-        guard let fileName = meeting.audioFileName else { return }
-        let url = MeetingNotesStore.audioFolder(for: meeting.id).appendingPathComponent(fileName)
-        try? FileManager.default.removeItem(at: url)
+        let folder = MeetingNotesStore.audioFolder(for: meeting.id)
+        guard FileManager.default.fileExists(atPath: folder.path) else { return }
+        try? FileManager.default.removeItem(at: folder)
     }
 
     /// Everything on disk and in the store that belongs to a meeting, then the meeting.
@@ -248,6 +292,61 @@ public enum MeetingPersistence {
     private static func parseDue(_ value: String?) -> Date? {
         guard let value, !value.isEmpty else { return nil }
         return DueFormatter.date(from: value)
+    }
+}
+
+/// Decides which stored action items an enhanced summary keeps, adds and drops.
+/// Pure, so it can be tested without a store.
+public enum ActionItemReconciler {
+    /// One stored row, by id and text.
+    public struct Row: Equatable, Sendable {
+        public var id: UUID
+        public var text: String
+
+        public init(id: UUID, text: String) {
+            self.id = id
+            self.text = text
+        }
+    }
+
+    /// The outcome: for every incoming item (by index) the row it updates, or
+    /// `nil` when it is new; and the rows nothing matched.
+    public struct Plan: Equatable, Sendable {
+        public var matches: [UUID?]
+        public var deletions: [UUID]
+    }
+
+    /// Matches `incoming` items to `existing` rows by normalized text. Each row
+    /// is used at most once; duplicates in the summary become new rows.
+    public static func plan(existing: [Row], incoming: [ActionItem]) -> Plan {
+        var unused: [String: [UUID]] = [:]
+        for row in existing {
+            unused[normalize(row.text), default: []].append(row.id)
+        }
+        var matches: [UUID?] = []
+        for item in incoming {
+            let key = normalize(item.text)
+            if var ids = unused[key], !ids.isEmpty {
+                matches.append(ids.removeFirst())
+                unused[key] = ids
+            } else {
+                matches.append(nil)
+            }
+        }
+        let kept = Set(matches.compactMap { $0 })
+        let deletions = existing.map(\.id).filter { !kept.contains($0) }
+        return Plan(matches: matches, deletions: deletions)
+    }
+
+    /// Lower case, single spaces, no trailing punctuation.
+    public static func normalize(_ text: String) -> String {
+        let folded = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        let words = folded.split(whereSeparator: { $0.isWhitespace || $0.isNewline })
+        var joined = words.joined(separator: " ")
+        while let last = joined.last, last.isPunctuation {
+            joined.removeLast()
+        }
+        return joined
     }
 }
 
@@ -270,18 +369,21 @@ public enum DueFormatter {
         "d MMM yyyy",
         "d MMMM yyyy",
         "MMM d, yyyy",
-        "EEEE",
-        "EEE"
+        "MMMM d, yyyy"
     ]
 
     /// Turns a phrase such as "Friday" or "2026-11-08" into a date.
-    public static func date(from value: String) -> Date? {
+    ///
+    /// A weekday name means the next such day after `now` (never today, so
+    /// "Friday" said on a Friday is a week out). "Today" and "tomorrow" work too.
+    public static func date(from value: String, now: Date = Date(), calendar: Calendar = .current) -> Date? {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
 
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = .current
+        formatter.timeZone = calendar.timeZone
+        formatter.calendar = calendar
         for format in formats {
             formatter.dateFormat = format
             if let date = formatter.date(from: trimmed) {
@@ -289,13 +391,7 @@ public enum DueFormatter {
             }
         }
 
-        formatter.dateFormat = "EEEE"
-        if let weekday = formatter.date(from: trimmed) {
-            let calendar = Calendar.current
-            let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekday)
-            return calendar.date(from: components)
-        }
-        return nil
+        return relativeDate(from: trimmed, now: now, calendar: calendar)
     }
 
     /// Renders a date the way the notes show it.
@@ -305,5 +401,49 @@ public enum DueFormatter {
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
         return formatter.string(from: date)
+    }
+
+    /// "Friday", "next Monday", "today", "tomorrow" → a day at midnight after `now`.
+    static func relativeDate(from phrase: String, now: Date, calendar: Calendar) -> Date? {
+        var words = phrase.lowercased()
+            .split(whereSeparator: { $0.isWhitespace })
+            .map { $0.trimmingCharacters(in: .punctuationCharacters) }
+            .filter { !$0.isEmpty }
+        if words.first == "on" || words.first == "by" || words.first == "next" || words.first == "this" {
+            words.removeFirst()
+        }
+        guard words.count == 1, let word = words.first else { return nil }
+
+        let today = calendar.startOfDay(for: now)
+        switch word {
+        case "today":
+            return today
+        case "tomorrow":
+            return calendar.date(byAdding: .day, value: 1, to: today)
+        default:
+            break
+        }
+
+        guard let weekday = weekdayNumber(for: word, calendar: calendar) else { return nil }
+        return calendar.nextDate(
+            after: today,
+            matching: DateComponents(weekday: weekday),
+            matchingPolicy: .nextTime,
+            direction: .forward
+        )
+    }
+
+    /// 1 (Sunday) … 7 (Saturday) for an English weekday name or abbreviation.
+    private static func weekdayNumber(for word: String, calendar: Calendar) -> Int? {
+        var english = Calendar(identifier: .gregorian)
+        english.locale = Locale(identifier: "en_US_POSIX")
+        let names = zip(english.weekdaySymbols, english.shortWeekdaySymbols)
+        for (index, pair) in names.enumerated() {
+            let (full, short) = pair
+            if word == full.lowercased() || word == short.lowercased() {
+                return index + 1
+            }
+        }
+        return nil
     }
 }

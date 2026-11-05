@@ -38,7 +38,7 @@ final class MeetingDigestTests: XCTestCase {
         try seed(container: container, meetingDate: yesterday, text: "Finished task", owner: nil, isDone: true)
         try seed(container: container, meetingDate: lastWeek, text: "Ancient task", owner: nil, isDone: false)
 
-        let open = MeetingDigest.openActionItems(since: yesterday.addingTimeInterval(-60), in: container)
+        let open = try MeetingDigest.openActionItems(since: yesterday.addingTimeInterval(-60), in: container)
 
         XCTAssertEqual(open.count, 1)
         XCTAssertEqual(open.first, "Send the notes — Ana")
@@ -51,14 +51,14 @@ final class MeetingDigestTests: XCTestCase {
         let lastWeek = now.addingTimeInterval(-7 * 86_400)
         try seed(container: container, meetingDate: lastWeek, text: "Ancient task", owner: nil, isDone: false)
 
-        let open = MeetingDigest.openActionItems(since: now.addingTimeInterval(-86_400), in: container)
+        let open = try MeetingDigest.openActionItems(since: now.addingTimeInterval(-86_400), in: container)
         XCTAssertTrue(open.isEmpty)
     }
 
     @MainActor
     func testEmptyStoreReturnsNothing() throws {
         let container = try makeContainer()
-        let open = MeetingDigest.openActionItems(since: Date().addingTimeInterval(-86_400), in: container)
+        let open = try MeetingDigest.openActionItems(since: Date().addingTimeInterval(-86_400), in: container)
         XCTAssertTrue(open.isEmpty)
     }
 }

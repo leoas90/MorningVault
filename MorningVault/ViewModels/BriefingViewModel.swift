@@ -246,11 +246,16 @@ final class BriefingViewModel: ObservableObject {
         )
         sinceYesterday = SinceYesterday.update(with: todayDigest)
         if let startOfYesterday = Calendar.current.date(byAdding: .day, value: -1, to: Calendar.current.startOfDay(for: Date())) {
-            let open = MeetingDigest.openActionItems(since: startOfYesterday)
-            if let first = open.first {
-                sinceYesterday.append(open.count == 1
-                    ? "Open from a meeting: \(first)."
-                    : "\(open.count) open meeting action items, starting with: \(first).")
+            do {
+                let open = try MeetingDigest.openActionItems(since: startOfYesterday)
+                if let first = open.first {
+                    sinceYesterday.append(open.count == 1
+                        ? "Open from a meeting: \(first)."
+                        : "\(open.count) open meeting action items, starting with: \(first).")
+                }
+            } catch {
+                // Say so instead of quietly dropping the meeting items from the brief.
+                sinceYesterday.append("Meeting action items could not be read: \(error.localizedDescription)")
             }
         }
 

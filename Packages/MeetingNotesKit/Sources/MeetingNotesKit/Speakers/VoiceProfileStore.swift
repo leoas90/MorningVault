@@ -53,6 +53,7 @@ public enum VoiceProfileStore {
         encoder.dateEncodingStrategy = .iso8601
         let data = try encoder.encode(profile)
         let fileURL = url(in: directory)
+        try MeetingNotesStore.ensureFolder(fileURL.deletingLastPathComponent())
         try data.write(to: fileURL, options: [.atomic, .completeFileProtection])
     }
 

@@ -49,7 +49,7 @@ final class CalendarService: ObservableObject {
 
         return events.map { ek in
             CalendarEvent(
-                id: ek.eventIdentifier ?? UUID().uuidString,
+                id: ek.eventIdentifier ?? ek.calendarItemIdentifier,
                 title: ek.title ?? "(No title)",
                 startDate: ek.startDate,
                 endDate: ek.endDate,
@@ -76,7 +76,7 @@ final class CalendarService: ObservableObject {
 
         return events.map { ek in
             CalendarEvent(
-                id: ek.eventIdentifier ?? UUID().uuidString,
+                id: ek.eventIdentifier ?? ek.calendarItemIdentifier,
                 title: ek.title ?? "(No title)",
                 startDate: ek.startDate,
                 endDate: ek.endDate,

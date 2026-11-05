@@ -83,7 +83,13 @@ struct OpenActionItemsIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ReturnsValue<[String]> & ProvidesDialog {
         let since = Calendar.current.date(byAdding: .day, value: -2, to: Date()) ?? Date()
-        let items = MeetingDigest.openActionItems(since: since)
+        let items: [String]
+        do {
+            items = try MeetingDigest.openActionItems(since: since)
+        } catch {
+            let msg = "Your meeting notes could not be read right now."
+            return .result(value: [], dialog: IntentDialog(stringLiteral: msg))
+        }
         guard !items.isEmpty else {
             let msg = "No open action items from your meetings in the last two days."
             return .result(value: [], dialog: IntentDialog(stringLiteral: msg))

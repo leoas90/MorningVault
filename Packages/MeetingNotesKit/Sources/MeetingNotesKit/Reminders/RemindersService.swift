@@ -47,13 +47,15 @@ public final class RemindersService: ObservableObject {
     }
 
     private func requestAccess() async throws -> Bool {
-        let status = EKEventStore.authorizationStatus(for: .reminder)
-        switch status {
-        case .fullAccess, .writeOnly:
+        switch EKEventStore.authorizationStatus(for: .reminder) {
+        case .fullAccess:
             return true
         case .denied, .restricted:
             return false
         default:
+            // `.notDetermined`, and `.writeOnly` (which EventKit does not grant for
+            // reminders, but would not let `calendars(for:)` find the list): ask for
+            // full access, the only level that lets the list be found or created.
             return try await store.requestFullAccessToReminders()
         }
     }
@@ -64,13 +66,14 @@ public final class RemindersService: ObservableObject {
             return existing
         }
 
+        let source = store.sources.first(where: { $0.sourceType == .local })
+            ?? store.defaultCalendarForNewReminders()?.source
+        guard let source else {
+            throw RemindersError.noSource
+        }
         let calendar = EKCalendar(for: .reminder, eventStore: store)
         calendar.title = name
-        if let source = store.sources.first(where: { $0.sourceType == .local }) {
-            calendar.source = source
-        } else if let source = store.defaultCalendarForNewReminders()?.source {
-            calendar.source = source
-        }
+        calendar.source = source
         try store.saveCalendar(calendar, commit: true)
         return calendar
     }
@@ -78,11 +81,15 @@ public final class RemindersService: ObservableObject {
     /// Errors raised while exporting to Reminders.
     public enum RemindersError: LocalizedError, Sendable {
         case accessDenied
+        /// No account can hold a new list (no local source, no default list).
+        case noSource
 
         public var errorDescription: String? {
             switch self {
             case .accessDenied:
                 return "Reminders access is off. Turn it on in Settings › MorningVault › Reminders."
+            case .noSource:
+                return "No Reminders account can hold a new list. Add a list in Reminders first."
             }
         }
     }

@@ -9,7 +9,9 @@ import SwiftUI
 struct MeetingScreen: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    #if DEBUG
     @Environment(\.meetingSampleMode) private var sampleMode
+    #endif
     @StateObject private var session = RecordingSession()
     @StateObject private var reminders = RemindersService()
     @State private var showTranscript = false
@@ -31,27 +33,52 @@ struct MeetingScreen: View {
     var isModal: Bool = false
 
     var body: some View {
+        #if DEBUG
         if sampleMode {
-            // The picture mode drops the navigation stack and the scroll view,
-            // because neither can be drawn outside a running window.
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Product weekly")
-                    .font(.title.weight(.bold))
-                RecordingStatusPill(mode: .recording, elapsed: 42)
-                Text(MeetingPreviewData.sampleScratchpad)
-                    .font(.body)
-                Spacer(minLength: 0)
-                sampleBar
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 20)
+            samplePage
         } else {
-            NavigationStack {
-                page
-            }
-            .interactiveDismissDisabled(session.isRecording)
+            livePage
+        }
+        #else
+        livePage
+        #endif
+    }
+
+    private var livePage: some View {
+        NavigationStack {
+            page
+        }
+        .interactiveDismissDisabled(session.isRecording)
+    }
+
+    #if DEBUG
+    /// The picture mode drops the navigation stack and the scroll view,
+    /// because neither can be drawn outside a running window.
+    private var samplePage: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Product weekly")
+                .font(.title.weight(.bold))
+            RecordingStatusPill(mode: .recording, elapsed: 42)
+            Text(MeetingPreviewData.sampleScratchpad)
+                .font(.body)
+            Spacer(minLength: 0)
+            sampleBar
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 20)
+    }
+
+    private var sampleBar: some View {
+        HStack(spacing: 24) {
+            Label("Pause", systemImage: "pause.fill")
+                .frame(minWidth: 100)
+                .padding(.vertical, 10)
+                .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            RecordButton(isRecording: true, size: 64) {}
+            Color.clear.frame(minWidth: 100, maxHeight: 1)
         }
     }
+    #endif
 
     // MARK: - Page
 
@@ -343,17 +370,6 @@ struct MeetingScreen: View {
         }
     }
 
-    private var sampleBar: some View {
-        HStack(spacing: 24) {
-            Label("Pause", systemImage: "pause.fill")
-                .frame(minWidth: 100)
-                .padding(.vertical, 10)
-                .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            RecordButton(isRecording: true, size: 64) {}
-            Color.clear.frame(minWidth: 100, maxHeight: 1)
-        }
-    }
-
     // MARK: - Toolbar
 
     @ToolbarContentBuilder
@@ -421,15 +437,21 @@ struct MeetingScreen: View {
 
     private func sendToReminders(meetingID: UUID) {
         let items = MeetingPersistence.fetchActionItems(for: meetingID, context: context)
-        let drafts = items.filter { !$0.isDone }.map {
+        // Items already sent are skipped, so a second tap does not duplicate them.
+        let pending = MeetingPersistence.actionItemsToExport(from: items)
+        let drafts = pending.map {
             ActionItem(text: $0.text, owner: $0.owner, due: $0.due.map { DueFormatter.string(from: $0) })
         }
         Task {
             do {
                 let count = try await reminders.export(drafts)
-                for item in items { item.exportedToReminders = true }
-                try? context.save()
-                if count == 0 { infoMessage = "There was nothing open to send." }
+                if count == 0 {
+                    infoMessage = items.contains(where: \.exportedToReminders)
+                        ? "Everything open was already sent to Reminders."
+                        : "There was nothing open to send."
+                } else {
+                    try MeetingPersistence.markExported(pending, context: context)
+                }
             } catch {
                 infoMessage = error.localizedDescription
             }

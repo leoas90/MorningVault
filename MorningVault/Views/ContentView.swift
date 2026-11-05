@@ -14,7 +14,17 @@ struct ContentView: View {
     @State private var tabBarIconScales: [Tab: CGFloat] = [:]
     @State private var showShareSheet = false
     @State private var isVoicePlaying = false
-    @State private var meetingsContainer: ModelContainer? = try? MeetingNotesStore.modelContainer()
+    /// The one meetings store, shared with the brief and Siri through `MeetingNotesStore.sharedContainer()`.
+    @State private var meetingsContainer: ModelContainer?
+    @State private var meetingsStoreError: String?
+
+    init() {
+        do {
+            _meetingsContainer = State(initialValue: try MeetingNotesStore.sharedContainer())
+        } catch {
+            _meetingsStoreError = State(initialValue: error.localizedDescription)
+        }
+    }
 
     enum Tab: String, CaseIterable {
         case brief = "Brief"
@@ -76,8 +86,25 @@ struct ContentView: View {
                 if let meetingsContainer {
                     MeetingsHubView().modelContainer(meetingsContainer)
                 } else {
-                    ContentUnavailableView("Meetings unavailable", systemImage: "waveform.slash",
-                                           description: Text("The meetings store could not be opened on this device."))
+                    ContentUnavailableView {
+                        Label("Meetings unavailable", systemImage: "waveform.slash")
+                    } description: {
+                        Text("The meetings store could not be opened on this device.")
+                        if let meetingsStoreError {
+                            Text(meetingsStoreError)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } actions: {
+                        Button("Try again") {
+                            do {
+                                meetingsContainer = try MeetingNotesStore.sharedContainer()
+                                meetingsStoreError = nil
+                            } catch {
+                                meetingsStoreError = error.localizedDescription
+                            }
+                        }
+                    }
                 }
             }
             .tabItem {
@@ -101,6 +128,12 @@ struct ContentView: View {
             .tag(Tab.settings)
         }
         .tint(Color.warmPrimaryAccent)
+        .task {
+            // Once per launch: drop recording folders that have no meeting row.
+            if let meetingsContainer {
+                MeetingNotesStore.sweepOrphanedAudioOnce(container: meetingsContainer)
+            }
+        }
         // Meetings reads these through the environment, so it follows Theme and Appearance
         // without carrying brand colors itself. Changing a theme updates in place.
         .meetingsTheme(MeetingsTheme(

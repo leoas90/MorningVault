@@ -173,8 +173,9 @@ final class SpeakerAssignmentTests: XCTestCase {
     }
 
     func testFilePiecesSplitOnPausesAndWordBudget() {
-        let words: [(text: String, start: TimeInterval, duration: TimeInterval)] = [
-            ("one", 0, 0.3), ("two", 0.4, 0.3), ("three", 2.0, 0.3), ("four", 2.4, 0.3)
+        let words: [FileTranscriptionService.RecognizedWord] = [
+            .init(text: "one", start: 0, duration: 0.3), .init(text: "two", start: 0.4, duration: 0.3),
+            .init(text: "three", start: 2.0, duration: 0.3), .init(text: "four", start: 2.4, duration: 0.3)
         ]
         let pieces = FileTranscriptionService.pieces(from: words, offset: 60, pause: 0.8, maxWords: 24)
         XCTAssertEqual(pieces.map(\.text), ["one two", "three four"])

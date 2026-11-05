@@ -3,7 +3,9 @@ import SwiftUI
 
 /// Records about thirty seconds of the user's voice and turns it into the
 /// voice profile. The audio is kept in memory only; the recorder's file is
-/// deleted as soon as the embedding exists.
+/// deleted as soon as the embedding exists. The clip lives under its own
+/// `Enrollment/` root, never among the meetings, and the launch sweep clears
+/// anything a crash left there.
 @MainActor
 final class VoiceEnrollmentSession: ObservableObject {
     enum Phase: Equatable {
@@ -67,7 +69,8 @@ final class VoiceEnrollmentSession: ObservableObject {
         elapsed = 0
         sessionID = UUID()
         do {
-            try await recorder.start(meetingID: sessionID)
+            try MeetingNotesStore.ensureEnrollmentFolder(for: sessionID)
+            try await recorder.start(fileURL: MeetingNotesStore.enrollmentAudioURL(for: sessionID))
             phase = .recording
         } catch {
             phase = .failed(UserMessage.from(error, context: "The recording could not start."))
@@ -136,7 +139,7 @@ final class VoiceEnrollmentSession: ObservableObject {
     }
 
     private func deleteRecording() {
-        let folder = MeetingNotesStore.audioFolder(for: sessionID)
+        let folder = MeetingNotesStore.enrollmentFolder(for: sessionID)
         try? FileManager.default.removeItem(at: folder)
     }
 
