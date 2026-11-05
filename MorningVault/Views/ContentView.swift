@@ -1,5 +1,7 @@
 import SwiftUI
 import UIKit
+import SwiftData
+import MeetingNotesKit
 
 struct ContentView: View {
     @AppStorage("user_name") private var userName: String = ""
@@ -13,16 +15,19 @@ struct ContentView: View {
     @State private var tabBarIconScales: [Tab: CGFloat] = [:]
     @State private var showShareSheet = false
     @State private var isVoicePlaying = false
+    @State private var meetingsContainer: ModelContainer? = try? MeetingNotesStore.modelContainer()
 
     enum Tab: String, CaseIterable {
         case brief = "Brief"
         case markets = "Markets"
+        case meetings = "Meetings"
         case settings = "Settings"
 
         var icon: String {
             switch self {
             case .brief: return "sun.max"
             case .markets: return "chart.line.uptrend.xyaxis"
+            case .meetings: return "waveform"
             case .settings: return "gearshape"
             }
         }
@@ -31,6 +36,7 @@ struct ContentView: View {
             switch self {
             case .brief: return "sun.max.fill"
             case .markets: return "chart.line.uptrend.xyaxis"
+            case .meetings: return "waveform.circle.fill"
             case .settings: return "gearshape.fill"
             }
         }
@@ -67,6 +73,24 @@ struct ContentView: View {
                 )
             }
             .tag(Tab.markets)
+
+            // MARK: - Meetings Tab (MeetingNotesKit)
+            Group {
+                if let meetingsContainer {
+                    MeetingsHubView().modelContainer(meetingsContainer)
+                } else {
+                    ContentUnavailableView("Meetings unavailable", systemImage: "waveform.slash",
+                                           description: Text("The meetings store could not be opened on this device."))
+                }
+            }
+            .tabItem {
+                TabIcon(
+                    tab: Tab.meetings,
+                    isSelected: selectedTab == Tab.meetings,
+                    scales: $tabBarIconScales
+                )
+            }
+            .tag(Tab.meetings)
 
             // MARK: - Settings Tab
             NavigationStack {

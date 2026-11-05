@@ -45,15 +45,22 @@
 	<string>MorningVault writes your daily health summary to Apple Health so you can track your wellness journey over time. Data stays on your device.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Approximate location only — for weather. No precise GPS stored or transmitted.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>MorningVault sends meeting action items to a Reminders list called Meetings.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>MorningVault needs microphone access for voice notes.</string>
+	<string>MorningVault records your meetings and voice notes. Audio stays on your device.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>MorningVault uses speech recognition to process voice notes.</string>
+	<string>MorningVault transcribes your meetings and voice notes on this device.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>
 	</dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>fetch</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

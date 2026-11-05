@@ -4,6 +4,7 @@ import Combine
 import FoundationModels
 #endif
 import Security
+import MeetingNotesKit
 
 /// On-device AI briefing generator for MorningVault.
 ///
@@ -240,6 +241,14 @@ final class BriefingViewModel: ObservableObject {
             health: healthData
         )
         sinceYesterday = SinceYesterday.update(with: todayDigest)
+        if let startOfYesterday = Calendar.current.date(byAdding: .day, value: -1, to: Calendar.current.startOfDay(for: Date())) {
+            let open = MeetingDigest.openActionItems(since: startOfYesterday)
+            if let first = open.first {
+                sinceYesterday.append(open.count == 1
+                    ? "Open from a meeting: \(first)."
+                    : "\(open.count) open meeting action items, starting with: \(first).")
+            }
+        }
 
         // Share what's on screen with the widget and Siri actions.
         let firstUpcoming = calendarEvents.first { !$0.isAllDay && $0.endDate > Date() }

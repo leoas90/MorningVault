@@ -6,6 +6,10 @@ options:
   createIntermediateGroups: true
   groupSortPosition: top
 
+packages:
+  MeetingNotesKit:
+    path: Packages/MeetingNotesKit
+
 settings:
   base:
     SWIFT_VERSION: "6.0"
@@ -53,6 +57,7 @@ targets:
       - sdk: CoreLocation.framework
       - sdk: WeatherKit.framework
       - sdk: Contacts.framework
+      - package: MeetingNotesKit
 
   MorningVaultWidget:
     type: app-extension
