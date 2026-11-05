@@ -24,6 +24,16 @@ struct BriefingSectionCard: View {
     }
 
     private var sectionIcon: String {
+        // By section id first: the weather icon is the live condition emoji (☀️/🌧️…) and
+        // health uses ❤️‍🔥, neither of which was in the emoji map, so they fell to a grid glyph.
+        switch section.id {
+        case "weather":   return "cloud.sun"
+        case "health":    return "heart.fill"
+        case "calendar":  return "calendar"
+        case "headlines": return "newspaper"
+        case "markets":   return "chart.line.uptrend.xyaxis"
+        default: break
+        }
         let iconMap = [
             "🌤️": "cloud.sun",
             "💪": "heart.fill",
@@ -111,6 +121,8 @@ struct BriefingSectionCard: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(section.title), \(isExpanded ? "expanded" : "collapsed")")
+        .accessibilityHint(isExpanded ? "Collapses the section" : "Expands the section")
     }
 
     private var permissionBanner: some View {
@@ -238,11 +250,12 @@ struct ArticleRowView: View {
                 cycleState()
             } label: {
                 Image(systemName: stateIcon)
-                    .font(.system(size: 16))
+                    .font(.body)
                     .foregroundStyle(stateColor)
                     .frame(width: 24)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(state == .unread ? "Mark as read" : "Change status: \(stateLabel)")
 
             // Article content
             VStack(alignment: .leading, spacing: 3) {
@@ -314,6 +327,7 @@ struct ArticleRowView: View {
                         .foregroundStyle(.secondary)
                         .padding(.leading, 4)
                 }
+                .accessibilityLabel("Article actions")
             }
         }
         .padding(.vertical, 6)

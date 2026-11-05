@@ -14,6 +14,7 @@
 		2527903266B6D07786002005 /* WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96717330575D4D9806610694 /* WeatherService.swift */; };
 		26DC79A9EFDB558FA6EA8B24 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5D4F604E0DBCADA9DF649363 /* Assets.xcassets */; };
 		2AD10E293F40330DD3954C3D /* BuildView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5764DBFB9577910F99CA7C18 /* BuildView.swift */; };
+		2BBB6AA78636386ABA078987 /* UnitsPreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72703070A4EFC1A13BD941D5 /* UnitsPreference.swift */; };
 		2D1A42432DC3AFCC5C16FB54 /* WeatherKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D2A9C53AC93866B046540ED0 /* WeatherKit.framework */; };
 		2E932C7B9F19E3955192EB5B /* CalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACAA8CF9C253BBAB993C7ABC /* CalendarService.swift */; };
 		30019FC0DE1FFD4171314C5B /* RefreshControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A262E6202095BCC98035772 /* RefreshControl.swift */; };
@@ -46,6 +47,7 @@
 		9A643DE807D78C3B5A270B31 /* SharedBriefingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA716AFE1B7CFF2B49C066F4 /* SharedBriefingStore.swift */; };
 		A279BFD7446F1715B100AD06 /* SinceYesterdayService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F262638492997BDB559DCA /* SinceYesterdayService.swift */; };
 		A489201F8F6DA14C54FF5D7C /* BriefingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F951050E0F4C265855B07D /* BriefingIntents.swift */; };
+		ACE91217F54E0DCD16379681 /* UnitsPreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72703070A4EFC1A13BD941D5 /* UnitsPreference.swift */; };
 		AECF485B2044FA53AB0A4C19 /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 428137D842E34AED7DAB8482 /* HealthKitService.swift */; };
 		B281FE55E090E469DAF71AAD /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E53372DCE56D9D3406815A /* ContentView.swift */; };
 		B71AF772C81B372B0E7A75D0 /* BriefingSectionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD35C3FB14B743538182864C /* BriefingSectionCard.swift */; };
@@ -118,6 +120,7 @@
 		6376F2CF2B5439BE403B053D /* CoreLocation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreLocation.framework; path = System/Library/Frameworks/CoreLocation.framework; sourceTree = SDKROOT; };
 		6619476E0FF29E35D1B6F96A /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		66CF0FA6E0A29BDFA3A898DC /* MorningSnapshotCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningSnapshotCard.swift; sourceTree = "<group>"; };
+		72703070A4EFC1A13BD941D5 /* UnitsPreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitsPreference.swift; sourceTree = "<group>"; };
 		744744A7C6ACBF0C75D72E34 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		7E6C312545326EA367B78602 /* MorningVaultWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MorningVaultWidget.entitlements; sourceTree = "<group>"; };
 		7F326B33C09D42D7161B8064 /* MorningVaultWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = MorningVaultWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -182,6 +185,7 @@
 			isa = PBXGroup;
 			children = (
 				FA716AFE1B7CFF2B49C066F4 /* SharedBriefingStore.swift */,
+				72703070A4EFC1A13BD941D5 /* UnitsPreference.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -468,6 +472,7 @@
 			files = (
 				BE20DBFD4EE40EF8A0784F43 /* MorningVaultWidget.swift in Sources */,
 				64214E069C4D5EB46047A03F /* SharedBriefingStore.swift in Sources */,
+				2BBB6AA78636386ABA078987 /* UnitsPreference.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -516,6 +521,7 @@
 				A279BFD7446F1715B100AD06 /* SinceYesterdayService.swift in Sources */,
 				72A4B6CD4EEAF78D67B2A1FE /* SourcesView.swift in Sources */,
 				30FA25455BC3DB5B8E1B6A29 /* TrackedSymbol.swift in Sources */,
+				ACE91217F54E0DCD16379681 /* UnitsPreference.swift in Sources */,
 				4E8D3AD7F3D51CDB09E3E078 /* VoiceBriefingService.swift in Sources */,
 				2527903266B6D07786002005 /* WeatherService.swift in Sources */,
 			);

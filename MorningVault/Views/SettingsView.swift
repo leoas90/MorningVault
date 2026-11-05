@@ -12,6 +12,8 @@ struct SettingsView: View {
     @AppStorage("theme") private var themeRaw: String = AppTheme.system.rawValue
     @AppStorage("appearance") private var appearanceRaw: String = "warm"
     @AppStorage("user_name") private var userName: String = ""
+    @AppStorage(UnitsPreference.storageKey) private var unitsRaw: String = UnitsPreference.automatic.rawValue
+    @AppStorage("voice_briefing_enabled") private var voiceBriefingEnabled = false
     @State private var showingPrivacyPolicy = false
     @State private var hasAppeared = false
     @FocusState private var isNameFieldFocused: Bool
@@ -80,6 +82,9 @@ struct SettingsView: View {
 
                 // MARK: - Appearance
                 appearanceSection
+
+                // MARK: - Units
+                unitsSection
 
                 // MARK: - Voice
                 voiceSection
@@ -271,19 +276,50 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Units
+
+    private var unitsDescription: String {
+        let pref = UnitsPreference(rawValue: unitsRaw) ?? .automatic
+        switch pref {
+        case .automatic:
+            let resolved = pref.usesImperial ? "Imperial (°F, mph)" : "Metric (°C, km/h)"
+            return "Follows your iPhone's region: \(resolved)."
+        case .metric: return "Celsius, kilometres, km/h."
+        case .imperial: return "Fahrenheit, miles, mph."
+        }
+    }
+
+    private var unitsSection: some View {
+        Section("Units") {
+            Picker("Units", selection: $unitsRaw) {
+                ForEach(UnitsPreference.allCases) { pref in
+                    Text(pref.displayName).tag(pref.rawValue)
+                }
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: unitsRaw) { _, _ in
+                // Widget and Siri read the App Group copy; the briefing text is rebuilt.
+                UnitsPreference.mirrorToAppGroup()
+                BriefingWidgetReloader.reload()
+                NotificationCenter.default.post(name: .unitsChanged, object: nil)
+            }
+
+            Text(unitsDescription)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
     // MARK: - Voice
 
     private var voiceSection: some View {
         Section("Voice") {
-            Toggle(isOn: Binding(
-                get: { UserDefaults.standard.bool(forKey: "voice_briefing_enabled") },
-                set: { UserDefaults.standard.set($0, forKey: "voice_briefing_enabled") }
-            )) {
+            Toggle(isOn: $voiceBriefingEnabled) {
                 Label("Voice Briefing", systemImage: "speaker.wave.2")
             }
             .tint(Color.warmPrimaryAccent)
 
-            if UserDefaults.standard.bool(forKey: "voice_briefing_enabled") {
+            if voiceBriefingEnabled {
                 Text("Tap the 🔊 Listen button in the briefing view to hear your morning update.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

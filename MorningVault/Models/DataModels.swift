@@ -36,8 +36,9 @@ struct WeatherData: Codable {
     let precipMM: Double
     let location: String
 
+    /// Presentation only — stored values stay metric.
     var formatted: String {
-        "\(conditionIcon) \(temperatureC)°C (\(condition))"
+        "\(conditionIcon) \(UnitsPreference.current.formatTemperature(celsius: temperatureC)) (\(condition))"
     }
 
     var uvWarning: String? {

@@ -91,17 +91,27 @@ final class HealthKitService: ObservableObject {
 
                 var totalInBed: TimeInterval = 0
                 var totalAsleep: TimeInterval = 0
+                var totalAwake: TimeInterval = 0
 
                 for sample in samples {
                     let duration = sample.endDate.timeIntervalSince(sample.startDate)
-                    totalInBed += duration
-                    if sample.value == HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue ||
-                       sample.value == HKCategoryValueSleepAnalysis.asleepCore.rawValue ||
-                       sample.value == HKCategoryValueSleepAnalysis.asleepDeep.rawValue ||
-                       sample.value == HKCategoryValueSleepAnalysis.asleepREM.rawValue {
+                    switch sample.value {
+                    case HKCategoryValueSleepAnalysis.inBed.rawValue:
+                        totalInBed += duration
+                    case HKCategoryValueSleepAnalysis.awake.rawValue:
+                        totalAwake += duration
+                    case HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
+                         HKCategoryValueSleepAnalysis.asleepCore.rawValue,
+                         HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
+                         HKCategoryValueSleepAnalysis.asleepREM.rawValue:
                         totalAsleep += duration
+                    default:
+                        break
                     }
                 }
+                // Stage samples overlap the in-bed sample; summing all of them doubled "in bed".
+                // Sources that write no in-bed sample (Apple Watch) get asleep + awake instead.
+                if totalInBed == 0 { totalInBed = totalAsleep + totalAwake }
 
                 let hoursInBed = Int(totalInBed / 3600)
                 let minutesInBed = Int((totalInBed.truncatingRemainder(dividingBy: 3600)) / 60)

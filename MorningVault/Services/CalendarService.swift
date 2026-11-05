@@ -15,6 +15,12 @@ final class CalendarService: ObservableObject {
     @Published var isAuthorized = false
     @Published var lastError: String?
 
+    init() {
+        // Reflect an existing grant at launch; previously the Settings row showed "not
+        // authorized" until the user tapped it again in this session.
+        isAuthorized = EKEventStore.authorizationStatus(for: .event) == .fullAccess
+    }
+
     // MARK: - Authorization
 
     func requestAuthorization() async -> Bool {

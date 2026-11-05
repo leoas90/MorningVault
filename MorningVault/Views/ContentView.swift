@@ -61,10 +61,8 @@ struct ContentView: View {
             }
             .tag(Tab.brief)
 
-            // MARK: - Markets Tab
-            NavigationStack {
-                MarketsView()
-            }
+            // MARK: - Markets Tab (has its own NavigationStack)
+            MarketsView()
             .tabItem {
                 TabIcon(
                     tab: Tab.markets,
@@ -92,10 +90,8 @@ struct ContentView: View {
             }
             .tag(Tab.meetings)
 
-            // MARK: - Settings Tab
-            NavigationStack {
-                SettingsView()
-            }
+            // MARK: - Settings Tab (has its own NavigationStack)
+            SettingsView()
             .tabItem {
                 TabIcon(
                     tab: Tab.settings,
@@ -119,6 +115,18 @@ struct ContentView: View {
             selectedTab = .brief
             Task {
                 await viewModel.silentRefresh()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .appBecameActive)) { _ in
+            // Foreground: refresh in place, never yank the user off their current tab.
+            Task {
+                await viewModel.silentRefresh()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .unitsChanged)) { _ in
+            // Section text and the AI summary are built with the chosen units, so rebuild both.
+            Task {
+                await viewModel.generateBriefing()
             }
         }
     }
@@ -162,8 +170,15 @@ struct BriefTabView: View {
     @Binding var showShareSheet: Bool
 
     @AppStorage("weather_enabled") private var weatherEnabled = true
+    @AppStorage("voice_briefing_enabled") private var voiceBriefingEnabled = false
+    @ObservedObject private var voiceService = VoiceBriefingService.shared
     @State private var isRefreshing = false
     @State private var headerHasAppeared = false
+
+    private var greetingLine: String {
+        let name = userName.trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? "\(greetingText)." : "\(greetingText), \(name)."
+    }
 
     private var greetingText: String {
         let hour = Calendar.current.component(.hour, from: Date())
@@ -209,8 +224,9 @@ struct BriefTabView: View {
                     MorningSnapshotCard(snapshot: viewModel.morningSnapshot)
                         .padding(.horizontal, 20)
 
-                    // Briefing sections with stagger
-                    if viewModel.isLoading {
+                    // Briefing sections with stagger. The spinner only replaces an empty
+                    // screen; a refresh keeps the current cards in place.
+                    if viewModel.isLoading && viewModel.briefingSections.isEmpty {
                         LoadingStateView()
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 40)
@@ -280,18 +296,12 @@ struct BriefTabView: View {
                                 isVoicePlaying = true
                             }
                         } label: {
-                            ZStack {
-                                Image(systemName: isVoicePlaying ? "speaker.wave.3.fill" : "speaker.wave.2")
-                                    .foregroundStyle(isVoicePlaying ? Color.warmPrimaryAccent : Color.warmTextSecondary)
-                                if isVoicePlaying {
-                                    Text("Playing...")
-                                        .font(.caption2)
-                                        .foregroundStyle(Color.warmPrimaryAccent)
-                                        .offset(y: 16)
-                                }
-                            }
+                            Image(systemName: isVoicePlaying ? "stop.circle.fill" : "speaker.wave.2")
+                                .foregroundStyle(isVoicePlaying ? Color.warmPrimaryAccent : Color.warmTextSecondary)
+                                .symbolEffect(.variableColor.iterative, isActive: isVoicePlaying)
                         }
-                        .disabled(!UserDefaults.standard.bool(forKey: "voice_briefing_enabled"))
+                        .disabled(!voiceBriefingEnabled)
+                        .accessibilityLabel(isVoicePlaying ? "Stop voice briefing" : "Listen to briefing")
 
                         Button {
                             showShareSheet = true
@@ -299,6 +309,7 @@ struct BriefTabView: View {
                             Image(systemName: "square.and.arrow.up")
                                 .foregroundStyle(Color.warmPrimaryAccent)
                         }
+                        .accessibilityLabel("Share briefing")
 
                         Button {
                             Task {
@@ -317,6 +328,7 @@ struct BriefTabView: View {
                             }
                         }
                         .disabled(viewModel.isLoading || isRefreshing)
+                        .accessibilityLabel("Refresh briefing")
                     }
                 }
             }
@@ -332,6 +344,10 @@ struct BriefTabView: View {
             }
             .onChange(of: weatherEnabled) { _, _ in
                 Task { await viewModel.loadData(force: true) }
+            }
+            .onChange(of: voiceService.isPlaying) { _, playing in
+                // The synthesizer finishing (or being cut off) is what ends "playing".
+                isVoicePlaying = playing
             }
             .sheet(isPresented: $showShareSheet) {
                 ShareSheet(items: [briefingShareText()])
@@ -353,14 +369,14 @@ struct BriefTabView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("\(greetingText), \(userName).")
+                    Text(greetingLine)
                         .font(.system(.title2, design: .rounded))
                         .fontWeight(.bold)
                         .foregroundStyle(Color.warmTextPrimary)
 
-                    // AI Summary badge and text
+                    // AI Summary badge and text (badge above, so the summary gets full width)
                     if let summary = viewModel.aiDaySummary {
-                        HStack(spacing: 8) {
+                        VStack(alignment: .leading, spacing: 4) {
                             BounceLabel(
                                 text: "AI Summary",
                                 color: Color.warmAISummary,
@@ -369,7 +385,8 @@ struct BriefTabView: View {
                             Text(summary)
                                 .font(.caption)
                                 .foregroundStyle(Color.warmTextSecondary)
-                                .lineLimit(4)
+                                .lineLimit(6)
+                                .fixedSize(horizontal: false, vertical: true)
                                 .animation(.easeOut(duration: 0.2), value: summary)
                         }
                     }

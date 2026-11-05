@@ -75,9 +75,10 @@ final class BriefingViewModel: ObservableObject {
 
     func loadData(force: Bool = false) async {
         if hasLoaded && !force { return }
-        if let loadDataInFlight, !force {
+        if let loadDataInFlight {
+            // Never run two loads at once: a forced refresh waits for the in-flight one, then runs.
             await loadDataInFlight.value
-            return
+            if !force { return }
         }
 
         let task = Task { @MainActor in
@@ -97,11 +98,14 @@ final class BriefingViewModel: ObservableObject {
             permissionDenied = []
         }
 
+        let units = UnitsPreference.current
+        UnitsPreference.mirrorToAppGroup()
+
         // Fetch all sources concurrently
-        async let health = fetchHealth()
+        async let health = fetchHealth(forceLive: force)
         async let weather = fetchWeather(forceLive: force)
-        async let calendar = fetchCalendar()
-        async let rss = fetchRSS()
+        async let calendar = fetchCalendar(forceLive: force)
+        async let rss = fetchRSS(forceLive: force)
 
         let (healthData, weatherData, calendarEvents, rssFeeds) = await (health, weather, calendar, rss)
 
@@ -114,7 +118,7 @@ final class BriefingViewModel: ObservableObject {
                 id: "weather",
                 title: "Weather",
                 icon: w.conditionIcon,
-                content: "\(w.temperatureC)°C (\(w.condition)) in \(w.location). Feels like \(w.feelsLikeC)°C. Humidity \(w.humidity)%. \(w.uvWarning ?? "")",
+                content: "\(units.formatTemperature(celsius: w.temperatureC)) (\(w.condition)) in \(w.location). Feels like \(units.formatTemperature(celsius: w.feelsLikeC)). Humidity \(w.humidity)%. Wind \(units.formatSpeed(kph: w.windKph)) \(w.windDirection). \(w.uvWarning ?? "")",
                 sentiment: nil
             ))
             await cache.setWeather(w)
@@ -256,7 +260,9 @@ final class BriefingViewModel: ObservableObject {
         SharedBriefingStore.update { b in
             b.firstEventTitle = firstUpcoming?.title
             b.firstEventStart = firstUpcoming?.startDate
-            b.weatherLine = weatherData.map { "\($0.temperatureC)° \($0.condition)" }
+            b.weatherTempC = weatherData?.temperatureC
+            b.weatherCondition = weatherData?.condition
+            b.weatherLine = weatherData.map { "\(units.formatTemperatureShort(celsius: $0.temperatureC)) \($0.condition)" }
             b.headlines = articles.prefix(10).map {
                 SharedBriefing.Headline(title: $0.title, gist: Self.savedGists[$0.id], source: nil)
             }
@@ -364,9 +370,7 @@ final class BriefingViewModel: ObservableObject {
 
         let task = Task { @MainActor in
             await self.loadFromCache()
-            if self.briefingSections.isEmpty {
-                await self.loadData()
-            }
+            await self.loadData()
             if self.aiDaySummary == nil {
                 await self.generateAISummary()
             }
@@ -437,8 +441,10 @@ final class BriefingViewModel: ObservableObject {
         await cache.setBriefing(briefingData)
     }
 
-    /// Load briefing from TTLCache (instant, no network).
+    /// Load briefing from TTLCache (instant, no network). Only fills an empty screen: it
+    /// must never replace fresher in-memory sections with an older cached copy.
     private func loadFromCache() async {
+        guard briefingSections.isEmpty else { return }
         if let cached: BriefingData = await cache.getBriefing() {
             briefingSections = cached.sections
             // AI summary lives outside BriefingData; restore today's saved copy.
@@ -459,13 +465,14 @@ final class BriefingViewModel: ObservableObject {
     // MARK: - Morning snapshot (Brief tab hero)
 
     func refreshMorningSnapshot(weather: WeatherData?, calendarCount: Int) async {
+        let units = UnitsPreference.current
         var snapshot = MorningSnapshot.empty
         snapshot.updatedAt = Date()
         snapshot.weatherEnabled = weatherEnabled
 
         if let w = weather {
             snapshot.weatherIcon = w.conditionIcon
-            snapshot.weatherLine = "\(w.temperatureC)° · \(w.condition)"
+            snapshot.weatherLine = "\(units.formatTemperatureShort(celsius: w.temperatureC)) · \(w.condition)"
             snapshot.location = w.location
             snapshot.weatherNeedsLocation = false
             snapshot.weatherErrorDetail = nil
@@ -475,7 +482,7 @@ final class BriefingViewModel: ObservableObject {
             snapshot.weatherErrorDetail = weatherService.lastError
             if let cached = await cache.getWeather() {
                 snapshot.weatherIcon = cached.conditionIcon
-                snapshot.weatherLine = "\(cached.temperatureC)° · \(cached.condition)"
+                snapshot.weatherLine = "\(units.formatTemperatureShort(celsius: cached.temperatureC)) · \(cached.condition)"
                 snapshot.location = cached.location
             }
         } else {
@@ -574,14 +581,14 @@ final class BriefingViewModel: ObservableObject {
         return await cache.getWeather()
     }
 
-    private func fetchHealth() async -> HealthData? {
+    private func fetchHealth(forceLive: Bool = false) async -> HealthData? {
         // Respect health_enabled setting
         guard healthEnabled else { return nil }
         // localOnly: skip live HealthKit fetch, only use cache
         if localOnly {
             return await cache.getHealth()
         }
-        if let cached: HealthData = await cache.getHealth() {
+        if !forceLive, let cached: HealthData = await cache.getHealth() {
             return cached
         }
         _ = await healthService.requestAuthorization()
@@ -589,7 +596,7 @@ final class BriefingViewModel: ObservableObject {
         try? await Task.sleep(nanoseconds: 500_000_000)
         let authorized: Bool = await healthService.isAuthorizedForHealthData()
         if !authorized {
-            await MainActor.run { self.permissionDenied.append("health") }
+            if !permissionDenied.contains("health") { permissionDenied.append("health") }
             return nil
         }
         async let sleep = healthService.fetchLastNightSleep()
@@ -610,20 +617,20 @@ final class BriefingViewModel: ObservableObject {
         return data
     }
 
-    private func fetchCalendar() async -> [CalendarEvent] {
+    private func fetchCalendar(forceLive: Bool = false) async -> [CalendarEvent] {
         // Respect calendar_enabled setting
         guard calendarEnabled else { return [] }
         // localOnly: skip live Calendar fetch, only use cache
         if localOnly {
             return await cache.getCalendar() ?? []
         }
-        if let cached: [CalendarEvent] = await cache.getCalendar() {
+        if !forceLive, let cached: [CalendarEvent] = await cache.getCalendar() {
             return cached
         }
         _ = await calendarService.requestAuthorization()
         // Check if user denied Calendar access
         if !calendarService.isAuthorized {
-            await MainActor.run { self.permissionDenied.append("calendar") }
+            if !permissionDenied.contains("calendar") { permissionDenied.append("calendar") }
             return []
         }
         let events = await calendarService.fetchTodayEvents()
@@ -631,13 +638,13 @@ final class BriefingViewModel: ObservableObject {
         return events
     }
 
-    private func fetchRSS() async -> [RSSFeedData] {
+    private func fetchRSS(forceLive: Bool = false) async -> [RSSFeedData] {
         // Respect headlines_enabled setting
         guard headlinesEnabled else { return [] }
         if localOnly {
             return await cache.getRSSFeeds() ?? []
         }
-        if let cached: [RSSFeedData] = await cache.getRSSFeeds() {
+        if !forceLive, let cached: [RSSFeedData] = await cache.getRSSFeeds() {
             return cached
         }
         let feeds = await rssService.fetchAllFeeds()

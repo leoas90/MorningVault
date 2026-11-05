@@ -24,8 +24,9 @@ struct MorningVaultApp: App {
                 .id(themeRaw)  // Force full UI rebuild when theme or appearance changes
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
-                        // Invalidate cache on foreground to ensure fresh briefing
-                        NotificationCenter.default.post(name: .viewBriefingRequested, object: nil)
+                        // Refresh on foreground. Not `.viewBriefingRequested`: that one also
+                        // switches to the Brief tab, which yanked users off Meetings/Settings.
+                        NotificationCenter.default.post(name: .appBecameActive, object: nil)
                     }
                 }
         }
@@ -64,7 +65,11 @@ struct MorningVaultApp: App {
             forTaskWithIdentifier: precomputationTaskID,
             using: nil
         ) { task in
-            self.handlePrecomputation(task: task as! BGAppRefreshTask)
+            guard let refresh = task as? BGAppRefreshTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            self.handlePrecomputation(task: refresh)
         }
     }
 
@@ -79,25 +84,26 @@ struct MorningVaultApp: App {
             return
         }
 
-        Task {
+        // One load only: generateBriefing() already does loadData(force: true).
+        let work = Task { @MainActor in
             let viewModel = BriefingViewModel()
-            await viewModel.loadData()
             await viewModel.generateBriefing()
-            task.setTaskCompleted(success: true)
+            task.setTaskCompleted(success: !Task.isCancelled)
         }
 
+        // Set before the work can finish, and cancel the work so it stops touching the model
+        // once iOS has cut the budget (~30 s for app-refresh tasks).
         task.expirationHandler = {
+            work.cancel()
             task.setTaskCompleted(success: false)
         }
     }
 
     private func schedulePrecomputation() {
-        let calendar = Calendar.current
-        var components = calendar.dateComponents([.year, .month, .day], from: Date())
-        components.hour = 6
-        components.minute = 55
-
-        guard let next6_55 = calendar.nextDate(after: Date(), matching: components, matchingPolicy: .nextTime) else { return }
+        // Hour/minute only. With year/month/day pinned to today, `nextDate` found nothing
+        // once 6:55 had passed, so no refresh was ever scheduled for tomorrow.
+        let components = DateComponents(hour: 6, minute: 55)
+        guard let next6_55 = Calendar.current.nextDate(after: Date(), matching: components, matchingPolicy: .nextTime) else { return }
 
         let request = BGAppRefreshTaskRequest(identifier: precomputationTaskID)
         request.earliestBeginDate = next6_55
@@ -142,7 +148,12 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, Se
 // MARK: - Notification Names
 
 extension Notification.Name {
+    /// Deep link / notification tap: switch to the Brief tab and refresh.
     static let viewBriefingRequested = Notification.Name("viewBriefingRequested")
+    /// Scene became active: refresh in place.
+    static let appBecameActive = Notification.Name("appBecameActive")
+    /// Units setting changed: rebuild the briefing text.
+    static let unitsChanged = Notification.Name("unitsChanged")
 }
 
 // MARK: - Theme System

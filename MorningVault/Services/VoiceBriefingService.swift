@@ -150,7 +150,8 @@ final class VoiceBriefingService: ObservableObject {
             // Skip sections with error messages
             if section.errorMessage != nil { continue }
 
-            let text = "\(section.icon) \(section.title). \(section.content)"
+            // Icon emoji dropped: the synthesizer would read it out ("sun", "red heart").
+            let text = "\(section.title). \(section.content)"
             // Clean up newlines and extra spaces
             let cleaned = text.replacingOccurrences(of: "\n", with: " ")
                 .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)

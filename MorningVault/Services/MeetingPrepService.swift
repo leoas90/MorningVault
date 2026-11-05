@@ -22,7 +22,9 @@ final class MeetingPrepService {
     /// Returns nil if no events today or meeting is too far out.
     func prepareMeetingPrep() async -> MeetingPrep? {
         let events = await calendarService.fetchTodayEvents()
-        guard let firstEvent = events.first else { return nil }
+        // First timed meeting still ahead — not an all-day entry or one that already ended.
+        let now = Date()
+        guard let firstEvent = events.first(where: { !$0.isAllDay && $0.endDate > now }) else { return nil }
 
         // Don't call LLM if meeting is > 2 hours away
         let timeUntil = firstEvent.startDate.timeIntervalSinceNow

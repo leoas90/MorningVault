@@ -62,8 +62,10 @@ enum SinceYesterday {
         }
 
         // Weather
-        if let tc = t.tempC, let yc = y.tempC, abs(tc - yc) >= 3 {
-            lines.append("\(abs(tc - yc))° \(tc > yc ? "warmer" : "cooler") than \(since).")
+        // Stored in °C; shown in the user's unit (a 3°C change reads as 5°F).
+        let units = UnitsPreference.current
+        if let tc = t.tempC, let yc = y.tempC, abs(tc - yc) >= units.temperatureDeltaThresholdC {
+            lines.append("\(units.formatTemperatureDelta(celsius: tc - yc)) \(tc > yc ? "warmer" : "cooler") than \(since).")
         } else if let tcond = t.condition?.lowercased(), let ycond = y.condition?.lowercased(),
                   isWet(tcond) != isWet(ycond) {
             lines.append(isWet(tcond) ? "Rain in today's forecast, unlike \(since)." : "Drying out after \(since)'s rain.")

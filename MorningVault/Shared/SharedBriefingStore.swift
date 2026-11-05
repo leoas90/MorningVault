@@ -12,8 +12,19 @@ struct SharedBriefing: Codable, Equatable {
     var firstEventTitle: String?
     var firstEventStart: Date?
     var weatherLine: String?
+    /// Raw weather so the widget can re-format when the Units setting changes.
+    var weatherTempC: Int?
+    var weatherCondition: String?
     var headlines: [Headline]
     var updatedAt: Date
+
+    /// Weather line in the user's current units (falls back to the saved text).
+    var displayWeatherLine: String? {
+        if let c = weatherTempC, let cond = weatherCondition {
+            return "\(UnitsPreference.current.formatTemperatureShort(celsius: c)) \(cond)"
+        }
+        return weatherLine
+    }
 
     struct Headline: Codable, Equatable {
         var title: String
@@ -55,7 +66,8 @@ enum SharedBriefingStore {
     static func update(_ change: (inout SharedBriefing) -> Void) {
         var b = loadToday() ?? SharedBriefing(day: SharedBriefing.today(), summary: nil,
                                               firstEventTitle: nil, firstEventStart: nil,
-                                              weatherLine: nil, headlines: [], updatedAt: Date())
+                                              weatherLine: nil, weatherTempC: nil, weatherCondition: nil,
+                                              headlines: [], updatedAt: Date())
         change(&b)
         b.day = SharedBriefing.today()
         b.updatedAt = Date()

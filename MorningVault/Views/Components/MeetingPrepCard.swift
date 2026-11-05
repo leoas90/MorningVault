@@ -16,7 +16,7 @@ struct MeetingPrepCard: View {
                 HStack(alignment: .top, spacing: 12) {
                     // Icon
                     Image(systemName: "person.2.wave.2")
-                        .font(.system(size: 18))
+                        .font(.title3)
                         .foregroundStyle(Color.warmPrimaryAccent)
                         .frame(width: 32, height: 32)
                         .background(Color.warmPrimaryAccent.opacity(0.15))
@@ -52,6 +52,7 @@ struct MeetingPrepCard: View {
                 }
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Meeting prep: \(prep.meetingTitle), \(prep.isExpanded ? "expanded" : "collapsed")")
 
             // Expanded content
             if prep.isExpanded {
@@ -132,14 +133,15 @@ struct MeetingPrepCard: View {
                 }
             }
         }
-        .padding(16)
+        // Same padding / radius / shadow as the other Brief cards so it sits in the stack cleanly.
+        .padding(20)
         .background(Color.warmCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: AppRadius.card)
                 .stroke(Color.warmPrimaryAccent.opacity(0.2), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 4)
+        .shadow(color: Color.warmTextPrimary.opacity(0.06), radius: 8, x: 0, y: 4)
     }
 }
 

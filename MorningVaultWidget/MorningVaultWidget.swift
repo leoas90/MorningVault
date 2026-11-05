@@ -85,7 +85,7 @@ struct SummaryWidgetView: View {
             Image(systemName: "sparkles")
             Text("Today")
             Spacer()
-            if let w = entry.briefing?.weatherLine {
+            if let w = entry.briefing?.displayWeatherLine {
                 Text(w).foregroundStyle(.secondary)
             }
         }
@@ -140,6 +140,8 @@ extension SharedBriefing {
         firstEventTitle: "Team sync",
         firstEventStart: Date().addingTimeInterval(3600),
         weatherLine: "18° Clear",
+        weatherTempC: 18,
+        weatherCondition: "Clear",
         headlines: [.init(title: "Sample headline", gist: "What happened and why it matters.", source: nil)],
         updatedAt: Date()
     )

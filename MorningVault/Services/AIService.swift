@@ -320,6 +320,7 @@ final class AIService {
     Speak to the reader directly, warm and plain, like a sharp assistant. \
     Lead with what matters most today (first meeting, weather that changes plans, a big market move). \
     Use only the data given; never invent events, numbers or names. \
+    Keep temperatures and speeds in the units they are given in (°F or °C); never convert. \
     Never repeat raw health numbers; describe health qualitatively.
     """
 

@@ -19,20 +19,24 @@ actor TTLCache {
     // MARK: - Generic get/set
 
     func get<T: Codable>(_ key: String, ttl: TimeInterval? = nil) -> T? {
-        let effectiveTTL = ttl ?? defaultTTL
         let entry = loadEntry(key)
 
         guard let entry = entry else { return nil }
+        // The TTL given at `set` time wins (weather 30 min, RSS 1 h…); the old code ignored
+        // it and expired everything after the 5-minute default.
+        let effectiveTTL = ttl ?? entry.ttl ?? defaultTTL
         guard Date().timeIntervalSince(entry.timestamp) < effectiveTTL else {
             delete(key)
             return nil
         }
 
-        return entry.value as? T
+        // Was `entry.value as? T`, which is always nil for a wrapped payload — the cache
+        // never returned a hit, so every launch re-fetched everything.
+        return entry.value.decode(T.self)
     }
 
     func set<T: Codable>(_ key: String, value: T, ttl: TimeInterval? = nil) {
-        let entry = CacheEntry(timestamp: Date(), value: AnyCodable(encodable: value))
+        let entry = CacheEntry(timestamp: Date(), ttl: ttl, value: AnyCodable(encodable: value))
         saveEntry(key, entry)
     }
 
@@ -76,6 +80,7 @@ actor TTLCache {
 
     private struct CacheEntry: Codable {
         let timestamp: Date
+        var ttl: TimeInterval?   // optional: entries written before this field existed decode fine
         let value: AnyCodable
     }
 
