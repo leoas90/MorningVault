@@ -8,6 +8,6 @@ public struct MeetingShowcaseView: View {
 
     public var body: some View {
         MeetingScreen()
-            .environment(\.vaultNotesSampleMode, true)
+            .environment(\.meetingSampleMode, true)
     }
 }

@@ -1,5 +1,7 @@
 # Privacy-First Morning Vaulting App - SPEC v2
 
+> **Status (2026-11-04): historical planning document.** It predates the build and no longer describes the app. What shipped differs in these ways: weather is **WeatherKit** (not wttr.in); markets come only from the **`api.morningvault.app` proxy** (no CoinGecko/yfinance on the phone); there is **no email/IMAP, OpenClaw, Build Task or System Status module**; there is **no "Later"/Pocket/Instapaper integration**; the alarm is **local notifications** (Mon–Fri), not AlarmKit; news feeds are user-selected, not hardcoded; and the app gained a **Markets tab**, a **Meetings tab** (`Packages/MeetingNotesKit`: on-device transcription, speaker separation, summaries, Reminders export), a **widget** and **Siri intents**. See `README.md` for the current shape and `docs/` for reviews.
+
 ## Overview
 A privacy-first iOS application that delivers a personalized morning briefing using on-device processing, minimizing data exposure while providing weather, market insights, and personalized recommendations.
 

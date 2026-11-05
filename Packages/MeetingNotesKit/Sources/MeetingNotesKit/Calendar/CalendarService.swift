@@ -87,7 +87,7 @@ public final class CalendarService: ObservableObject {
             return true
         case .denied:
             access = .denied
-            message = "Calendar access is off. Turn it on in Settings › Vault Notes › Calendar."
+            message = "Calendar access is off. Turn it on in Settings › MorningVault › Calendar."
             return false
         case .restricted:
             access = .restricted
@@ -98,7 +98,7 @@ public final class CalendarService: ObservableObject {
                 let granted = try await store.requestFullAccessToEvents()
                 access = granted ? .granted : .denied
                 if !granted {
-                    message = "Calendar access is off. Turn it on in Settings › Vault Notes › Calendar."
+                    message = "Calendar access is off. Turn it on in Settings › MorningVault › Calendar."
                 }
                 return granted
             } catch {

@@ -212,7 +212,7 @@ public struct VoiceEnrollmentScreen: View {
                 Button("Delete", role: .destructive) { session.deleteProfile() }
                 Button("Keep", role: .cancel) {}
             } message: {
-                Text("Meetings will no longer label your turns as You until you enrol again.")
+                Text("Meetings will no longer label your turns as You until you enroll again.")
             }
             .interactiveDismissDisabled(session.phase == .recording || session.phase == .processing)
         }

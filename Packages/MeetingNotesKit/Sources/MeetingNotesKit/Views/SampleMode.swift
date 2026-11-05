@@ -1,6 +1,6 @@
 import SwiftUI
 
-private struct VaultNotesSampleModeKey: EnvironmentKey {
+private struct MeetingSampleModeKey: EnvironmentKey {
     static let defaultValue = false
 }
 
@@ -9,8 +9,8 @@ public extension EnvironmentValues {
     ///
     /// The host app turns this on when it takes a picture of the app, so the
     /// picture shows a meeting in progress instead of an empty screen.
-    var vaultNotesSampleMode: Bool {
-        get { self[VaultNotesSampleModeKey.self] }
-        set { self[VaultNotesSampleModeKey.self] = newValue }
+    var meetingSampleMode: Bool {
+        get { self[MeetingSampleModeKey.self] }
+        set { self[MeetingSampleModeKey.self] = newValue }
     }
 }

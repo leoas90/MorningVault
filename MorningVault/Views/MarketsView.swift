@@ -162,7 +162,7 @@ final class MarketsViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Fetch live prices from Polygon.io
+    // MARK: - Fetch live prices (api.morningvault.app proxy — the phone never calls a market vendor directly)
 
     func fetchLivePrices() async {
         isLoadingPrices = true
@@ -199,10 +199,6 @@ final class MarketsViewModel: ObservableObject {
         let batch = await MarketBackendService.fetchBatch(symbols: [symbol])
         guard let row = batch.first, row.error == nil, row.price > 0 else { return nil }
         return (row.price, row.change24h)
-    }
-
-    private var cryptoSymbols: Set<String> {
-        ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "DOGE", "DOT", "AVAX", "LINK"]
     }
 
     // MARK: - Sparkline — seeded demo, shown when no live price available

@@ -36,7 +36,7 @@ struct ContentView: View {
             switch self {
             case .brief: return "sun.max.fill"
             case .markets: return "chart.line.uptrend.xyaxis"
-            case .meetings: return "waveform.circle.fill"
+            case .meetings: return "waveform"
             case .settings: return "gearshape.fill"
             }
         }
@@ -105,7 +105,6 @@ struct ContentView: View {
         .tint(Color.warmPrimaryAccent)
         .task {
             AIService.shared.prewarm()
-            _ = await ContactsService.shared.fetchDeviceName()
             await viewModel.silentRefresh()
         }
         .fullScreenCover(isPresented: .constant(!hasCompletedOnboarding)) {
@@ -279,7 +278,7 @@ struct BriefTabView: View {
                 }
             }
             .background(Color.warmBackground.ignoresSafeArea())
-            .navigationTitle("Morning Vault")
+            .navigationTitle("MorningVault")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -442,70 +441,6 @@ struct BriefTabView: View {
         }
         .foregroundStyle(Color.warmTextSecondary)
         .padding(.vertical, 8)
-    }
-}
-
-// MARK: - Custom Refresh Header (animated sun with spinner)
-
-struct CustomRefreshHeader: View {
-    let isRefreshing: Bool
-    @State private var rotation: Double = 0
-    @State private var pulseScale: CGFloat = 1.0
-
-    var body: some View {
-        Group {
-            if isRefreshing {
-                VStack(spacing: 6) {
-                    ZStack {
-                        // Outer pulse ring
-                        Circle()
-                            .stroke(Color.warmPrimaryAccent.opacity(0.2), lineWidth: 2)
-                            .frame(width: 44, height: 44)
-                            .scaleEffect(pulseScale)
-                            .opacity(2.0 - Double(pulseScale))
-
-                        // Rotating sun icon
-                        Image(systemName: "sun.max.fill")
-                            .font(.system(size: 22))
-                            .foregroundStyle(Color.warmPrimaryAccent)
-                            .rotationEffect(.degrees(rotation))
-                    }
-
-                    Text("Refreshing...")
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .foregroundStyle(Color.warmTextSecondary)
-                }
-                .frame(height: 60)
-                .frame(maxWidth: .infinity)
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-        .onChange(of: isRefreshing) { _, refreshing in
-            if refreshing {
-                withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
-                    rotation = 360
-                }
-                withAnimation(.easeOut(duration: 1.0).repeatForever(autoreverses: false)) {
-                    pulseScale = 1.6
-                }
-            } else {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    rotation = 0
-                    pulseScale = 1.0
-                }
-            }
-        }
-        .onAppear {
-            if isRefreshing {
-                withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
-                    rotation = 360
-                }
-                withAnimation(.easeOut(duration: 1.0).repeatForever(autoreverses: false)) {
-                    pulseScale = 1.6
-                }
-            }
-        }
     }
 }
 

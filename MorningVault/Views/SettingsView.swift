@@ -1,5 +1,6 @@
 import SwiftUI
-import Security
+import EventKit
+import MeetingNotesKit
 
 struct SettingsView: View {
     @AppStorage("briefing_time") private var briefingTimeSeconds: Double = 7 * 3600  // default 7 AM
@@ -14,11 +15,12 @@ struct SettingsView: View {
     @AppStorage("user_name") private var userName: String = ""
     @AppStorage(UnitsPreference.storageKey) private var unitsRaw: String = UnitsPreference.automatic.rawValue
     @AppStorage("voice_briefing_enabled") private var voiceBriefingEnabled = false
-    @State private var showingPrivacyPolicy = false
     @State private var hasAppeared = false
     @FocusState private var isNameFieldFocused: Bool
-    @State private var showingAPIKeyAlert = false
-    @State private var apiKeySaveMessage: String = ""
+    // Meetings tab permissions (microphone, speech, reminders); refreshed on appear and after each tap.
+    @State private var microphoneGranted = RecordingPermissions.microphone == .granted
+    @State private var speechGranted = RecordingPermissions.speech == .granted
+    @State private var remindersGranted = EKEventStore.authorizationStatus(for: .reminder) == .fullAccess
 
     private let healthService = HealthKitService.shared
     private let calendarService = CalendarService.shared
@@ -26,8 +28,7 @@ struct SettingsView: View {
     @StateObject private var alarmService = AlarmService.shared
 
     private var currentTheme: AppTheme {
-        get { AppTheme(rawValue: themeRaw) ?? .system }
-        set { themeRaw = newValue.rawValue }
+        AppTheme(rawValue: themeRaw) ?? .system
     }
 
     private var briefingTimeBinding: Binding<Date> {
@@ -118,6 +119,7 @@ struct SettingsView: View {
                     await alarmService.refreshPendingAlarms()
                     await alarmService.refreshAuthorizationState()
                 }
+                refreshMeetingPermissions()
             }
             .safeAreaInset(edge: .bottom) {
                 if isNameFieldFocused {
@@ -381,7 +383,7 @@ struct SettingsView: View {
             Text("Privacy")
         } footer: {
             #if PCC_ENABLED
-            Text("Your summary is written on your iPhone. With Private Cloud on, a morning too long for the phone is summarised by Apple's Private Cloud Compute, which keeps nothing. Health numbers are never sent.")
+            Text("Your summary is written on your iPhone. With Private Cloud on, a morning too long for the phone is summarized by Apple's Private Cloud Compute, which keeps nothing. Health numbers are never sent.")
             #else
             Text("Your summary and headline lines are written on your iPhone. Nothing is sent to an AI service.")
             #endif
@@ -440,6 +442,46 @@ struct SettingsView: View {
                 }
             }
 
+            // Meetings tab: recording, on-device transcription, action items → Reminders
+            Button {
+                Task {
+                    if RecordingPermissions.microphone == .undetermined {
+                        _ = await RecordingPermissions.requestMicrophone()
+                    } else {
+                        RecordingPermissions.openSettings()
+                    }
+                    refreshMeetingPermissions()
+                }
+            } label: {
+                permissionRow("Microphone (Meetings)", icon: "mic", granted: microphoneGranted)
+            }
+
+            Button {
+                Task {
+                    if RecordingPermissions.speech == .undetermined {
+                        _ = await RecordingPermissions.requestSpeech()
+                    } else {
+                        RecordingPermissions.openSettings()
+                    }
+                    refreshMeetingPermissions()
+                }
+            } label: {
+                permissionRow("Speech Recognition (Meetings)", icon: "waveform", granted: speechGranted)
+            }
+
+            Button {
+                Task {
+                    if EKEventStore.authorizationStatus(for: .reminder) == .notDetermined {
+                        _ = try? await EKEventStore().requestFullAccessToReminders()
+                    } else {
+                        RecordingPermissions.openSettings()
+                    }
+                    refreshMeetingPermissions()
+                }
+            } label: {
+                permissionRow("Reminders (Meeting action items)", icon: "list.bullet.clipboard", granted: remindersGranted)
+            }
+
             // Alarm status
             HStack {
                 Label("Alarm", systemImage: "alarm")
@@ -460,6 +502,21 @@ struct SettingsView: View {
                     .foregroundStyle(.red)
             }
         }
+    }
+
+    private func permissionRow(_ title: String, icon: String, granted: Bool) -> some View {
+        HStack {
+            Label(title, systemImage: icon)
+            Spacer()
+            Image(systemName: granted ? "checkmark.circle.fill" : "exclamationmark.circle")
+                .foregroundStyle(granted ? .green : .orange)
+        }
+    }
+
+    private func refreshMeetingPermissions() {
+        microphoneGranted = RecordingPermissions.microphone == .granted
+        speechGranted = RecordingPermissions.speech == .granted
+        remindersGranted = EKEventStore.authorizationStatus(for: .reminder) == .fullAccess
     }
 
     // MARK: - About

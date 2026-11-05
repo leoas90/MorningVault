@@ -82,6 +82,7 @@ struct HomeScreen: View {
             }
             .listStyle(.automatic)
             .navigationTitle("Meetings")
+            .inlineTitle()
             .searchable(text: $searchText, prompt: "Search titles, notes and transcripts")
             .refreshable { await calendar.loadToday() }
             .safeAreaInset(edge: .bottom) { newMeetingButton }

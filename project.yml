@@ -56,7 +56,6 @@ targets:
       - sdk: EventKit.framework
       - sdk: CoreLocation.framework
       - sdk: WeatherKit.framework
-      - sdk: Contacts.framework
       - package: MeetingNotesKit
 
   MorningVaultWidget:

@@ -82,7 +82,7 @@ public final class RemindersService: ObservableObject {
         public var errorDescription: String? {
             switch self {
             case .accessDenied:
-                return "Reminders access is off. Turn it on in Settings › Vault Notes › Reminders."
+                return "Reminders access is off. Turn it on in Settings › MorningVault › Reminders."
             }
         }
     }

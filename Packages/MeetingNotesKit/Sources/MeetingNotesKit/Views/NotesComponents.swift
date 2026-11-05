@@ -273,8 +273,8 @@ struct TranscriptSheet: View {
                                 symbol: "text.alignleft",
                                 title: isLive ? "Listening…" : "No transcript",
                                 message: isLive
-                                    ? "Words show up here as they are recognised."
-                                    : "Nothing was recognised for this meeting."
+                                    ? "Words show up here as they are recognized."
+                                    : "Nothing was recognized for this meeting."
                             )
                         }
                     } else if hasSpeakers {

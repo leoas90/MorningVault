@@ -36,7 +36,7 @@ public final class MeetingSummarizer: ObservableObject {
         let notes = scratchpad.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !material.isEmpty && !notes.isEmpty || !material.isEmpty else {
-            state = .failed("There is nothing to summarise yet.")
+            state = .failed("There is nothing to summarize yet.")
             return
         }
 

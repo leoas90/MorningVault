@@ -9,7 +9,7 @@ import SwiftUI
 struct MeetingScreen: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.vaultNotesSampleMode) private var sampleMode
+    @Environment(\.meetingSampleMode) private var sampleMode
     @StateObject private var session = RecordingSession()
     @StateObject private var reminders = RemindersService()
     @State private var showTranscript = false

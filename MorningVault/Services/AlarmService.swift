@@ -74,7 +74,7 @@ final class AlarmService: ObservableObject {
         let weekdayComponents: [Int] = [2, 3, 4, 5, 6] // Mon through Fri
 
         let content = UNMutableNotificationContent()
-        content.title = "Morning Vault ☀️"
+        content.title = "MorningVault ☀️"
         content.body = "Your personalized briefing is ready. Weather, health, calendar & more."
         content.sound = .default
         content.categoryIdentifier = "BRIEFING"
@@ -125,7 +125,7 @@ final class AlarmService: ObservableObject {
         center.setNotificationCategories([briefingCategory])
 
         let content = UNMutableNotificationContent()
-        content.title = "Morning Vault ☀️"
+        content.title = "MorningVault ☀️"
         content.body = "Test briefing notification. Tap to view."
         content.sound = .default
         content.categoryIdentifier = "BRIEFING"

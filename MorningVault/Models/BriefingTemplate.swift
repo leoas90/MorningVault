@@ -175,19 +175,3 @@ var briefingTemplate: BriefingTemplate {
     }
     set { UserDefaults.standard.set(newValue.rawValue, forKey: "briefing_template") }
 }
-
-// MARK: - Section Priority Score
-
-/// Combines template priority with user preference toggles to produce
-/// a final sort key for briefing sections.
-struct SectionPriorityScore {
-    let sectionId: String
-    let templatePriority: Int
-    let isEnabled: Bool
-
-    /// Lower sortValue = displayed first.
-    /// Disabled sections get +1000 to sort after enabled ones.
-    var sortValue: Int {
-        isEnabled ? templatePriority : templatePriority + 1000
-    }
-}

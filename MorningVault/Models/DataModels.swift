@@ -130,20 +130,6 @@ enum NewsArticleState: String, Codable {
     case skipped  // user skipped this article
 }
 
-/// Tracks individual article states for Inbox Zero.
-struct ArticleReadState: Codable, Identifiable {
-    var id: String { articleId }
-    let articleId: String
-    var state: NewsArticleState
-    var markedAt: Date
-
-    init(articleId: String, state: NewsArticleState) {
-        self.articleId = articleId
-        self.state = state
-        self.markedAt = Date()
-    }
-}
-
 /// Tracks read state for all articles across all feeds.
 /// Persisted to UserDefaults as JSON.
 /// Main-actor isolated: it drives `@ObservedObject` in the headline rows.

@@ -37,8 +37,6 @@
 	<false/>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>MorningVault reads your calendar to include today's events in your briefing. Data stays on your device.</string>
-	<key>NSContactsUsageDescription</key>
-	<string>MorningVault uses your contact card name for the greeting in your morning briefing. Stored locally only.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>MorningVault reads your health data — including sleep, steps, heart rate, and HRV — to include in your morning briefing. Data stays on your device and is never shared.</string>
 	<key>NSHealthUpdateUsageDescription</key>
@@ -76,7 +74,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>com.apple.developer.ios.user-data-access</key>
-	<string>MorningVault requires user data access for health and calendar integration.</string>
 </dict>
 </plist>
