@@ -1,3 +1,4 @@
+import MeetingNotesKit
 import SwiftUI
 
 /// Collapsible card showing meeting prep: title, time, talking points, and past positions.
@@ -53,6 +54,18 @@ struct MeetingPrepCard: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Meeting prep: \(prep.meetingTitle), \(prep.isExpanded ? "expanded" : "collapsed")")
+
+            // Record: same flow as the Meetings tab and the widget — the router switches to
+            // Meetings and starts the recording there, filed under this calendar event.
+            // `prep.attendees` is a location proxy, so the Meetings home fills real attendees
+            // from the event itself.
+            if prep.startTime.timeIntervalSinceNow > -4 * 3600 {
+                MeetingRecordButton(calendarEventID: prep.calendarEventID, title: prep.meetingTitle)
+                    .font(.subheadline.weight(.semibold))
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+                    .controlSize(.small)
+            }
 
             // Expanded content
             if prep.isExpanded {

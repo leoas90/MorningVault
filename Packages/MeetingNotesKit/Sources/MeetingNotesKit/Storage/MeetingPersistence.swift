@@ -190,17 +190,39 @@ public enum MeetingPersistence {
         return MarkdownExporter.markdown(for: document)
     }
 
-    /// Writes the meeting to the shared app group. Failures are ignored on purpose.
+    /// Writes the meeting (notes, summary, action items and the full transcript) as a
+    /// Markdown file in the shared app group. Off unless the user turned on
+    /// "Also save Markdown copies"; failures are ignored on purpose.
     @discardableResult
     public static func writeToAppGroup(for meeting: Meeting, context: ModelContext) -> Bool {
+        guard MarkdownCopiesSetting.isEnabled else { return false }
+        return AppGroupMarkdownWriter.write(markdown(for: meeting, context: context), fileName: appGroupFileName(for: meeting))
+    }
+
+    /// File name the app group copy of `meeting` uses (for `title`, when given).
+    public static func appGroupFileName(for meeting: Meeting, title: String? = nil) -> String {
+        let name = (title ?? meeting.title).trimmingCharacters(in: .whitespacesAndNewlines)
         let document = MarkdownExporter.Document(
-            title: meeting.displayTitle,
+            title: name.isEmpty ? "Untitled meeting" : name,
             date: meeting.startedAt,
             duration: meeting.duration,
             attendees: meeting.attendeeNames
         )
-        let fileName = MarkdownExporter.fileName(for: document)
-        return AppGroupMarkdownWriter.write(markdown(for: meeting, context: context), fileName: fileName)
+        return MarkdownExporter.fileName(for: document)
+    }
+
+    /// Removes the app group copy of a meeting, if there is one.
+    public static func deleteAppGroupCopy(for meeting: Meeting) {
+        AppGroupMarkdownWriter.delete(fileName: appGroupFileName(for: meeting))
+    }
+
+    /// Moves the app group copy to the file name of the meeting's new title. Call after
+    /// `meeting.title` changed, passing the title it had before.
+    public static func appGroupCopyRetitled(_ meeting: Meeting, from oldTitle: String) {
+        let old = appGroupFileName(for: meeting, title: oldTitle)
+        let new = appGroupFileName(for: meeting)
+        guard old != new else { return }
+        AppGroupMarkdownWriter.move(fileName: old, to: new)
     }
 
     /// Removes the recording files of a meeting.
@@ -210,9 +232,34 @@ public enum MeetingPersistence {
         try? FileManager.default.removeItem(at: url)
     }
 
+    /// Everything on disk and in the store that belongs to a meeting, then the meeting.
+    public static func delete(_ meeting: Meeting, context: ModelContext) {
+        deleteRecordings(for: meeting)
+        deleteAppGroupCopy(for: meeting)
+        for item in fetchActionItems(for: meeting.id, context: context) {
+            context.delete(item)
+        }
+        for segment in fetchTranscriptSegments(for: meeting.id, context: context) {
+            context.delete(segment)
+        }
+        context.delete(meeting)
+    }
+
     private static func parseDue(_ value: String?) -> Date? {
         guard let value, !value.isEmpty else { return nil }
         return DueFormatter.date(from: value)
+    }
+}
+
+/// The "Also save Markdown copies" switch: when on, every saved or enhanced meeting is
+/// also written as Markdown (with its transcript) into the App Group folder. Off by
+/// default; turning it off leaves existing copies alone.
+public enum MarkdownCopiesSetting {
+    public static let key = "meetings.saveMarkdownCopies"
+
+    public static var isEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: key) }
+        set { UserDefaults.standard.set(newValue, forKey: key) }
     }
 }
 

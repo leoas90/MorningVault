@@ -1,0 +1,1 @@
+../../../../../MorningVault/Shared/RecordingActivityAttributes.swift

@@ -143,7 +143,11 @@ struct MeetingScreen: View {
             if session.phase == .finished { session.persistEdits(context: context) }
         }
         .onChange(of: session.title) { _, _ in
-            if session.phase == .finished { session.persistEdits(context: context) }
+            if session.phase == .finished {
+                session.persistEdits(context: context)
+            } else if session.isRecording {
+                session.syncLiveActivityTitle()
+            }
         }
         .task {
             if session.title.isEmpty, !initialTitle.isEmpty { session.title = initialTitle }
@@ -151,7 +155,8 @@ struct MeetingScreen: View {
                 await session.start(
                     calendarEventID: calendarEventID,
                     title: initialTitle,
-                    attendees: initialAttendees
+                    attendees: initialAttendees,
+                    context: context
                 )
             }
         }
@@ -212,7 +217,14 @@ struct MeetingScreen: View {
                 switch session.phase {
                 case .idle:
                     Button {
-                        Task { await session.start(calendarEventID: calendarEventID, title: session.title, attendees: initialAttendees) }
+                        Task {
+                            await session.start(
+                                calendarEventID: calendarEventID,
+                                title: session.title,
+                                attendees: initialAttendees,
+                                context: context
+                            )
+                        }
                     } label: {
                         HStack(spacing: 12) {
                             RecordButton(isRecording: false, size: 44) {}

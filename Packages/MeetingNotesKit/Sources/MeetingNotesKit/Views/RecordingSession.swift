@@ -61,6 +61,7 @@ public final class RecordingSession: ObservableObject {
 
     private var startedAt = Date()
     private var recordingID = UUID()
+    private let liveActivity = RecordingLiveActivity()
     private var liveTranscriptionWorked = false
     private var speechAuthorized = false
     private var liveStartTask: Task<Void, Never>?
@@ -103,10 +104,14 @@ public final class RecordingSession: ObservableObject {
     }
 
     /// Starts a new recording. Asks for permissions first and never throws.
+    ///
+    /// - Parameter context: where the meeting is saved when the Live Activity's Stop
+    ///   button (or anything else outside the owning view) stops the recording.
     public func start(
         calendarEventID: String? = nil,
         title: String = "",
-        attendees: [String] = []
+        attendees: [String] = [],
+        context: ModelContext? = nil
     ) async {
         guard phase == .idle || phase == .finished else { return }
         phase = .starting
@@ -154,6 +159,13 @@ public final class RecordingSession: ObservableObject {
 
         phase = .recording
         startLiveTranscription()
+        if let context {
+            ActiveRecordingRegistry.shared.register(self) { [weak self] in
+                await self?.stop(context: context)
+            }
+        }
+        liveActivity.start(title: self.title, startedAt: Date())
+        MeetingsSnapshotPublisher.setRecording(true)
     }
 
     /// Pauses the recording.
@@ -161,6 +173,7 @@ public final class RecordingSession: ObservableObject {
         guard phase == .recording else { return }
         recorder.pause()
         phase = .paused
+        liveActivity.pause()
     }
 
     /// Resumes the recording.
@@ -169,7 +182,14 @@ public final class RecordingSession: ObservableObject {
         recorder.resume()
         if recorder.state == .recording {
             phase = .recording
+            liveActivity.resume(elapsed: elapsed)
         }
+    }
+
+    /// Pushes a title typed while recording to the Live Activity.
+    public func syncLiveActivityTitle() {
+        guard isRecording else { return }
+        liveActivity.setTitle(title)
     }
 
     /// Stops the recording and saves the meeting.
@@ -177,6 +197,8 @@ public final class RecordingSession: ObservableObject {
         guard isRecording else { return }
         liveStartTask?.cancel()
         liveStartTask = nil
+        liveActivity.end()
+        ActiveRecordingRegistry.shared.unregister(self)
         let duration = await recorder.stop()
         await transcriber.stop()
         phase = .finished
@@ -217,6 +239,8 @@ public final class RecordingSession: ObservableObject {
         refreshSpeakerTurns(meeting: meeting, context: context)
 
         MeetingPersistence.writeToAppGroup(for: meeting, context: context)
+        MeetingsSnapshotStore.update { $0.isRecording = false }
+        MeetingsSnapshotPublisher.publishStoreChanges(context: context)
 
         if !pieces.isEmpty, let url = recorder.recordingURL, duration > 1 {
             startSpeakerIdentification(meetingID: meeting.id, url: url, context: context)
@@ -241,6 +265,9 @@ public final class RecordingSession: ObservableObject {
         speakerLabels = []
         speakerTurns = []
         pieces = []
+        liveActivity.end()
+        ActiveRecordingRegistry.shared.unregister(self)
+        MeetingsSnapshotPublisher.setRecording(false)
         await recorder.cancel()
         await transcriber.stop()
         phase = .idle
@@ -265,9 +292,17 @@ public final class RecordingSession: ObservableObject {
         guard let meetingID, let meeting = fetchMeeting(meetingID, context: context) else { return }
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         var changed = false
-        if meeting.title != trimmed { meeting.title = trimmed; changed = true }
+        if meeting.title != trimmed {
+            let oldTitle = meeting.title
+            meeting.title = trimmed
+            changed = true
+            MeetingPersistence.appGroupCopyRetitled(meeting, from: oldTitle)
+        }
         if meeting.scratchpad != scratchpad { meeting.scratchpad = scratchpad; changed = true }
-        if changed { try? context.save() }
+        if changed {
+            try? context.save()
+            MeetingsSnapshotPublisher.publishStoreChanges(context: context)
+        }
     }
 
     /// Runs the on-device model over the transcript and the user's notes.
@@ -284,11 +319,14 @@ public final class RecordingSession: ObservableObject {
             MeetingPersistence.update(meeting: meeting, summary: result, context: context)
             MeetingPersistence.replaceActionItems(of: meeting, with: result.actionItems, context: context)
             if meeting.title.isEmpty, !result.title.isEmpty {
+                let oldTitle = meeting.title
                 meeting.title = result.title
                 title = result.title
+                MeetingPersistence.appGroupCopyRetitled(meeting, from: oldTitle)
             }
             try? context.save()
             MeetingPersistence.writeToAppGroup(for: meeting, context: context)
+            MeetingsSnapshotPublisher.publishStoreChanges(context: context)
         case .unavailable(let message):
             summaryState = .unavailable(message)
         case .failed(let message):

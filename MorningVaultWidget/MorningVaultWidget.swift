@@ -119,6 +119,7 @@ struct MorningVaultSummaryWidget: Widget {
         StaticConfiguration(kind: "MorningVaultSummary", provider: SummaryProvider()) { entry in
             SummaryWidgetView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
+                .widgetURL(URL(string: "morningvault://briefing"))
         }
         .configurationDisplayName("Morning Summary")
         .description("Today's summary from MorningVault, written on your iPhone.")
@@ -130,6 +131,8 @@ struct MorningVaultSummaryWidget: Widget {
 struct MorningVaultWidgetBundle: WidgetBundle {
     var body: some Widget {
         MorningVaultSummaryWidget()
+        MorningVaultMeetingsWidget()
+        RecordingLiveActivityWidget()
     }
 }
 

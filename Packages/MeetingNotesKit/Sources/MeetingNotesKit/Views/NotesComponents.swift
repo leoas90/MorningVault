@@ -169,6 +169,7 @@ struct ActionItemsList: View {
                 Button {
                     item.isDone.toggle()
                     try? context.save()
+                    MeetingsSnapshotPublisher.publishStoreChanges(context: context)
                 } label: {
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")

@@ -11,6 +11,7 @@ struct ContentView: View {
     @AppStorage("appearance") private var appearanceRaw: String = "warm"
 
     @StateObject private var viewModel = BriefingViewModel()
+    @ObservedObject private var meetingsRouter = MeetingsRouter.shared
     @State private var selectedTab: Tab = .brief
     @State private var tabBarIconScales: [Tab: CGFloat] = [:]
     @State private var showShareSheet = false
@@ -109,6 +110,11 @@ struct ContentView: View {
         }
         .fullScreenCover(isPresented: .constant(!hasCompletedOnboarding)) {
             OnboardingView()
+        }
+        .onReceive(meetingsRouter.$pending) { route in
+            // Widget / Live Activity deep links and the Brief card's Record button all land
+            // here; the Meetings home performs the route itself.
+            if route != nil { selectedTab = .meetings }
         }
         .onReceive(NotificationCenter.default.publisher(for: .viewBriefingRequested)) { _ in
             selectedTab = .brief

@@ -1,6 +1,7 @@
 import SwiftUI
 import BackgroundTasks
 import UserNotifications
+import MeetingNotesKit
 
 @main
 struct MorningVaultApp: App {
@@ -47,12 +48,19 @@ struct MorningVaultApp: App {
         // Register BGTaskScheduler for 6:55 AM precomputation
         registerBackgroundTasks()
         schedulePrecomputation()  // Schedule for next 6:55 AM
+
+        // The Live Activity's Stop button performs StopRecordingIntent in this process;
+        // this is the only link from that intent to the recorder.
+        RecordingStopBridge.stopAction = { await ActiveRecordingRegistry.shared.stop() }
     }
 
     // MARK: - Deep Link Handling
 
     private func handleDeepLink(_ url: URL) {
         // DEBUG: print("[MorningVaultApp] Deep link: \(url)")
+        // morningvault://meetings[/record?event=…|/open?id=…] from the Meetings widget and
+        // the recording Live Activity; ContentView switches tabs when the router is set.
+        if MeetingsRouter.shared.handle(url: url) { return }
         if url.scheme == "morningvault" {
             NotificationCenter.default.post(name: .viewBriefingRequested, object: nil)
         }

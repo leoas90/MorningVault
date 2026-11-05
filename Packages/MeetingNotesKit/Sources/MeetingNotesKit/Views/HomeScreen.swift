@@ -23,13 +23,16 @@ struct HomeScreen: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Meeting.startedAt, order: .reverse) private var meetings: [Meeting]
     @StateObject private var calendar = CalendarService()
+    @ObservedObject private var router = MeetingsRouter.shared
+    @AppStorage(MarkdownCopiesSetting.key) private var saveMarkdownCopies = false
     @State private var searchText = ""
     @State private var newMeeting: NewMeetingRequest?
     @State private var showVoiceEnrollment = false
     @State private var now = Date()
+    @State private var path: [UUID] = []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 if isSearching == false, !upcomingEvents.isEmpty {
                     Section {
@@ -65,9 +68,7 @@ struct HomeScreen: View {
                     ForEach(groupedMeetings, id: \.group) { bucket in
                         Section {
                             ForEach(bucket.items) { meeting in
-                                NavigationLink {
-                                    MeetingDetailScreen(meeting: meeting)
-                                } label: {
+                                NavigationLink(value: meeting.id) {
                                     MeetingRow(meeting: meeting)
                                 }
                             }
@@ -83,8 +84,16 @@ struct HomeScreen: View {
             .listStyle(.automatic)
             .navigationTitle("Meetings")
             .inlineTitle()
+            .navigationDestination(for: UUID.self) { meetingID in
+                if let meeting = meetings.first(where: { $0.id == meetingID }) {
+                    MeetingDetailScreen(meeting: meeting)
+                } else {
+                    EmptyStateView(symbol: "waveform.slash", title: "Meeting not found",
+                                   message: "It may have been deleted.")
+                }
+            }
             .searchable(text: $searchText, prompt: "Search titles, notes and transcripts")
-            .refreshable { await calendar.loadToday() }
+            .refreshable { await refresh() }
             .safeAreaInset(edge: .bottom) { newMeetingButton }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -93,6 +102,9 @@ struct HomeScreen: View {
                             showVoiceEnrollment = true
                         } label: {
                             Label("Your voice", systemImage: "person.wave.2")
+                        }
+                        Toggle(isOn: $saveMarkdownCopies) {
+                            Label("Also save Markdown copies", systemImage: "doc.text")
                         }
                     } label: {
                         Label("More", systemImage: "ellipsis.circle")
@@ -113,9 +125,59 @@ struct HomeScreen: View {
                 )
             }
             .task {
-                now = Date()
+                await refresh()
+            }
+            .onReceive(router.$pending) { route in
+                // Emits the current route on appear and each new one (before `pending`
+                // is set, so the value comes from the closure, and clearing waits a turn).
+                guard let route else { return }
+                Task { @MainActor in
+                    router.clear(route)
+                    await perform(route)
+                }
+            }
+            .onChange(of: newMeeting?.id) { _, id in
+                if id == nil { MeetingsSnapshotPublisher.publishStoreChanges(context: context) }
+            }
+        }
+    }
+
+    /// Reloads the calendar and republishes the widget snapshot.
+    private func refresh() async {
+        now = Date()
+        if !ActiveRecordingRegistry.shared.isRecording {
+            // A Live Activity left behind by a crash would otherwise stay on the Lock Screen.
+            RecordingLiveActivity.endAll()
+        }
+        await calendar.loadToday()
+        MeetingsSnapshotPublisher.publish(events: calendar.events, now: now, context: context)
+    }
+
+    /// Runs a route from a deep link or another tab's Record button.
+    private func perform(_ route: MeetingsRoute) async {
+        switch route {
+        case .home:
+            path.removeAll()
+        case .record(let eventID, let title, let attendees):
+            // One recording at a time: a tap while the recorder is up is ignored.
+            guard newMeeting == nil, !ActiveRecordingRegistry.shared.isRecording else { return }
+            path.removeAll()
+            if let eventID, calendar.event(with: eventID) == nil {
                 await calendar.loadToday()
             }
+            guard newMeeting == nil else { return }
+            var request = NewMeetingRequest()
+            if let eventID, let event = calendar.event(with: eventID) {
+                request = NewMeetingRequest(event: event)
+            } else {
+                request.calendarEventID = eventID
+                request.title = title
+                request.attendees = attendees
+            }
+            newMeeting = request
+        case .open(let meetingID):
+            guard meetings.contains(where: { $0.id == meetingID }) else { return }
+            path = [meetingID]
         }
     }
 
@@ -158,16 +220,10 @@ struct HomeScreen: View {
 
     private func delete(_ items: [Meeting]) {
         for meeting in items {
-            MeetingPersistence.deleteRecordings(for: meeting)
-            for item in MeetingPersistence.fetchActionItems(for: meeting.id, context: context) {
-                context.delete(item)
-            }
-            for segment in MeetingPersistence.fetchTranscriptSegments(for: meeting.id, context: context) {
-                context.delete(segment)
-            }
-            context.delete(meeting)
+            MeetingPersistence.delete(meeting, context: context)
         }
         try? context.save()
+        MeetingsSnapshotPublisher.publishStoreChanges(context: context)
     }
 }
 

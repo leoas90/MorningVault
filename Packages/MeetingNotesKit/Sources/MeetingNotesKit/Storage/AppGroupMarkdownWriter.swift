@@ -16,6 +16,39 @@ public enum AppGroupMarkdownWriter {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupIdentifier)
     }
 
+    /// URL of `Meetings/<fileName>` inside the app group, or `nil` without an app group.
+    public static func fileURL(fileName: String) -> URL? {
+        containerURL()?
+            .appendingPathComponent(meetingsFolderName, isDirectory: true)
+            .appendingPathComponent(fileName)
+    }
+
+    /// Removes `Meetings/<fileName>`. Missing files and a missing app group are fine.
+    @discardableResult
+    public static func delete(fileName: String) -> Bool {
+        guard let url = fileURL(fileName: fileName), FileManager.default.fileExists(atPath: url.path) else { return false }
+        return (try? FileManager.default.removeItem(at: url)) != nil
+    }
+
+    /// Renames `Meetings/<fileName>` to `Meetings/<newFileName>`, replacing any file in the way.
+    @discardableResult
+    public static func move(fileName: String, to newFileName: String) -> Bool {
+        guard fileName != newFileName,
+              let source = fileURL(fileName: fileName),
+              let destination = fileURL(fileName: newFileName),
+              FileManager.default.fileExists(atPath: source.path)
+        else { return false }
+        do {
+            if FileManager.default.fileExists(atPath: destination.path) {
+                try FileManager.default.removeItem(at: destination)
+            }
+            try FileManager.default.moveItem(at: source, to: destination)
+            return true
+        } catch {
+            return false
+        }
+    }
+
     /// Writes `markdown` to `Meetings/<fileName>` inside the app group.
     ///
     /// - Returns: `true` when the file was written, `false` when it was skipped.

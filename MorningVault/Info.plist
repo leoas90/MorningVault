@@ -47,6 +47,10 @@
 	<string>MorningVault sends meeting action items to a Reminders list called Meetings.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>MorningVault records your meetings and voice notes. Audio stays on your device.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
+	<false/>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>MorningVault transcribes your meetings and voice notes on this device.</string>
 	<key>UIApplicationSceneManifest</key>

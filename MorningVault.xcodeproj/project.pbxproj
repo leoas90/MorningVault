@@ -12,14 +12,17 @@
 		16CC24DB9272055283A74382 /* OnboardingSymbolsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBA9C338BBD6EFB8CD1B5D46 /* OnboardingSymbolsStep.swift */; };
 		22E2D4B849B0C751DCBD8534 /* MorningSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = F95A4F8D514E38562AD1FEE9 /* MorningSnapshot.swift */; };
 		2527903266B6D07786002005 /* WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96717330575D4D9806610694 /* WeatherService.swift */; };
+		25A6424DE251E8A88F2BE0F5 /* RecordingActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D95BFAC24870DCE7D888CD92 /* RecordingActivityAttributes.swift */; };
 		26DC79A9EFDB558FA6EA8B24 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5D4F604E0DBCADA9DF649363 /* Assets.xcassets */; };
 		2BBB6AA78636386ABA078987 /* UnitsPreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72703070A4EFC1A13BD941D5 /* UnitsPreference.swift */; };
 		2D1A42432DC3AFCC5C16FB54 /* WeatherKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D2A9C53AC93866B046540ED0 /* WeatherKit.framework */; };
 		2E932C7B9F19E3955192EB5B /* CalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACAA8CF9C253BBAB993C7ABC /* CalendarService.swift */; };
 		30FA25455BC3DB5B8E1B6A29 /* TrackedSymbol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6091C9B0146CAF03D736103D /* TrackedSymbol.swift */; };
 		399FF72C653B49862C1EB0F4 /* CacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B0C6160616AE04F2461D038 /* CacheService.swift */; };
+		3AF3BCF7DA10AF91B9E6F653 /* MeetingsDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2FD59B96D01494EBE1A9597 /* MeetingsDeepLink.swift */; };
 		3C2C043C65B846CCF1A2FF59 /* MarketBackendService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1927CFE7F60D2F00E0BDF16B /* MarketBackendService.swift */; };
 		3F8DB020365D28AF69EA085B /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D59A1276B0A66C4F36590B5C /* SwiftUI.framework */; };
+		4827249630311489CE197890 /* RecordingActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D95BFAC24870DCE7D888CD92 /* RecordingActivityAttributes.swift */; };
 		4E8D3AD7F3D51CDB09E3E078 /* VoiceBriefingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E8DEEC9A141B8A080C115ED /* VoiceBriefingService.swift */; };
 		520ECFBA0E405C95975361C9 /* AnimatedComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F43942BE2B4BF54161D7B94 /* AnimatedComponents.swift */; };
 		55631AA0EA78A2EDCB297348 /* BriefingTemplatePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 241BEA956BDB6CFFEC2B09E5 /* BriefingTemplatePickerView.swift */; };
@@ -34,16 +37,21 @@
 		72F435D8CB9ABD73AF04B4D4 /* OnboardingSourcesStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19F0CE7677F525EDF60DDE61 /* OnboardingSourcesStep.swift */; };
 		764BFFE9AF023668F4BC94F8 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 744744A7C6ACBF0C75D72E34 /* PrivacyInfo.xcprivacy */; };
 		791163896D6AEC61A6564A70 /* MarketsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9103CFC9B5596A76F30F951E /* MarketsView.swift */; };
+		7AD5FEE4BB1E4B56F83FE10C /* MeetingsWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAA42C170687186B32811FBE /* MeetingsWidget.swift */; };
 		810F477EAD7AE4E4F37160F9 /* OnboardingNameStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96B21FB97A30B92C5A5FC0D7 /* OnboardingNameStep.swift */; };
 		832AD0715C3DF03018E2DCBA /* MorningVaultApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 998676E916EA24056AE60CA8 /* MorningVaultApp.swift */; };
+		83DCAF4E5BE7C2DF269D55EC /* RecordingLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DB4E3E43D27AB579D38A19F /* RecordingLiveActivityWidget.swift */; };
+		859DC93EAC22D3E1E724A26C /* MeetingsSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF4A646A414F2E800418BFA7 /* MeetingsSnapshot.swift */; };
 		96D3E937B4CB2AF95DFF2920 /* MeetingPrepCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0D4005055984F536F9A3C03 /* MeetingPrepCard.swift */; };
 		9994A34682A8B9FAE5024E49 /* MorningVaultWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7F326B33C09D42D7161B8064 /* MorningVaultWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		9A643DE807D78C3B5A270B31 /* SharedBriefingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA716AFE1B7CFF2B49C066F4 /* SharedBriefingStore.swift */; };
 		A279BFD7446F1715B100AD06 /* SinceYesterdayService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F262638492997BDB559DCA /* SinceYesterdayService.swift */; };
+		A2BFE25D447520BF05FCF662 /* MeetingsDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2FD59B96D01494EBE1A9597 /* MeetingsDeepLink.swift */; };
 		A489201F8F6DA14C54FF5D7C /* BriefingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F951050E0F4C265855B07D /* BriefingIntents.swift */; };
 		ACE91217F54E0DCD16379681 /* UnitsPreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72703070A4EFC1A13BD941D5 /* UnitsPreference.swift */; };
 		AECF485B2044FA53AB0A4C19 /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 428137D842E34AED7DAB8482 /* HealthKitService.swift */; };
 		B281FE55E090E469DAF71AAD /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E53372DCE56D9D3406815A /* ContentView.swift */; };
+		B4D3090E731757CDE3DDA09B /* MeetingsSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF4A646A414F2E800418BFA7 /* MeetingsSnapshot.swift */; };
 		B71AF772C81B372B0E7A75D0 /* BriefingSectionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD35C3FB14B743538182864C /* BriefingSectionCard.swift */; };
 		B92920D395AA2DDE460E11E9 /* Animations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47A4440AD2E04B7D687DCE54 /* Animations.swift */; };
 		BE20DBFD4EE40EF8A0784F43 /* MorningVaultWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48B5B42BD466623AFA77DEC4 /* MorningVaultWidget.swift */; };
@@ -56,7 +64,9 @@
 		DF67CDE0CEF859228EA2EFE1 /* MeetingPrepService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4FAAAF213FBE84FF9276477 /* MeetingPrepService.swift */; };
 		DFED1E3FEBEC6D0F0F35EC04 /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83D59911EA5A72F47B900500 /* AIService.swift */; };
 		E0DC5D42A99B2BB9ACE12257 /* MeetingNotesKit in Frameworks */ = {isa = PBXBuildFile; productRef = 73AD641908E3D7D849FF1C9B /* MeetingNotesKit */; };
+		EC1E4CA31B7C5C9B7F854E2C /* StopRecordingIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC662E3FFC1BD273F4A2D28A /* StopRecordingIntent.swift */; };
 		EF184A54CD920F1B0B6532D8 /* MorningSnapshotCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66CF0FA6E0A29BDFA3A898DC /* MorningSnapshotCard.swift */; };
+		FE86E3F25C8C584926BA51E6 /* StopRecordingIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC662E3FFC1BD273F4A2D28A /* StopRecordingIntent.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -118,16 +128,22 @@
 		96717330575D4D9806610694 /* WeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherService.swift; sourceTree = "<group>"; };
 		96B21FB97A30B92C5A5FC0D7 /* OnboardingNameStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingNameStep.swift; sourceTree = "<group>"; };
 		998676E916EA24056AE60CA8 /* MorningVaultApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningVaultApp.swift; sourceTree = "<group>"; };
+		9DB4E3E43D27AB579D38A19F /* RecordingLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingLiveActivityWidget.swift; sourceTree = "<group>"; };
 		9F43942BE2B4BF54161D7B94 /* AnimatedComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedComponents.swift; sourceTree = "<group>"; };
 		A4FAAAF213FBE84FF9276477 /* MeetingPrepService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingPrepService.swift; sourceTree = "<group>"; };
 		ACAA8CF9C253BBAB993C7ABC /* CalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarService.swift; sourceTree = "<group>"; };
 		AD35C3FB14B743538182864C /* BriefingSectionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingSectionCard.swift; sourceTree = "<group>"; };
 		B5169DF9CE3C7BF70629DCB0 /* NewsSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewsSource.swift; sourceTree = "<group>"; };
 		C26F9E33368D424D3AAEDFBE /* SourcesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourcesView.swift; sourceTree = "<group>"; };
+		CAA42C170687186B32811FBE /* MeetingsWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingsWidget.swift; sourceTree = "<group>"; };
+		CC662E3FFC1BD273F4A2D28A /* StopRecordingIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StopRecordingIntent.swift; sourceTree = "<group>"; };
 		D2A9C53AC93866B046540ED0 /* WeatherKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WeatherKit.framework; path = System/Library/Frameworks/WeatherKit.framework; sourceTree = SDKROOT; };
+		D2FD59B96D01494EBE1A9597 /* MeetingsDeepLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingsDeepLink.swift; sourceTree = "<group>"; };
 		D59A1276B0A66C4F36590B5C /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		D95BFAC24870DCE7D888CD92 /* RecordingActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingActivityAttributes.swift; sourceTree = "<group>"; };
 		DAF1AB9ADD648A1E241B6F52 /* DataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataModels.swift; sourceTree = "<group>"; };
 		DBA9C338BBD6EFB8CD1B5D46 /* OnboardingSymbolsStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSymbolsStep.swift; sourceTree = "<group>"; };
+		DF4A646A414F2E800418BFA7 /* MeetingsSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingsSnapshot.swift; sourceTree = "<group>"; };
 		E0D4005055984F536F9A3C03 /* MeetingPrepCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingPrepCard.swift; sourceTree = "<group>"; };
 		E1F951050E0F4C265855B07D /* BriefingIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingIntents.swift; sourceTree = "<group>"; };
 		E249A63C0B140CBBF820E5C4 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -167,7 +183,11 @@
 		03E855DB005FA049693C8C81 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				D2FD59B96D01494EBE1A9597 /* MeetingsDeepLink.swift */,
+				DF4A646A414F2E800418BFA7 /* MeetingsSnapshot.swift */,
+				D95BFAC24870DCE7D888CD92 /* RecordingActivityAttributes.swift */,
 				FA716AFE1B7CFF2B49C066F4 /* SharedBriefingStore.swift */,
+				CC662E3FFC1BD273F4A2D28A /* StopRecordingIntent.swift */,
 				72703070A4EFC1A13BD941D5 /* UnitsPreference.swift */,
 			);
 			path = Shared;
@@ -263,8 +283,10 @@
 			isa = PBXGroup;
 			children = (
 				EE736702BBE6B0A9F0CED3F9 /* Info.plist */,
+				CAA42C170687186B32811FBE /* MeetingsWidget.swift */,
 				7E6C312545326EA367B78602 /* MorningVaultWidget.entitlements */,
 				48B5B42BD466623AFA77DEC4 /* MorningVaultWidget.swift */,
+				9DB4E3E43D27AB579D38A19F /* RecordingLiveActivityWidget.swift */,
 			);
 			path = MorningVaultWidget;
 			sourceTree = "<group>";
@@ -445,8 +467,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3AF3BCF7DA10AF91B9E6F653 /* MeetingsDeepLink.swift in Sources */,
+				859DC93EAC22D3E1E724A26C /* MeetingsSnapshot.swift in Sources */,
+				7AD5FEE4BB1E4B56F83FE10C /* MeetingsWidget.swift in Sources */,
 				BE20DBFD4EE40EF8A0784F43 /* MorningVaultWidget.swift in Sources */,
+				25A6424DE251E8A88F2BE0F5 /* RecordingActivityAttributes.swift in Sources */,
+				83DCAF4E5BE7C2DF269D55EC /* RecordingLiveActivityWidget.swift in Sources */,
 				64214E069C4D5EB46047A03F /* SharedBriefingStore.swift in Sources */,
+				EC1E4CA31B7C5C9B7F854E2C /* StopRecordingIntent.swift in Sources */,
 				2BBB6AA78636386ABA078987 /* UnitsPreference.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -474,6 +502,8 @@
 				DC829F929772EF1FCA6B304A /* MeetingPrep.swift in Sources */,
 				96D3E937B4CB2AF95DFF2920 /* MeetingPrepCard.swift in Sources */,
 				DF67CDE0CEF859228EA2EFE1 /* MeetingPrepService.swift in Sources */,
+				A2BFE25D447520BF05FCF662 /* MeetingsDeepLink.swift in Sources */,
+				B4D3090E731757CDE3DDA09B /* MeetingsSnapshot.swift in Sources */,
 				22E2D4B849B0C751DCBD8534 /* MorningSnapshot.swift in Sources */,
 				EF184A54CD920F1B0B6532D8 /* MorningSnapshotCard.swift in Sources */,
 				832AD0715C3DF03018E2DCBA /* MorningVaultApp.swift in Sources */,
@@ -484,10 +514,12 @@
 				5C3D1A0FB5E4798557684B3E /* OnboardingView.swift in Sources */,
 				D31AE5982032296E4EBDDE78 /* PrivacyPolicyView.swift in Sources */,
 				707FF8CF0AFCADBDE4CA147A /* RSSService.swift in Sources */,
+				4827249630311489CE197890 /* RecordingActivityAttributes.swift in Sources */,
 				0EEB81CEA1E301A373890122 /* SettingsView.swift in Sources */,
 				9A643DE807D78C3B5A270B31 /* SharedBriefingStore.swift in Sources */,
 				A279BFD7446F1715B100AD06 /* SinceYesterdayService.swift in Sources */,
 				72A4B6CD4EEAF78D67B2A1FE /* SourcesView.swift in Sources */,
+				FE86E3F25C8C584926BA51E6 /* StopRecordingIntent.swift in Sources */,
 				30FA25455BC3DB5B8E1B6A29 /* TrackedSymbol.swift in Sources */,
 				ACE91217F54E0DCD16379681 /* UnitsPreference.swift in Sources */,
 				4E8D3AD7F3D51CDB09E3E078 /* VoiceBriefingService.swift in Sources */,

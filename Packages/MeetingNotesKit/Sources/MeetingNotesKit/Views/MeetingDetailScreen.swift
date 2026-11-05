@@ -88,7 +88,11 @@ struct MeetingDetailScreen: View {
             Text(reminders.message ?? infoMessage ?? "")
         }
         .onChange(of: meeting.scratchpad) { _, _ in try? context.save() }
-        .onChange(of: meeting.title) { _, _ in try? context.save() }
+        .onChange(of: meeting.title) { oldTitle, _ in
+            try? context.save()
+            MeetingPersistence.appGroupCopyRetitled(meeting, from: oldTitle)
+            MeetingsSnapshotPublisher.publishStoreChanges(context: context)
+        }
         .onDisappear { playback.stop() }
     }
 
@@ -195,10 +199,13 @@ struct MeetingDetailScreen: View {
             MeetingPersistence.update(meeting: meeting, summary: result, context: context)
             MeetingPersistence.replaceActionItems(of: meeting, with: result.actionItems, context: context)
             if meeting.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !result.title.isEmpty {
+                let oldTitle = meeting.title
                 meeting.title = result.title
+                MeetingPersistence.appGroupCopyRetitled(meeting, from: oldTitle)
             }
             try? context.save()
             MeetingPersistence.writeToAppGroup(for: meeting, context: context)
+            MeetingsSnapshotPublisher.publishStoreChanges(context: context)
             notesMode = .enhanced
         }
     }

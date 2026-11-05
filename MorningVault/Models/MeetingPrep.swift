@@ -10,6 +10,8 @@ struct MeetingPrep: Codable {
     var talkingPoints: [String]
     var yourPastPositions: [String]
     var isExpanded: Bool = false
+    /// EventKit identifier of the event, so a recording can be filed under it.
+    var calendarEventID: String? = nil
 
     var timeUntilMeeting: TimeInterval {
         startTime.timeIntervalSinceNow

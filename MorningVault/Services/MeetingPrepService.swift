@@ -38,7 +38,8 @@ final class MeetingPrepService {
                 attendees: attendees,
                 agenda: firstEvent.notes,
                 talkingPoints: [],
-                yourPastPositions: pastPositions
+                yourPastPositions: pastPositions,
+                calendarEventID: firstEvent.id
             )
         }
 
@@ -58,7 +59,8 @@ final class MeetingPrepService {
             attendees: attendees,
             agenda: firstEvent.notes,
             talkingPoints: talkingPoints,
-            yourPastPositions: pastPositions
+            yourPastPositions: pastPositions,
+            calendarEventID: firstEvent.id
         )
 
         // Persist for display
