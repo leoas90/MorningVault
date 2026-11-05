@@ -21,6 +21,9 @@ public final class Meeting {
     public var calendarEventID: String?
     public var attendeeNames: [String] = []
     public var createdAt: Date = Date()
+    /// JSON array of `SpeakerLabel`: the speakers found by diarization, their
+    /// names and voice centroids. `nil` until speakers were identified.
+    public var speakerLabelsJSON: String?
 
     public init(
         id: UUID = UUID(),
@@ -34,8 +37,10 @@ public final class Meeting {
         audioFileName: String? = nil,
         calendarEventID: String? = nil,
         attendeeNames: [String] = [],
-        createdAt: Date = Date()
+        createdAt: Date = Date(),
+        speakerLabelsJSON: String? = nil
     ) {
+        self.speakerLabelsJSON = speakerLabelsJSON
         self.id = id
         self.title = title
         self.startedAt = startedAt
@@ -68,6 +73,8 @@ public final class TranscriptSegment {
     public var startTime: TimeInterval = 0
     public var endTime: TimeInterval = 0
     public var isFinal: Bool = true
+    /// Key of the speaker (from `Meeting.speakerLabels`) who said this, when known.
+    public var speakerKey: String?
 
     public init(
         id: UUID = UUID(),
@@ -76,8 +83,10 @@ public final class TranscriptSegment {
         text: String = "",
         startTime: TimeInterval = 0,
         endTime: TimeInterval = 0,
-        isFinal: Bool = true
+        isFinal: Bool = true,
+        speakerKey: String? = nil
     ) {
+        self.speakerKey = speakerKey
         self.id = id
         self.meetingID = meetingID
         self.index = index

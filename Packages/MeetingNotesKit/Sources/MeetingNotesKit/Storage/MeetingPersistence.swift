@@ -65,6 +65,113 @@ public enum MeetingPersistence {
         return (try? context.fetch(descriptor)) ?? []
     }
 
+    // MARK: - Transcript segments and speakers
+
+    /// Replaces the timed transcript of a meeting.
+    public static func replaceTranscriptPieces(
+        of meeting: Meeting,
+        with pieces: [TranscriptPiece],
+        speakerKeys: [String?] = [],
+        context: ModelContext
+    ) {
+        for segment in fetchTranscriptSegments(for: meeting.id, context: context) {
+            context.delete(segment)
+        }
+        for (index, piece) in pieces.enumerated() {
+            let record = TranscriptSegment(
+                meetingID: meeting.id,
+                index: index,
+                text: piece.text,
+                startTime: piece.start,
+                endTime: piece.end,
+                speakerKey: index < speakerKeys.count ? speakerKeys[index] : nil
+            )
+            context.insert(record)
+        }
+        try? context.save()
+    }
+
+    /// Timed transcript of a meeting, in order.
+    public static func fetchTranscriptSegments(for meetingID: UUID, context: ModelContext) -> [TranscriptSegment] {
+        let descriptor = FetchDescriptor<TranscriptSegment>(
+            predicate: #Predicate { $0.meetingID == meetingID },
+            sortBy: [SortDescriptor(\TranscriptSegment.index)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    /// Stores who said what: the speaker of every segment and the speaker labels.
+    public static func applySpeakers(
+        _ identification: SpeakerIdentification,
+        to meeting: Meeting,
+        context: ModelContext
+    ) {
+        let segments = fetchTranscriptSegments(for: meeting.id, context: context)
+        let pieces = segments.map { TranscriptPiece(text: $0.text, start: $0.startTime, end: $0.endTime) }
+        let keys = SpeakerAssignment.assign(pieces: pieces, to: identification.turns)
+        for (segment, key) in zip(segments, keys) {
+            segment.speakerKey = key
+        }
+        meeting.speakerLabels = identification.labels
+        try? context.save()
+    }
+
+    /// Renames a speaker. Renaming to "You" teaches the voice profile when the
+    /// user allowed that, and takes the name away from any other "You".
+    public static func renameSpeaker(key: String, to newName: String, in meeting: Meeting, context: ModelContext) {
+        let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        var labels = meeting.speakerLabels
+        guard let index = labels.firstIndex(where: { $0.key == key }) else { return }
+        let becomesYou = name.caseInsensitiveCompare(SpeakerLabel.youName) == .orderedSame
+        if becomesYou {
+            var number = 1
+            for other in labels.indices where other != index && labels[other].isYou {
+                labels[other].name = "Speaker \(number)"
+                number += 1
+            }
+            if !labels[index].isYou {
+                VoiceProfileStore.learn(from: labels[index].centroid)
+            }
+        }
+        labels[index].name = becomesYou ? SpeakerLabel.youName : name
+        meeting.speakerLabels = labels
+        try? context.save()
+    }
+
+    /// The transcript with speaker names, as `[Name] text` lines. Falls back to
+    /// the plain transcript when speakers are not known.
+    public static func labelledTranscript(for meeting: Meeting, context: ModelContext) -> String {
+        let segments = fetchTranscriptSegments(for: meeting.id, context: context)
+        guard !segments.isEmpty, segments.contains(where: { $0.speakerKey != nil }) else {
+            return meeting.transcript
+        }
+        let pieces = segments.map { TranscriptPiece(text: $0.text, start: $0.startTime, end: $0.endTime) }
+        let labels = meeting.speakerLabels
+        return SpeakerAssignment.labelledTranscript(
+            pieces: pieces,
+            keys: segments.map(\.speakerKey),
+            names: { key in labels.first { $0.key == key }?.name }
+        )
+    }
+
+    /// The transcript the way exports show it: `**Name:** text` paragraphs
+    /// when speakers are known, plain text otherwise.
+    public static func exportTranscript(for meeting: Meeting, context: ModelContext) -> String {
+        let segments = fetchTranscriptSegments(for: meeting.id, context: context)
+        guard !segments.isEmpty, segments.contains(where: { $0.speakerKey != nil }) else {
+            return meeting.transcript
+        }
+        let pieces = segments.map { TranscriptPiece(text: $0.text, start: $0.startTime, end: $0.endTime) }
+        let labels = meeting.speakerLabels
+        let turns = SpeakerAssignment.turns(
+            from: pieces,
+            keys: segments.map(\.speakerKey),
+            names: { key in labels.first { $0.key == key }?.name }
+        )
+        return turns.map { "**\($0.name ?? "Unknown"):** \($0.text)" }.joined(separator: "\n\n")
+    }
+
     /// Builds the Markdown document of a meeting.
     public static func markdown(for meeting: Meeting, context: ModelContext) -> String {
         let items = fetchActionItems(for: meeting.id, context: context)
@@ -75,7 +182,7 @@ public enum MeetingPersistence {
             attendees: meeting.attendeeNames,
             summary: summary(of: meeting),
             scratchpad: meeting.scratchpad,
-            transcript: meeting.transcript,
+            transcript: exportTranscript(for: meeting, context: context),
             actionItems: items.map { item in
                 ActionItem(text: item.text, owner: item.owner, due: item.due.map { DueFormatter.string(from: $0) })
             }

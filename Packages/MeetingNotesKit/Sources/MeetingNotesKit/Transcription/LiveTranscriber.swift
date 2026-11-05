@@ -25,6 +25,9 @@ public final class LiveTranscriber: ObservableObject {
     /// Called on the main actor whenever the transcript changes, with the
     /// finalised text first and the part that may still change second.
     public var onUpdate: (@MainActor @Sendable (String, String) -> Void)?
+    /// Called on the main actor for every finalised piece of speech with its
+    /// position in the recording, so speakers can be matched to it later.
+    public var onPiece: (@MainActor @Sendable (TranscriptPiece) -> Void)?
 
     private var transcriber: SpeechTranscriber?
     private var analyzer: SpeechAnalyzer?
@@ -214,6 +217,13 @@ public final class LiveTranscriber: ObservableObject {
                 finalText = piece
             } else {
                 finalText += " " + piece
+            }
+            if range.start.isNumeric, range.end.isNumeric {
+                onPiece?(TranscriptPiece(
+                    text: piece,
+                    start: CMTimeGetSeconds(range.start),
+                    end: CMTimeGetSeconds(range.end)
+                ))
             }
         }
         onUpdate?(finalText, volatileText)

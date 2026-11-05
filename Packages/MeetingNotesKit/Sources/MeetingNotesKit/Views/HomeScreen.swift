@@ -25,6 +25,7 @@ struct HomeScreen: View {
     @StateObject private var calendar = CalendarService()
     @State private var searchText = ""
     @State private var newMeeting: NewMeetingRequest?
+    @State private var showVoiceEnrollment = false
     @State private var now = Date()
 
     var body: some View {
@@ -84,6 +85,23 @@ struct HomeScreen: View {
             .searchable(text: $searchText, prompt: "Search titles, notes and transcripts")
             .refreshable { await calendar.loadToday() }
             .safeAreaInset(edge: .bottom) { newMeetingButton }
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Button {
+                            showVoiceEnrollment = true
+                        } label: {
+                            Label("Your voice", systemImage: "person.wave.2")
+                        }
+                    } label: {
+                        Label("More", systemImage: "ellipsis.circle")
+                    }
+                    .accessibilityLabel("More actions")
+                }
+            }
+            .sheet(isPresented: $showVoiceEnrollment) {
+                VoiceEnrollmentScreen()
+            }
             .sheet(item: $newMeeting) { request in
                 MeetingScreen(
                     initialTitle: request.title,
@@ -142,6 +160,9 @@ struct HomeScreen: View {
             MeetingPersistence.deleteRecordings(for: meeting)
             for item in MeetingPersistence.fetchActionItems(for: meeting.id, context: context) {
                 context.delete(item)
+            }
+            for segment in MeetingPersistence.fetchTranscriptSegments(for: meeting.id, context: context) {
+                context.delete(segment)
             }
             context.delete(meeting)
         }

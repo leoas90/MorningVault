@@ -11,6 +11,7 @@ struct MeetingDetailScreen: View {
     @State private var notesMode: NotesMode = .enhanced
     @State private var showTranscript = false
     @State private var infoMessage: String?
+    @State private var speakerTurns: [SpokenTurn] = []
     @FocusState private var notesFocused: Bool
 
     var body: some View {
@@ -65,8 +66,19 @@ struct MeetingDetailScreen: View {
         }
         .toolbar { toolbarContent }
         .sheet(isPresented: $showTranscript) {
-            TranscriptSheet(finalText: meeting.transcript, volatileText: "", isLive: false)
+            TranscriptSheet(
+                finalText: meeting.transcript,
+                volatileText: "",
+                isLive: false,
+                turns: speakerTurns,
+                onRename: { key, name in
+                    MeetingPersistence.renameSpeaker(key: key, to: name, in: meeting, context: context)
+                    loadSpeakerTurns()
+                    MeetingPersistence.writeToAppGroup(for: meeting, context: context)
+                }
+            )
         }
+        .onAppear { loadSpeakerTurns() }
         .alert("Reminders", isPresented: Binding(
             get: { reminders.message != nil || infoMessage != nil },
             set: { if !$0 { reminders.message = nil; infoMessage = nil } }
@@ -82,6 +94,16 @@ struct MeetingDetailScreen: View {
 
     private var summary: MeetingSummary? {
         MeetingPersistence.summary(of: meeting)
+    }
+
+    private func loadSpeakerTurns() {
+        let segments = MeetingPersistence.fetchTranscriptSegments(for: meeting.id, context: context)
+        let labels = meeting.speakerLabels
+        speakerTurns = SpeakerAssignment.turns(
+            from: segments.map { TranscriptPiece(text: $0.text, start: $0.startTime, end: $0.endTime) },
+            keys: segments.map(\.speakerKey),
+            names: { key in labels.first { $0.key == key }?.name }
+        )
     }
 
     private var bottomBar: some View {
@@ -167,7 +189,8 @@ struct MeetingDetailScreen: View {
 
     private func enhance() async {
         try? context.save()
-        await summarizer.summarize(transcript: meeting.transcript, scratchpad: meeting.scratchpad, title: meeting.title)
+        let material = MeetingPersistence.labelledTranscript(for: meeting, context: context)
+        await summarizer.summarize(transcript: material, scratchpad: meeting.scratchpad, title: meeting.title)
         if case .finished(let result) = summarizer.state {
             MeetingPersistence.update(meeting: meeting, summary: result, context: context)
             MeetingPersistence.replaceActionItems(of: meeting, with: result.actionItems, context: context)

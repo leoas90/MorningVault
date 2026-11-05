@@ -34,12 +34,33 @@ public enum FileTranscriptionService {
         }
     }
 
+    /// What file transcription produces: the text and its timed pieces.
+    public struct Result: Sendable {
+        public var text: String
+        public var pieces: [TranscriptPiece]
+
+        public init(text: String, pieces: [TranscriptPiece]) {
+            self.text = text
+            self.pieces = pieces
+        }
+    }
+
     /// Transcribes the recording at `fileURL` and returns the full text.
     public static func transcribe(
         fileURL: URL,
         locale: Locale = Locale.current,
         chunkDuration: TimeInterval = 60
     ) async throws -> String {
+        try await transcribeWithTiming(fileURL: fileURL, locale: locale, chunkDuration: chunkDuration).text
+    }
+
+    /// Transcribes the recording at `fileURL` and keeps where each piece sits
+    /// in the recording.
+    public static func transcribeWithTiming(
+        fileURL: URL,
+        locale: Locale = Locale.current,
+        chunkDuration: TimeInterval = 60
+    ) async throws -> Result {
         guard await isAuthorized() else { throw Failure.notAuthorized }
         guard let recognizer = SFSpeechRecognizer(locale: locale), recognizer.isAvailable else {
             throw Failure.recognizerUnavailable
@@ -49,27 +70,71 @@ public enum FileTranscriptionService {
         let buffers = try readBuffers(from: fileURL)
         guard !buffers.isEmpty else { throw Failure.unreadableFile("the recording is empty") }
 
-        var pieces: [String] = []
+        var texts: [String] = []
+        var pieces: [TranscriptPiece] = []
         var chunk: [AVAudioPCMBuffer] = []
         var chunkSeconds: TimeInterval = 0
+        var chunkStart: TimeInterval = 0
+        var elapsed: TimeInterval = 0
 
         for buffer in buffers {
             chunk.append(buffer)
             chunkSeconds += buffer.durationSeconds
+            elapsed += buffer.durationSeconds
             if chunkSeconds >= chunkDuration {
-                let text = try await recognize(buffers: chunk, recognizer: recognizer)
-                if !text.isEmpty { pieces.append(text) }
+                let recognized = try await recognize(buffers: chunk, recognizer: recognizer, offset: chunkStart)
+                if !recognized.text.isEmpty { texts.append(recognized.text) }
+                pieces.append(contentsOf: recognized.pieces)
                 chunk.removeAll(keepingCapacity: true)
                 chunkSeconds = 0
+                chunkStart = elapsed
             }
         }
 
         if !chunk.isEmpty {
-            let text = try await recognize(buffers: chunk, recognizer: recognizer)
-            if !text.isEmpty { pieces.append(text) }
+            let recognized = try await recognize(buffers: chunk, recognizer: recognizer, offset: chunkStart)
+            if !recognized.text.isEmpty { texts.append(recognized.text) }
+            pieces.append(contentsOf: recognized.pieces)
         }
 
-        return pieces.joined(separator: "\n")
+        return Result(text: texts.joined(separator: "\n"), pieces: pieces)
+    }
+
+    /// Groups recognised words into pieces: a new piece starts after a pause
+    /// longer than `pause` seconds or once `maxWords` words are in it.
+    static func pieces(
+        from words: [(text: String, start: TimeInterval, duration: TimeInterval)],
+        offset: TimeInterval,
+        pause: TimeInterval = 0.8,
+        maxWords: Int = 24
+    ) -> [TranscriptPiece] {
+        var result: [TranscriptPiece] = []
+        var current: [String] = []
+        var currentStart: TimeInterval = 0
+        var currentEnd: TimeInterval = 0
+
+        func close() {
+            guard !current.isEmpty else { return }
+            result.append(TranscriptPiece(
+                text: current.joined(separator: " "),
+                start: currentStart + offset,
+                end: currentEnd + offset
+            ))
+            current = []
+        }
+
+        for word in words {
+            let text = word.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { continue }
+            if !current.isEmpty, word.start - currentEnd > pause || current.count >= maxWords {
+                close()
+            }
+            if current.isEmpty { currentStart = word.start }
+            current.append(text)
+            currentEnd = max(currentEnd, word.start + word.duration)
+        }
+        close()
+        return result
     }
 
     /// Asks for speech recognition permission when it has not been decided yet.
@@ -182,14 +247,18 @@ public enum FileTranscriptionService {
         return [output]
     }
 
-    private static func recognize(buffers: [AVAudioPCMBuffer], recognizer: SFSpeechRecognizer) async throws -> String {
+    private static func recognize(
+        buffers: [AVAudioPCMBuffer],
+        recognizer: SFSpeechRecognizer,
+        offset: TimeInterval
+    ) async throws -> Result {
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = false
         request.requiresOnDeviceRecognition = true
         request.addsPunctuation = true
         request.taskHint = .dictation
 
-        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Result, Error>) in
             var settled = false
             var task: SFSpeechRecognitionTask?
             task = recognizer.recognitionTask(with: request) { result, error in
@@ -203,7 +272,15 @@ public enum FileTranscriptionService {
                 if let result, result.isFinal {
                     settled = true
                     task?.cancel()
-                    continuation.resume(returning: result.bestTranscription.formattedString)
+                    let transcription = result.bestTranscription
+                    let words = transcription.segments.map { segment in
+                        (text: segment.substring, start: segment.timestamp, duration: segment.duration)
+                    }
+                    var pieces = Self.pieces(from: words, offset: offset)
+                    if pieces.isEmpty, !transcription.formattedString.isEmpty {
+                        pieces = [TranscriptPiece(text: transcription.formattedString, start: offset, end: offset)]
+                    }
+                    continuation.resume(returning: Result(text: transcription.formattedString, pieces: pieces))
                 }
             }
             for buffer in buffers {

@@ -226,12 +226,21 @@ struct BulletRow: View {
 }
 
 /// The transcript, shown in a sheet so the notes page stays clean.
+///
+/// Once speakers are known the text is shown as "Name: text" turns; tapping a
+/// name renames that speaker everywhere in the meeting.
 struct TranscriptSheet: View {
     @Environment(\.dismiss) private var dismiss
     let finalText: String
     let volatileText: String
     let isLive: Bool
     var isWorking = false
+    /// Turns with speaker names. Empty until diarization finished.
+    var turns: [SpokenTurn] = []
+    var isIdentifyingSpeakers = false
+    var speakerBanner: String?
+    /// Called with the speaker key and the new name.
+    var onRename: ((String, String) -> Void)?
 
     var body: some View {
         NavigationStack {
@@ -245,7 +254,20 @@ struct TranscriptSheet: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    if finalText.isEmpty && volatileText.isEmpty {
+                    if isIdentifyingSpeakers {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text("Identifying speakers…")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    if let speakerBanner {
+                        Text(speakerBanner)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    if finalText.isEmpty && volatileText.isEmpty && turns.isEmpty {
                         if !isWorking {
                             EmptyStateView(
                                 symbol: "text.alignleft",
@@ -255,6 +277,8 @@ struct TranscriptSheet: View {
                                     : "Nothing was recognised for this meeting."
                             )
                         }
+                    } else if hasSpeakers {
+                        SpeakerTurnsView(turns: turns, onRename: onRename)
                     } else {
                         Text("\(finalText)\(Text(volatileText.isEmpty ? "" : " " + volatileText).foregroundStyle(.secondary))")
                             .font(.body)
@@ -274,5 +298,65 @@ struct TranscriptSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+    }
+
+    private var hasSpeakers: Bool {
+        !isLive && turns.contains { $0.name != nil }
+    }
+}
+
+/// "Name: text" blocks, one per turn, with tap-to-rename on the name.
+struct SpeakerTurnsView: View {
+    let turns: [SpokenTurn]
+    var onRename: ((String, String) -> Void)?
+    @State private var renaming: SpokenTurn?
+    @State private var newName = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            ForEach(turns) { turn in
+                VStack(alignment: .leading, spacing: 3) {
+                    if let key = turn.speakerKey, onRename != nil {
+                        Button {
+                            newName = turn.name ?? ""
+                            renaming = turn
+                        } label: {
+                            Label(turn.name ?? "Unknown", systemImage: "person.fill")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(turn.name == SpeakerLabel.youName ? Color.accentColor : Color.primary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Speaker \(turn.name ?? "Unknown")")
+                        .accessibilityHint("Double tap to rename")
+                        .accessibilityIdentifier("rename-\(key)")
+                    } else {
+                        Label(turn.name ?? "Unknown", systemImage: "person.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(turn.text)
+                        .font(.body)
+                        .textSelection(.enabled)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .alert("Rename speaker", isPresented: Binding(
+            get: { renaming != nil },
+            set: { if !$0 { renaming = nil } }
+        ), presenting: renaming) { turn in
+            TextField("Name", text: $newName)
+            Button("Rename") {
+                if let key = turn.speakerKey { onRename?(key, newName) }
+                renaming = nil
+            }
+            Button("This is me") {
+                if let key = turn.speakerKey { onRename?(key, SpeakerLabel.youName) }
+                renaming = nil
+            }
+            Button("Cancel", role: .cancel) { renaming = nil }
+        } message: { _ in
+            Text("The name is used for every turn of this speaker in this meeting. “This is me” labels the speaker as You.")
+        }
     }
 }

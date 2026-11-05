@@ -98,7 +98,11 @@ struct MeetingScreen: View {
                 finalText: session.finalTranscript,
                 volatileText: session.volatileTranscript,
                 isLive: session.isRecording,
-                isWorking: session.isTranscribingFile
+                isWorking: session.isTranscribingFile,
+                turns: session.speakerTurns,
+                isIdentifyingSpeakers: session.isIdentifyingSpeakers,
+                speakerBanner: session.speakerBanner,
+                onRename: { key, name in session.renameSpeaker(key: key, to: name, context: context) }
             )
         }
         .confirmationDialog("Discard this recording?", isPresented: $confirmDiscard, titleVisibility: .visible) {
@@ -174,6 +178,17 @@ struct MeetingScreen: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+        }
+        if session.isIdentifyingSpeakers {
+            HStack(spacing: 8) {
+                ProgressView()
+                Text("Identifying speakers…")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .accessibilityElement(children: .combine)
+        } else if let speakerBanner = session.speakerBanner {
+            BannerView(message: speakerBanner, symbol: "person.2.slash")
         }
     }
 

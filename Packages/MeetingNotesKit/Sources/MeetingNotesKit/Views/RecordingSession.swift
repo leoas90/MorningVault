@@ -40,6 +40,14 @@ public final class RecordingSession: ObservableObject {
     @Published public private(set) var summaryState: MeetingSummarizer.State = .idle
     /// True while the saved file is being transcribed after Stop.
     @Published public private(set) var isTranscribingFile = false
+    /// True while speakers are being told apart after Stop.
+    @Published public private(set) var isIdentifyingSpeakers = false
+    /// Why speakers could not be identified, when they could not.
+    @Published public private(set) var speakerBanner: String?
+    /// Speakers found in the recording, with their names.
+    @Published public private(set) var speakerLabels: [SpeakerLabel] = []
+    /// Who said what, one entry per finalised transcript piece.
+    @Published public private(set) var speakerTurns: [SpokenTurn] = []
     /// Identifier of the meeting that was saved.
     @Published public private(set) var meetingID: UUID?
     /// People taking part.
@@ -56,6 +64,9 @@ public final class RecordingSession: ObservableObject {
     private var liveTranscriptionWorked = false
     private var speechAuthorized = false
     private var liveStartTask: Task<Void, Never>?
+    private var speakerTask: Task<Void, Never>?
+    /// Finalised transcript pieces with their place in the recording.
+    private var pieces: [TranscriptPiece] = []
 
     public init() {
         recorder.onChunk = { [weak self] chunk in
@@ -81,6 +92,9 @@ public final class RecordingSession: ObservableObject {
             self.volatileTranscript = volatile
             self.transcript = Self.join(final: final, volatile: volatile)
         }
+        transcriber.onPiece = { [weak self] piece in
+            self?.pieces.append(piece)
+        }
     }
 
     /// True while the microphone is running.
@@ -105,6 +119,13 @@ public final class RecordingSession: ObservableObject {
         finalTranscript = ""
         volatileTranscript = ""
         transcriber.reset()
+        pieces = []
+        speakerTask?.cancel()
+        speakerTask = nil
+        isIdentifyingSpeakers = false
+        speakerBanner = nil
+        speakerLabels = []
+        speakerTurns = []
         levelHistory = []
         elapsed = 0
         scratchpad = ""
@@ -187,8 +208,26 @@ public final class RecordingSession: ObservableObject {
             try? context.save()
         } else if liveText.isEmpty, !speechAuthorized {
             banner = "Speech recognition is off in Settings, so this meeting has no transcript."
+        } else if !liveText.isEmpty, pieces.isEmpty {
+            // Live transcription without timing: keep the text as one piece so
+            // the transcript sheet and exports still have something to show.
+            pieces = [TranscriptPiece(text: liveText, start: 0, end: duration)]
         }
+        MeetingPersistence.replaceTranscriptPieces(of: meeting, with: pieces, context: context)
+        refreshSpeakerTurns(meeting: meeting, context: context)
 
+        MeetingPersistence.writeToAppGroup(for: meeting, context: context)
+
+        if !pieces.isEmpty, let url = recorder.recordingURL, duration > 1 {
+            startSpeakerIdentification(meetingID: meeting.id, url: url, context: context)
+        }
+    }
+
+    /// Renames a speaker of the saved meeting.
+    public func renameSpeaker(key: String, to name: String, context: ModelContext) {
+        guard let meetingID, let meeting = fetchMeeting(meetingID, context: context) else { return }
+        MeetingPersistence.renameSpeaker(key: key, to: name, in: meeting, context: context)
+        refreshSpeakerTurns(meeting: meeting, context: context)
         MeetingPersistence.writeToAppGroup(for: meeting, context: context)
     }
 
@@ -196,6 +235,12 @@ public final class RecordingSession: ObservableObject {
     public func cancel() async {
         liveStartTask?.cancel()
         liveStartTask = nil
+        speakerTask?.cancel()
+        speakerTask = nil
+        isIdentifyingSpeakers = false
+        speakerLabels = []
+        speakerTurns = []
+        pieces = []
         await recorder.cancel()
         await transcriber.stop()
         phase = .idle
@@ -230,7 +275,8 @@ public final class RecordingSession: ObservableObject {
         guard let meetingID, let meeting = fetchMeeting(meetingID, context: context) else { return }
         persistEdits(context: context)
         summaryState = .working
-        await summarizer.summarize(transcript: meeting.transcript, scratchpad: scratchpad, title: meeting.title)
+        let material = MeetingPersistence.labelledTranscript(for: meeting, context: context)
+        await summarizer.summarize(transcript: material, scratchpad: scratchpad, title: meeting.title)
         switch summarizer.state {
         case .finished(let result):
             summary = result
@@ -284,15 +330,70 @@ public final class RecordingSession: ObservableObject {
         isTranscribingFile = true
         defer { isTranscribingFile = false }
         do {
-            let text = try await FileTranscriptionService.transcribe(fileURL: url)
-            if !text.isEmpty {
-                finalTranscript = text
+            let result = try await FileTranscriptionService.transcribeWithTiming(fileURL: url)
+            if !result.text.isEmpty {
+                finalTranscript = result.text
                 volatileTranscript = ""
-                transcript = text
+                transcript = result.text
+                pieces = result.pieces
             }
         } catch {
             banner = "The recording could not be transcribed: \(error.localizedDescription)"
         }
+    }
+
+    /// Runs diarization off the main actor and files the result when it lands.
+    ///
+    /// The notes stay usable meanwhile; a failure only leaves the transcript
+    /// without names and explains why in `speakerBanner`.
+    private func startSpeakerIdentification(meetingID: UUID, url: URL, context: ModelContext) {
+        speakerTask?.cancel()
+        guard SpeakerDiarizer.isAvailable else {
+            speakerBanner = "Speaker identification is not available in this build."
+            return
+        }
+        isIdentifyingSpeakers = true
+        speakerBanner = nil
+        let profile = VoiceProfileStore.load()
+        speakerTask = Task { @MainActor [weak self] in
+            let outcome: Result<SpeakerIdentification, Error> = await Task.detached(priority: .utility) {
+                do {
+                    var found = try await SpeakerDiarizer.shared.diarize(fileURL: url)
+                    let youKey = profile.flatMap { SpeakerAssignment.bestMatch(among: found.labels, enrolled: $0.embedding) }
+                    let names = SpeakerAssignment.defaultNames(for: found.labels.map(\.key), youKey: youKey)
+                    found.labels = found.labels.map { label in
+                        var copy = label
+                        copy.name = names[label.key] ?? label.name
+                        return copy
+                    }
+                    return .success(found)
+                } catch {
+                    return .failure(error)
+                }
+            }.value
+            guard let self, !Task.isCancelled else { return }
+            self.isIdentifyingSpeakers = false
+            guard let meeting = self.fetchMeeting(meetingID, context: context) else { return }
+            switch outcome {
+            case .success(let identification):
+                MeetingPersistence.applySpeakers(identification, to: meeting, context: context)
+                self.refreshSpeakerTurns(meeting: meeting, context: context)
+                MeetingPersistence.writeToAppGroup(for: meeting, context: context)
+            case .failure(let error):
+                self.speakerBanner = "Speakers could not be identified: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    private func refreshSpeakerTurns(meeting: Meeting, context: ModelContext) {
+        speakerLabels = meeting.speakerLabels
+        let segments = MeetingPersistence.fetchTranscriptSegments(for: meeting.id, context: context)
+        let labels = speakerLabels
+        speakerTurns = SpeakerAssignment.turns(
+            from: segments.map { TranscriptPiece(text: $0.text, start: $0.startTime, end: $0.endTime) },
+            keys: segments.map(\.speakerKey),
+            names: { key in labels.first { $0.key == key }?.name }
+        )
     }
 
     private static func join(final: String, volatile: String) -> String {

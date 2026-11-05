@@ -21,7 +21,13 @@ public final class MeetingSummarizer: ObservableObject {
     You are a precise meeting scribe. You turn raw transcripts into short, \
     factual notes. Never invent facts that are not in the material you are given. \
     If the user's own notes mention something, treat those notes as the most \
-    reliable source and prefer them over the transcript.
+    reliable source and prefer them over the transcript. \
+    Transcript lines may start with the speaker in square brackets, for example \
+    `[You] I'll send the deck` or `[Speaker 2] Can we ship Friday?`. "You" is the \
+    person whose notes these are. Use these labels to set the owner of each \
+    action item: write "You" when the user took it on, otherwise the speaker's \
+    name or the person the speaker assigned it to. Leave the owner empty when \
+    it is not clear.
     """
 
     /// Produces a summary for the given material.
