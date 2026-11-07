@@ -399,6 +399,10 @@ struct BriefTabView: View {
             .onChange(of: weatherEnabled) { _, _ in
                 Task { await viewModel.loadData(force: true) }
             }
+            .task(id: voiceBriefingEnabled) {
+                // Load Emma's voice before the first Listen tap.
+                if voiceBriefingEnabled { voiceService.prewarm() }
+            }
             .onChange(of: voiceService.isPlaying) { _, playing in
                 // The synthesizer finishing (or being cut off) is what ends "playing".
                 isVoicePlaying = playing

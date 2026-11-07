@@ -1,9 +1,13 @@
 import AVFoundation
 import Combine
+import MeetingNotesKit
 
-/// Warm, slightly British female voice TTS for the morning briefing.
-/// Uses AVSpeechSynthesizer with Karen (AU) or Moira (IE) voice for a warm tone.
-/// Falls back to default system voice if preferred voices are unavailable.
+/// Spoken morning briefing.
+///
+/// Primary voice: on-device Kokoro ("Emma", British) via `NaturalVoice`, rendered sentence by
+/// sentence into an AVAudioPlayerNode so playback starts after the first sentence. Fallback:
+/// AVSpeechSynthesizer with the best installed Karen/Moira voice, used when the natural voice
+/// is switched off, fails to load, or crashed this OS build (see `NaturalVoiceGuard`).
 @MainActor
 final class VoiceBriefingService: ObservableObject {
     static let shared = VoiceBriefingService()
@@ -25,13 +29,35 @@ final class VoiceBriefingService: ObservableObject {
     /// Speech rate (0.5 = default, slightly slower for warmth)
     private let speechRate: Float = 0.5
 
-    /// Pitch multiplier (1.1 = slightly higher, warmer tone)
-    private let pitchMultiplier: Float = 1.1
+    /// Pitch multiplier. 1.0: pitch-shifting the system voice made it sound more synthetic.
+    private let pitchMultiplier: Float = 1.0
+
+    // Natural-voice playback
+    private let engine = AVAudioEngine()
+    private let player = AVAudioPlayerNode()
+    private var connectedFormat: AVAudioFormat?
+    private var renderTask: Task<Void, Never>?
+    /// Bumped on every speak/stop so callbacks from an older run are ignored.
+    private var generation = 0
+    private var pendingBuffers = 0
+    private var renderFinished = false
+    private var usingNaturalVoice = false
 
     // MARK: - Init
 
     private init() {
         synthesizer.delegate = VoiceDelegateHandler.shared
+        engine.attach(player)
+    }
+
+    /// Loads the natural voice ahead of the first Listen tap (model load is ~1-2 s).
+    func prewarm() {
+        guard NaturalVoiceGuard.isUsable, !NaturalVoiceGuard.isInFlight else { return }
+        Task {
+            NaturalVoiceGuard.begin()
+            try? await NaturalVoice.shared.prepare()
+            NaturalVoiceGuard.end()
+        }
     }
 
     // MARK: - Public API
@@ -161,7 +187,7 @@ final class VoiceBriefingService: ObservableObject {
         return parts.joined(separator: " ")
     }
 
-    /// Speaks the given text using the warm voice settings.
+    /// Speaks the given text: natural voice when usable, otherwise the system voice.
     func speak(text: String) {
         guard !text.isEmpty else { return }
 
@@ -175,6 +201,17 @@ final class VoiceBriefingService: ObservableObject {
         try? session.setActive(true)
         #endif
 
+        isPlaying = true
+        isSpeaking = true
+        if NaturalVoiceGuard.isUsable {
+            speakNatural(text)
+        } else {
+            speakSystem(text)
+        }
+    }
+
+    private func speakSystem(_ text: String) {
+        usingNaturalVoice = false
         let utterance = AVSpeechUtterance(string: text)
         utterance.rate = speechRate
         utterance.pitchMultiplier = pitchMultiplier
@@ -189,6 +226,82 @@ final class VoiceBriefingService: ObservableObject {
         synthesizer.speak(utterance)
     }
 
+    private func speakNatural(_ text: String) {
+        usingNaturalVoice = true
+        renderFinished = false
+        pendingBuffers = 0
+        let run = generation
+        let chunks = NaturalVoice.chunks(of: text)
+
+        renderTask = Task {
+            for (index, chunk) in chunks.enumerated() {
+                guard run == generation, !Task.isCancelled else { return }
+                NaturalVoiceGuard.begin()
+                let audio: NaturalVoiceAudio
+                do {
+                    audio = try await NaturalVoice.shared.synthesize(chunk)
+                    NaturalVoiceGuard.end()
+                } catch {
+                    NaturalVoiceGuard.end()
+                    guard run == generation else { return }
+                    // Model failed to load or render: finish with the system voice.
+                    player.stop()
+                    speakSystem(chunks[index...].joined(separator: " "))
+                    return
+                }
+                guard run == generation, !Task.isCancelled else { return }
+                schedule(audio, run: run)
+            }
+            guard run == generation else { return }
+            renderFinished = true
+            finishIfDrained()
+        }
+    }
+
+    private func schedule(_ audio: NaturalVoiceAudio, run: Int) {
+        guard !audio.samples.isEmpty,
+              let format = AVAudioFormat(standardFormatWithSampleRate: audio.sampleRate, channels: 1),
+              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(audio.samples.count)),
+              let channel = buffer.floatChannelData?[0]
+        else { return }
+        buffer.frameLength = AVAudioFrameCount(audio.samples.count)
+        audio.samples.withUnsafeBufferPointer { source in
+            if let base = source.baseAddress { channel.update(from: base, count: source.count) }
+        }
+
+        if connectedFormat != format {
+            engine.connect(player, to: engine.mainMixerNode, format: format)
+            connectedFormat = format
+        }
+        if !engine.isRunning {
+            do { try engine.start() } catch { return }
+        }
+
+        pendingBuffers += 1
+        // AVFoundation calls this on its own queue. The closure is @Sendable, so it does not
+        // inherit @MainActor (a main-actor closure run off-main traps under Swift 6).
+        player.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { @Sendable _ in
+            Task { @MainActor in VoiceBriefingService.shared.bufferPlayed(run: run) }
+        }
+        if isPlaying && !player.isPlaying {
+            player.play()
+        }
+    }
+
+    private func bufferPlayed(run: Int) {
+        guard run == generation else { return }
+        pendingBuffers = max(0, pendingBuffers - 1)
+        finishIfDrained()
+    }
+
+    private func finishIfDrained() {
+        guard usingNaturalVoice, renderFinished, pendingBuffers == 0 else { return }
+        player.stop()
+        engine.stop()
+        isPlaying = false
+        isSpeaking = false
+    }
+
     /// Speaks briefing sections as a conversational briefing.
     func speakBriefing(sections: [BriefingSection]) {
         let text = compileBriefingText(from: sections)
@@ -197,6 +310,14 @@ final class VoiceBriefingService: ObservableObject {
 
     /// Stops any current speech.
     func stop() {
+        generation += 1
+        renderTask?.cancel()
+        renderTask = nil
+        if usingNaturalVoice {
+            player.stop()
+            engine.stop()
+        }
+        usingNaturalVoice = false
         synthesizer.stopSpeaking(at: .immediate)
         isPlaying = false
         isSpeaking = false
@@ -204,14 +325,76 @@ final class VoiceBriefingService: ObservableObject {
 
     /// Pause speaking.
     func pause() {
-        synthesizer.pauseSpeaking(at: .immediate)
+        if usingNaturalVoice {
+            player.pause()
+        } else {
+            synthesizer.pauseSpeaking(at: .immediate)
+        }
         isPlaying = false
     }
 
     /// Resume speaking.
     func resume() {
-        synthesizer.continueSpeaking()
+        if usingNaturalVoice {
+            player.play()
+        } else {
+            synthesizer.continueSpeaking()
+        }
         isPlaying = true
+    }
+}
+
+// MARK: - Natural voice crash guard
+
+/// Kokoro runs Core ML on paths that FluidAudio flags on iOS 27 (rare, uncatchable libBNNS
+/// faults, FluidAudio #889). A marker is set around every load/synthesis; if the app dies
+/// with it set twice on the same OS build (once could be a swipe-kill or a jetsam kill while
+/// loading), the next launch turns the natural voice off for this OS build only and the
+/// system voice takes over. An OS update, or switching Natural voice back on in Settings,
+/// clears it.
+enum NaturalVoiceGuard {
+    static let enabledKey = "natural_voice_enabled"
+    static let inFlightKey = "natural_voice_inflight_os"
+    static let disabledKey = "natural_voice_disabled_os"
+    static let strikesKey = "natural_voice_strikes"
+    static let strikesOSKey = "natural_voice_strikes_os"
+    static let strikeLimit = 2
+
+    private static var defaults: UserDefaults { .standard }
+    static var osBuild: String { ProcessInfo.processInfo.operatingSystemVersionString }
+
+    /// User setting (default on) and not tripped on this OS build.
+    static var isUsable: Bool {
+        let enabled = defaults.object(forKey: enabledKey) as? Bool ?? true
+        return enabled && defaults.string(forKey: disabledKey) != osBuild
+    }
+
+    static var isInFlight: Bool { defaults.string(forKey: inFlightKey) != nil }
+
+    /// True when the natural voice was turned off because it crashed on this OS build.
+    static var trippedOnThisOS: Bool { defaults.string(forKey: disabledKey) == osBuild }
+
+    static func begin() { defaults.set(osBuild, forKey: inFlightKey) }
+    static func end() { defaults.removeObject(forKey: inFlightKey) }
+
+    /// Call once at launch, before any speech.
+    static func checkAfterLaunch() {
+        guard let build = defaults.string(forKey: inFlightKey) else { return }
+        defaults.removeObject(forKey: inFlightKey)
+        let strikes = defaults.string(forKey: strikesOSKey) == build ? defaults.integer(forKey: strikesKey) + 1 : 1
+        defaults.set(build, forKey: strikesOSKey)
+        defaults.set(strikes, forKey: strikesKey)
+        if strikes >= strikeLimit {
+            defaults.set(build, forKey: disabledKey)
+        }
+    }
+
+    /// User re-enabled the natural voice: give it another chance on this build.
+    static func reset() {
+        defaults.removeObject(forKey: disabledKey)
+        defaults.removeObject(forKey: inFlightKey)
+        defaults.removeObject(forKey: strikesKey)
+        defaults.removeObject(forKey: strikesOSKey)
     }
 }
 

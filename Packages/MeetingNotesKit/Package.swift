@@ -11,14 +11,15 @@ let package = Package(
         .library(name: "MeetingNotesKit", targets: ["MeetingNotesKit"])
     ],
     dependencies: [
-        // On-device speaker diarization (CoreML). Only the `Diarizer` trait is
-        // enabled: no TTS, no NeMo text-normalisation binary. The models are
-        // bundled in Resources/DiarizerModels and loaded from disk; the
-        // library's Hugging Face download path is never called.
+        // On-device speaker diarization and the briefing voice (CoreML). The
+        // `Diarizer` and `TTS` traits are enabled; the NeMo text-normalisation
+        // binary is not. All models are bundled (Resources/DiarizerModels,
+        // Resources/KokoroModels) and loaded from disk; the library's Hugging
+        // Face download path is never called.
         .package(
             url: "https://github.com/FluidInference/FluidAudio",
             exact: "0.18.2",
-            traits: ["Diarizer"]
+            traits: ["Diarizer", "TTS"]
         )
     ],
     targets: [
@@ -28,7 +29,8 @@ let package = Package(
                 .product(name: "FluidAudio", package: "FluidAudio")
             ],
             resources: [
-                .copy("Resources/DiarizerModels")
+                .copy("Resources/DiarizerModels"),
+                .copy("Resources/KokoroModels")
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v6)

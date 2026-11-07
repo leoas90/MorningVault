@@ -45,6 +45,9 @@ struct MorningVaultApp: App {
         // Register notification delegate
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
 
+        // A natural-voice synthesis that never finished means it crashed: fall back on this OS.
+        NaturalVoiceGuard.checkAfterLaunch()
+
         // Register BGTaskScheduler for 6:55 AM precomputation (nonisolated, see BackgroundRefresh)
         BackgroundRefresh.register()
         BackgroundRefresh.schedule()
