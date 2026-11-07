@@ -1,12 +1,11 @@
 import SwiftUI
 import BackgroundTasks
+import Synchronization
 import UserNotifications
 import MeetingNotesKit
 
 @main
 struct MorningVaultApp: App {
-    // BGTaskScheduler registration ID
-    private let precomputationTaskID = "com.yeziddr.morningvault.precompute"
     @Environment(\.scenePhase) private var scenePhase
     /// Observed in place: a theme or appearance change re-renders views that read the
     /// `Color.warm…` accessors, without rebuilding the tab view or losing navigation.
@@ -46,9 +45,9 @@ struct MorningVaultApp: App {
         // Register notification delegate
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
 
-        // Register BGTaskScheduler for 6:55 AM precomputation
-        registerBackgroundTasks()
-        schedulePrecomputation()  // Schedule for next 6:55 AM
+        // Register BGTaskScheduler for 6:55 AM precomputation (nonisolated, see BackgroundRefresh)
+        BackgroundRefresh.register()
+        BackgroundRefresh.schedule()
 
         // The Live Activity's Stop button performs StopRecordingIntent in this process;
         // this is the only link from that intent to the recorder.
@@ -67,62 +66,79 @@ struct MorningVaultApp: App {
         }
     }
 
-    // MARK: - Background Tasks
+}
 
-    private func registerBackgroundTasks() {
-        BGTaskScheduler.shared.register(
-            forTaskWithIdentifier: precomputationTaskID,
-            using: nil
-        ) { task in
-            guard let refresh = task as? BGAppRefreshTask else {
-                task.setTaskCompleted(success: false)
-                return
-            }
-            self.handlePrecomputation(task: refresh)
+// MARK: - Background refresh
+
+/// BGTaskScheduler runs the launch handler and the expiration handler on its own background
+/// queue. Everything here is nonisolated: a closure written inside the `@MainActor` App struct
+/// inherits main-actor isolation, and Swift 6 traps (`_dispatch_assert_queue_fail`) when such a
+/// closure runs off the main thread. That was the build 47 crash at the 6:55 AM refresh.
+enum BackgroundRefresh {
+    static let taskID = "com.yeziddr.morningvault.precompute"
+
+    nonisolated static func register() {
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: taskID, using: nil) { @Sendable task in
+            handle(task)
         }
     }
 
-    private func handlePrecomputation(task: BGAppRefreshTask) {
-        // DEBUG: print("[MorningVaultApp] 6:55 AM precomputation triggered")
-        schedulePrecomputation() // schedule next
+    nonisolated private static func handle(_ task: BGTask) {
+        schedule() // queue tomorrow's run first
 
-        // GATE 4 fix: respect localOnly — no network fetches in background when enabled
+        guard task is BGAppRefreshTask else {
+            task.setTaskCompleted(success: false)
+            return
+        }
+
+        // GATE 4 fix: respect localOnly, no network fetches in background when enabled.
         if UserDefaults.standard.bool(forKey: "local_only") {
-            // DEBUG: print("[MorningVaultApp] localOnly=true — skipping precomputation network fetches")
             task.setTaskCompleted(success: true)
             return
         }
 
+        let completion = BackgroundTaskCompletion(task)
         // One load only: generateBriefing() already does loadData(force: true).
         let work = Task { @MainActor in
             let viewModel = BriefingViewModel()
             await viewModel.generateBriefing()
-            task.setTaskCompleted(success: !Task.isCancelled)
+            completion.finish(success: !Task.isCancelled)
         }
-
-        // Set before the work can finish, and cancel the work so it stops touching the model
-        // once iOS has cut the budget (~30 s for app-refresh tasks).
-        task.expirationHandler = {
+        // iOS cuts app-refresh tasks at ~30 s; stop touching the model once it does.
+        task.expirationHandler = { @Sendable in
             work.cancel()
-            task.setTaskCompleted(success: false)
+            completion.finish(success: false)
         }
     }
 
-    private func schedulePrecomputation() {
+    nonisolated static func schedule() {
         // Hour/minute only. With year/month/day pinned to today, `nextDate` found nothing
         // once 6:55 had passed, so no refresh was ever scheduled for tomorrow.
         let components = DateComponents(hour: 6, minute: 55)
         guard let next6_55 = Calendar.current.nextDate(after: Date(), matching: components, matchingPolicy: .nextTime) else { return }
 
-        let request = BGAppRefreshTaskRequest(identifier: precomputationTaskID)
+        let request = BGAppRefreshTaskRequest(identifier: taskID)
         request.earliestBeginDate = next6_55
+        try? BGTaskScheduler.shared.submit(request)
+    }
+}
 
-        do {
-            try BGTaskScheduler.shared.submit(request)
-            // DEBUG: print("[MorningVaultApp] Precomputation scheduled for \(next6_55)")
-        } catch {
-            // DEBUG: print("[MorningVaultApp] Failed to schedule precomputation: \(error)")
+/// Reports a BGTask's completion exactly once, from whichever thread gets there first
+/// (the main-actor work or the scheduler's expiration handler).
+final class BackgroundTaskCompletion: Sendable {
+    // BGTask is not marked Sendable, but setTaskCompleted(success:) is documented as callable
+    // from any thread; the mutex guarantees it is called once.
+    nonisolated(unsafe) private let task: BGTask
+    private let done = Mutex(false)
+
+    init(_ task: BGTask) { self.task = task }
+
+    nonisolated func finish(success: Bool) {
+        let first = done.withLock { finished in
+            defer { finished = true }
+            return !finished
         }
+        if first { task.setTaskCompleted(success: success) }
     }
 }
 
