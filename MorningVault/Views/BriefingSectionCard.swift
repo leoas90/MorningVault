@@ -34,7 +34,7 @@ struct BriefingSectionCard: View {
         case "markets":   return "chart.line.uptrend.xyaxis"
         default: break
         }
-        let iconMap = [
+        let iconMap: [String: String] = [
             "🌤️": "cloud.sun",
             "💪": "heart.fill",
             "📅": "calendar",

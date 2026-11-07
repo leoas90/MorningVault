@@ -24,6 +24,8 @@ settings:
     Debug:
       # Unoptimized Debug so SwiftUI previews (Xcode MCP RenderPreview) can render.
       SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+      # Simulator/preview builds for the host arch only (packages build arm64 only).
+      ONLY_ACTIVE_ARCH: YES
 
 targets:
   MorningVault:
