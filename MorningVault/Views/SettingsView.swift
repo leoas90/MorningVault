@@ -87,7 +87,7 @@ struct SettingsView: View {
                             .accessibilityAddTraits(.isHeader)
                     }
                     .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 8, leading: 4, bottom: 0, trailing: 0))
+                    .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 0, trailing: 20))
                 }
 
                 // MARK: - Personalization

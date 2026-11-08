@@ -105,7 +105,6 @@ struct MarketsView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Eyebrow(text: EditorialFormat.dateEyebrow())
             HStack(alignment: .center) {
                 Text("Markets")
                     .font(.display(34))
@@ -386,11 +385,11 @@ private struct SymbolCard: View {
                             .foregroundStyle(pnl.percent >= 0 ? Color.positiveColor : Color.negativeColor)
                     }
                     Spacer()
-                    Button("Edit") { beginEditingEntry() }
+                    Button("Change") { beginEditingEntry() }
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(Color.appAccentColor)
                         .buttonStyle(.plain)
-                        .accessibilityLabel("Edit entry price for \(item.symbol)")
+                        .accessibilityLabel("Change entry price for \(item.symbol)")
                 }
             } else {
                 Button { beginEditingEntry() } label: {

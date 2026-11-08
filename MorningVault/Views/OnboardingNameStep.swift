@@ -13,7 +13,7 @@ struct OnboardingNameStep: View {
             VStack(alignment: .leading, spacing: 0) {
                 // Masthead on the time-of-day wash (same as the Brief hero).
                 VStack(alignment: .leading, spacing: 12) {
-                    Eyebrow(text: EditorialFormat.dateEyebrow(), color: Color.inkSecondary)
+                    Eyebrow(text: "Welcome", color: Color.inkSecondary)
                     Text("Good morning.")
                         .font(.display(40))
                         .foregroundStyle(Color.inkPrimary)
@@ -67,8 +67,8 @@ struct OnboardingNameStep: View {
                                         Text(name)
                                             .font(.subheadline.weight(.semibold))
                                             .foregroundStyle(Color.appAccentColor)
-                                            .padding(.horizontal, 14)
-                                            .padding(.vertical, 8)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 11)
                                             .background(Color.appAccentColor.opacity(0.12), in: Capsule())
                                             .overlay(Capsule().strokeBorder(Color.appAccentColor.opacity(0.25), lineWidth: 1))
                                             .fixedSize()

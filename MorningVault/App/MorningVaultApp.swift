@@ -268,7 +268,7 @@ struct AppPalette: Sendable {
             return AppPalette(
                 backgroundLight: "F7F2EA", backgroundDark: "0F0E0D",
                 surfaceLight: "FFFCF7", surfaceDark: "1A1816",
-                accentLight: "C95A2A", accentDark: "E8824F",
+                accentLight: "B5491E", accentDark: "E8824F",
                 positiveLight: "276A4E", positiveDark: "5FB88F",
                 negativeLight: "A63D30", negativeDark: "E8766A",
                 inkLight: "1C1917", inkDark: "F3EEE6",
