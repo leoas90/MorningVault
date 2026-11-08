@@ -132,9 +132,9 @@ extension EnvironmentValues {
 
 // MARK: Card
 
-/// Depth model, three levels: L0 the canvas; L1 the hero card; L2 one functional surface
-/// (radius 20, padding 16, black 5 % shadow r12 y4 in light; hairline border, no shadow, in
-/// dark). Nothing else gets a card. `editorialCard()` is the L2 treatment.
+/// Legacy rounded surface (radius 20, padding 16, black 5 % shadow r12 y4 in light; hairline
+/// border, no shadow, in dark). The Brief no longer uses it (one continuous flow, hairlines
+/// only); kept for onboarding and any List-free screen that still wants a container.
 struct EditorialCardModifier: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
     var padding: CGFloat = 16

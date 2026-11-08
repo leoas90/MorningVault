@@ -18,8 +18,12 @@ struct ShareCardView: View {
     var colorScheme: ColorScheme = .light
 
     static let size = CGSize(width: 1080, height: 1350)
-    /// The hero card is laid out at phone size (353 × 250) and scaled: same geometry as the app.
+    /// The hero is laid out at phone size (353 wide, 196 pt of content under 56 pt of sky, the
+    /// same proportions as the app under its bars) and scaled.
     private static let heroScale: CGFloat = 960 / 353
+    private static let heroTopInset: CGFloat = 56
+    private static let heroHeight: CGFloat = WeatherHero.contentHeight + heroTopInset
+
 
     private var canvas: Color { colorScheme == .dark ? Color(hex: "17141B") : Color(hex: "F6F2EC") }
     private var ink: Color { colorScheme == .dark ? Color(hex: "F7F2EA") : Color(hex: "171615") }
@@ -32,12 +36,13 @@ struct ShareCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 64) {
-            WeatherHeroCard(hour: hour, weather: weather, dateText: dateText, updatedText: updatedText,
-                            greeting: greeting, colorSchemeOverride: colorScheme, animated: false)
+            WeatherHero(hour: hour, weather: weather, dateText: dateText, updatedText: updatedText,
+                        greeting: greeting, colorSchemeOverride: colorScheme, animated: false, topInset: Self.heroTopInset)
                 .environment(\.colorScheme, colorScheme)
-                .frame(width: 353, height: WeatherHeroCard.height)
+                .frame(width: 353, height: WeatherHero.contentHeight)
+                .padding(.top, Self.heroTopInset)
                 .scaleEffect(Self.heroScale, anchor: .topLeading)
-                .frame(width: 960, height: WeatherHeroCard.height * Self.heroScale, alignment: .topLeading)
+                .frame(width: 960, height: Self.heroHeight * Self.heroScale, alignment: .topLeading)
 
             VStack(alignment: .leading, spacing: 24) {
                 Text(greeting)
