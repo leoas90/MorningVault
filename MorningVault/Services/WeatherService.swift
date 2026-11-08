@@ -81,7 +81,32 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
 
         // Fetch weather using WeatherKit (privacy: no wttr.in call, no precise lat/lon in URL)
         let weather = await fetchWeatherByLocation(location)
+        if weather != nil { Self.rememberFetchLocation(location) }
         return weather
+    }
+
+    // MARK: - Moved since the last reading?
+
+    private static let lastLatKey = "weather_last_fetch_lat"
+    private static let lastLonKey = "weather_last_fetch_lon"
+
+    /// Where the cached reading was taken, rounded to ~1 km and kept only on this device.
+    private static func rememberFetchLocation(_ location: CLLocation) {
+        let d = UserDefaults.standard
+        d.set((location.coordinate.latitude * 100).rounded() / 100, forKey: lastLatKey)
+        d.set((location.coordinate.longitude * 100).rounded() / 100, forKey: lastLonKey)
+    }
+
+    /// True when the phone is more than `meters` from where the cached reading was taken.
+    /// Uses the reduced-accuracy location only; costs no WeatherKit call. Unknown = false,
+    /// so a missing permission or a slow fix never forces a refetch.
+    func hasMovedSinceLastFetch(meters: CLLocationDistance = 10_000) async -> Bool {
+        syncAuthorizationFromManager()
+        let d = UserDefaults.standard
+        guard isAuthorized, d.object(forKey: Self.lastLatKey) != nil,
+              let now = try? await getCurrentLocation() else { return false }
+        let last = CLLocation(latitude: d.double(forKey: Self.lastLatKey), longitude: d.double(forKey: Self.lastLonKey))
+        return now.distance(from: last) > meters
     }
 
     // MARK: - Cache (delegated to TTLCache for consistency)

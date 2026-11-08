@@ -589,8 +589,10 @@ final class BriefingViewModel: ObservableObject {
         // an hour; pull-to-refresh and other forced reloads still reuse one under 15 min.
         // The cached copy is kept for 3 h as the fallback when a fetch fails.
         let maxAge: TimeInterval = forceLive ? 15 * 60 : 60 * 60
+        // Exception: moved more than 10 km (landed in another city) means fetch now.
         if let age = await cache.age("weather"), age < maxAge,
-           let cached: WeatherData = await cache.getWeather() {
+           let cached: WeatherData = await cache.getWeather(),
+           await !weatherService.hasMovedSinceLastFetch() {
             return cached
         }
         let data = await weatherService.fetchWeather()
