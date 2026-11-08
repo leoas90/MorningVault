@@ -115,3 +115,18 @@ Recommendation: freemium with a subscription, no ads. Ads would require an ad SD
 - Pro (proposed $4.99/month or $39.99/year, 7-day free trial, Family Sharing on): unlimited Meetings with speaker labels and Reminders export, 10 symbols with price alerts, all widget sizes and the Live Activity, the Mac companion, Private Cloud Compute summaries when available.
 - Implementation: StoreKit 2 subscriptions verified on device (no server, no account), one paywall screen in the app's design language, restore purchases in Settings. Small Business Program keeps Apple's cut at 15%.
 - Timing: ship 1.0 free on 2026-12-12 to collect usage; turn on Pro with M3 (Meetings) in January, so the paid tier launches with the feature that justifies it.
+
+## 7. Running cost at scale (estimate, 2026-11-07)
+
+Pricing approved by Yezid: Free + Pro $4.99/mo or $39.99/yr. Assumptions: ~150 WeatherKit calls per user per month (weather cached 30 min, a few opens a day plus the morning refresh), ~180 price-proxy requests per user per month, 3% of users pay, ~$34/yr net per payer after Apple's 15%.
+
+| Monthly users | WeatherKit | Worker | Market data license | Est. Pro revenue/mo |
+|---|---|---|---|---|
+| 1,000 | $0 (free tier) | $5 | needed before App Store | ~$85 |
+| 10,000 | $100 | $5 | TBD | ~$850 |
+| 100,000 | $1,000 | ~$10 | TBD | ~$8,500 |
+| 1,000,000 | $7,500 | ~$60 | TBD | ~$85,000 |
+
+Fixed: Apple Developer $99/yr, domain ~$15/yr. On-device AI, voice and transcription cost nothing to run. Private Cloud Compute pricing for developers is unpublished.
+
+Actions: (1) replace Yahoo with a licensed quote feed before 1.0 (Yahoo's endpoint is not licensed for commercial redistribution); get quotes for delayed data. (2) Cut WeatherKit calls ~60% by fetching only when older than 60 min. (3) Set Cloudflare and WeatherKit billing alerts.
