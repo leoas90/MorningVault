@@ -182,7 +182,7 @@ public enum MeetingPreviewData {
         LiveRecordingState(
             elapsed: 1_262,
             title: "Roadmap sync",
-            lastLine: "Then we ship the beta on Friday and the test group gets a build on Thursday.",
+            lastLine: "The migration notes go out today.",
             levels: waveform(phase: 1.3),
             attendees: ["Ana", "Ben", "Chi", "Dee"]
         )

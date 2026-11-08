@@ -450,7 +450,8 @@ struct LiveRecordingState: Equatable {
         self.attendees = attendees
     }
 
-    /// The last sentence or so of the transcript. Cut on a word, never mid-word.
+    /// The last sentence or so of the transcript, cut on a word boundary. The row
+    /// truncates the head, so no leading ellipsis is added here.
     static func tail(of transcript: String, limit: Int = 90) -> String {
         let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count > limit else { return trimmed }
@@ -458,8 +459,8 @@ struct LiveRecordingState: Equatable {
         if let cut = tail.firstIndex(where: { $0 == "." || $0 == "?" || $0 == "!" }), tail.distance(from: cut, to: tail.endIndex) > 20 {
             return String(tail[tail.index(after: cut)...]).trimmingCharacters(in: .whitespaces)
         }
-        guard let word = tail.firstIndex(of: " ") else { return "…" + tail }
-        return "…" + tail[tail.index(after: word)...].trimmingCharacters(in: .whitespaces)
+        guard let word = tail.firstIndex(of: " ") else { return String(tail) }
+        return tail[tail.index(after: word)...].trimmingCharacters(in: .whitespaces)
     }
 }
 
@@ -498,7 +499,7 @@ struct LiveRecordingBlock: View {
                             .lineSpacing(3)
                             .foregroundStyle(theme.inkSoft)
                             .lineLimit(2)
-                            .truncationMode(.head)
+                            .minimumScaleFactor(0.85)
                             .padding(.top, state.title.isEmpty ? 8 : 4)
                             .contentTransition(.opacity)
                     }
