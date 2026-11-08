@@ -20,14 +20,17 @@ const json = (body, status = 200, extra = {}) =>
   });
 
 async function fetchStock(symbol) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1d`;
+  // 1d/15m gives the intraday shape for a sparkline (~26 points); meta carries the quote.
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=15m`;
   const r = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 MorningVault" } });
   if (!r.ok) throw new Error(`stock source ${r.status}`);
-  const meta = (await r.json())?.chart?.result?.[0]?.meta;
+  const result = (await r.json())?.chart?.result?.[0];
+  const meta = result?.meta;
   const price = meta?.regularMarketPrice;
   const prev = meta?.chartPreviousClose ?? meta?.previousClose;
   if (!(price > 0) || !(prev > 0)) throw new Error(`no data for ${symbol}`);
-  return { price, change24h: ((price - prev) / prev) * 100 };
+  const closes = (result?.indicators?.quote?.[0]?.close || []).filter((v) => typeof v === "number" && v > 0);
+  return { price, change24h: ((price - prev) / prev) * 100, prevClose: prev, series: closes.slice(-40) };
 }
 
 async function fetchCrypto(symbol) {
@@ -39,7 +42,15 @@ async function fetchCrypto(symbol) {
   const price = parseFloat(d.last);
   const open = parseFloat(d.open);
   if (!(price > 0) || !(open > 0)) throw new Error(`no data for ${symbol}`);
-  return { price, change24h: ((price - open) / open) * 100 };
+  // Last 24h of 30-minute candles for the sparkline ([time, low, high, open, close, vol], newest first).
+  let series = [];
+  try {
+    const c = await fetch(`https://api.exchange.coinbase.com/products/${symbol}-USD/candles?granularity=900`, {
+      headers: { "user-agent": "MorningVault" },
+    });
+    if (c.ok) series = (await c.json()).slice(0, 96).reverse().map((k) => k[4]).filter((v) => v > 0);
+  } catch {}
+  return { price, change24h: ((price - open) / open) * 100, prevClose: open, series };
 }
 
 async function quote(symbol, ctx) {
@@ -49,7 +60,10 @@ async function quote(symbol, ctx) {
   if (hit) return { ...(await hit.json()), cached: true };
   try {
     const q = CRYPTO.has(symbol) ? await fetchCrypto(symbol) : await fetchStock(symbol);
-    const row = { symbol, price: q.price, change24h: Math.round(q.change24h * 100) / 100, cached: false, error: null };
+    const row = {
+      symbol, price: q.price, change24h: Math.round(q.change24h * 100) / 100,
+      prevClose: q.prevClose, series: q.series || [], cached: false, error: null,
+    };
     ctx.waitUntil(cache.put(key, json(row)));
     return row;
   } catch (e) {
