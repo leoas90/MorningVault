@@ -29,6 +29,8 @@ final class BriefingViewModel: ObservableObject {
     @Published var meetingPrep: MeetingPrep? = nil
     @Published var permissionDenied: [String] = []  // services that were denied
     @Published var morningSnapshot: MorningSnapshot = .empty
+    /// Sparkline inputs per tracked symbol, filled alongside the markets section text.
+    @Published var marketSeries: [String: MarketSeries] = [:]
 
     private let meetingPrepService = MeetingPrepService.shared
     private static let snapshotSymbols = ["SPY", "BTC"]
@@ -531,11 +533,13 @@ final class BriefingViewModel: ObservableObject {
                 quotes.append(MorningSnapshotQuote(
                     symbol: symbol,
                     priceText: MarketBackendService.formatPrice(symbol: symbol, price: row.price),
-                    change24h: row.change24h
+                    change24h: row.change24h,
+                    prevClose: row.prevClose, series: row.series
                 ))
                 if row.cached { anyCached = true } else { anyLive = true }
                 await cache.setSymbolPrice(symbol, data: TTLCache.CachedSymbolData(
-                    price: row.price, change24h: row.change24h, timestamp: Date()
+                    price: row.price, change24h: row.change24h, timestamp: Date(),
+                    prevClose: row.prevClose, series: row.series
                 ))
                 continue
             }
@@ -543,7 +547,8 @@ final class BriefingViewModel: ObservableObject {
                 quotes.append(MorningSnapshotQuote(
                     symbol: symbol,
                     priceText: MarketBackendService.formatPrice(symbol: symbol, price: cached.price),
-                    change24h: cached.change24h
+                    change24h: cached.change24h,
+                    prevClose: cached.prevClose, series: cached.series ?? []
                 ))
                 anyCached = true
             }
@@ -562,7 +567,8 @@ final class BriefingViewModel: ObservableObject {
             quotes.append(MorningSnapshotQuote(
                 symbol: symbol,
                 priceText: MarketBackendService.formatPrice(symbol: symbol, price: cached.price),
-                change24h: cached.change24h
+                change24h: cached.change24h,
+                prevClose: cached.prevClose, series: cached.series ?? []
             ))
         }
         return quotes
@@ -679,14 +685,16 @@ final class BriefingViewModel: ObservableObject {
                 data: TTLCache.CachedSymbolData(
                     price: data.price,
                     change24h: data.change24h,
-                    timestamp: Date()
+                    timestamp: Date(),
+                    prevClose: data.prevClose,
+                    series: data.series
                 )
             )
             return data
         }
         // Live fetch failed (rate limit, network, parse) — try cache
         return await cache.getSymbolPrice(symbol).map {
-            SymbolData(price: $0.price, change24h: $0.change24h)
+            SymbolData(price: $0.price, change24h: $0.change24h, prevClose: $0.prevClose, series: $0.series ?? [])
         }
     }
 
@@ -699,12 +707,13 @@ final class BriefingViewModel: ObservableObject {
         var hasBullish = false
         var hasBearish = false
         var allFailed = true
+        var series: [String: MarketSeries] = [:]
 
         for item in tracked {
             let priceData: SymbolData?
             if useCache {
                 priceData = await cache.getSymbolPrice(item.symbol).map {
-                    SymbolData(price: $0.price, change24h: $0.change24h)
+                    SymbolData(price: $0.price, change24h: $0.change24h, prevClose: $0.prevClose, series: $0.series ?? [])
                 }
             } else {
                 priceData = await fetchSymbolWithCacheFallback(symbol: item.symbol)
@@ -712,6 +721,7 @@ final class BriefingViewModel: ObservableObject {
 
             guard let data = priceData else { continue }
             allFailed = false
+            series[item.symbol] = MarketSeries(prevClose: data.prevClose, points: data.series)
 
             let price = data.price
             let change = data.change24h
@@ -731,6 +741,7 @@ final class BriefingViewModel: ObservableObject {
         if allFailed || content.isEmpty {
             content = "market data unavailable"
         }
+        marketSeries = series
 
         if hasBullish && !hasBearish { sentiment = "bullish" }
         else if hasBearish && !hasBullish { sentiment = "bearish" }
@@ -739,7 +750,12 @@ final class BriefingViewModel: ObservableObject {
         return (content.isEmpty ? "market data unavailable" : content, sentiment)
     }
 
-    private struct SymbolData { let price: Double; let change24h: Double }
+    private struct SymbolData {
+        let price: Double
+        let change24h: Double
+        var prevClose: Double? = nil
+        var series: [Double] = []
+    }
 
     private func loadTrackedSymbols() -> [(symbol: String, entryPrice: Double?)] {
         guard let data = UserDefaults.standard.data(forKey: "tracked_symbols"),
@@ -777,7 +793,7 @@ final class BriefingViewModel: ObservableObject {
         }
         // Fallback to local cache
         return await cache.getSymbolPrice(symbol).map {
-            SymbolData(price: $0.price, change24h: $0.change24h)
+            SymbolData(price: $0.price, change24h: $0.change24h, prevClose: $0.prevClose, series: $0.series ?? [])
         }
     }
 
@@ -785,9 +801,10 @@ final class BriefingViewModel: ObservableObject {
         let batch = await MarketBackendService.fetchBatch(symbols: [symbol])
         guard let row = batch.first, row.error == nil, row.price > 0 else { return nil }
         await cache.setSymbolPrice(symbol, data: TTLCache.CachedSymbolData(
-            price: row.price, change24h: row.change24h, timestamp: Date()
+            price: row.price, change24h: row.change24h, timestamp: Date(),
+            prevClose: row.prevClose, series: row.series
         ))
-        return SymbolData(price: row.price, change24h: row.change24h)
+        return SymbolData(price: row.price, change24h: row.change24h, prevClose: row.prevClose, series: row.series)
     }
 }
 

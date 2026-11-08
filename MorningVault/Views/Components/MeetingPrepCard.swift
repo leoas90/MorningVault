@@ -19,7 +19,7 @@ struct MeetingPrepCard: View {
                         Eyebrow(text: "Meeting prep")
 
                         Text(prep.meetingTitle)
-                            .font(.display(22))
+                            .font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(Color.warmTextPrimary)
                             .lineLimit(prep.isExpanded ? 3 : 2)
                             .multilineTextAlignment(.leading)

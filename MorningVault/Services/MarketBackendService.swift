@@ -16,6 +16,11 @@ enum MarketBackendService {
         let change24h: Double
         let cached: Bool
         let error: String?
+        /// Yesterday's close, when the worker has it.
+        var prevClose: Double? = nil
+        /// Recent closes for a sparkline (stocks: today's 15-minute bars; crypto: last 24 h of
+        /// 15-minute candles). Empty when the worker has nothing: no series, no sparkline.
+        var series: [Double] = []
     }
 
     fileprivate struct BatchResponse: Codable {
@@ -24,6 +29,8 @@ enum MarketBackendService {
         let change24h: Double
         let cached: Bool
         let error: String?
+        var prevClose: Double? = nil
+        var series: [Double]? = nil
     }
 
     /// All symbols in one call: `GET /market/batch?symbols=SPY,BTC`.
@@ -93,6 +100,7 @@ enum MarketBackendService {
 
 private extension MarketBackendService.Quote {
     init(_ row: MarketBackendService.BatchResponse) {
-        self.init(symbol: row.symbol, price: row.price, change24h: row.change24h, cached: row.cached, error: row.error)
+        self.init(symbol: row.symbol, price: row.price, change24h: row.change24h, cached: row.cached, error: row.error,
+                  prevClose: row.prevClose, series: row.series ?? [])
     }
 }

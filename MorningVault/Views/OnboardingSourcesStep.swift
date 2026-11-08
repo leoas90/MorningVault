@@ -9,7 +9,7 @@ struct OnboardingSourcesStep: View {
             // Header
             VStack(spacing: 8) {
                 Text("Stay informed")
-                    .font(.display(32))
+                    .font(.system(size: 28, weight: .semibold))
                     .foregroundStyle(Color.inkPrimary)
                 Text("Choose your news sources. You can change them later in Settings › Data sources › Edit sources.")
                     .font(.subheadline)

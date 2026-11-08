@@ -20,7 +20,7 @@ struct OnboardingMeetingsStep: View {
                     .foregroundStyle(Color.warmPrimaryAccent)
                     .padding(.bottom, 4)
                 Text("Meetings")
-                    .font(.display(32))
+                    .font(.system(size: 28, weight: .semibold))
                     .foregroundStyle(Color.inkPrimary)
                 Text("Notes that write themselves, kept on your phone.")
                     .font(.subheadline)

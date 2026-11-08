@@ -40,6 +40,9 @@ struct MorningSnapshotQuote: Identifiable, Equatable {
     let symbol: String
     let priceText: String
     let change24h: Double
+    /// Yesterday's close and recent closes from the worker; empty series = no sparkline.
+    var prevClose: Double? = nil
+    var series: [Double] = []
     var id: String { symbol }
 
     var changeText: String {
@@ -48,4 +51,10 @@ struct MorningSnapshotQuote: Identifiable, Equatable {
     }
 
     var isPositive: Bool { change24h >= 0 }
+}
+
+/// Per-symbol sparkline inputs for the Brief's Markets rows (keyed by symbol).
+struct MarketSeries: Equatable, Sendable {
+    var prevClose: Double?
+    var points: [Double]
 }
