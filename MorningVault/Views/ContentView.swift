@@ -365,6 +365,7 @@ struct BriefTabView: View {
                     }
                 }
             }
+            .contentMargins(.bottom, 24, for: .scrollContent)
             .refreshable {
                 await viewModel.generateBriefing()
                 withAnimation(.easeInOut(duration: 0.32)) { refreshCount += 1 }
