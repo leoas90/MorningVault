@@ -104,8 +104,12 @@ struct HomeScreen: View {
                 }
 
                 if true {
-                    liveBlock
-                        .homeRow(top: 0, bottom: 0)
+                    if recordingState != nil {
+                        // Only insert the row while live: an empty row still takes the
+                        // List's minimum row height and left a ~100pt hole under the title.
+                        liveBlock
+                            .homeRow(top: 0, bottom: 0)
+                    }
 
                     if let event = upcomingEvents.first {
                         Eyebrow(isHappening(event) ? "Now" : "Next")
@@ -151,6 +155,7 @@ struct HomeScreen: View {
                     .homeRow(top: 0, bottom: 0)
             }
             .listStyle(.plain)
+            .environment(\.defaultMinListRowHeight, 1)
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.immediately)
             .themedPageBackground()
