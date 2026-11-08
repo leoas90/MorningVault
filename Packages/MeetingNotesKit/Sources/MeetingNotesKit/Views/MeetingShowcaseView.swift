@@ -1,10 +1,8 @@
-#if DEBUG
 import SwiftUI
 
-/// The meeting page on its own, filled with sample content.
+/// The recording page on its own, filled with sample content.
 ///
-/// Debug builds only: the host app uses it to take a picture of the recorder
-/// without the tab bar.
+/// The host app uses it to take a picture of the recorder without the tab bar.
 public struct MeetingShowcaseView: View {
     public init() {}
 
@@ -13,4 +11,3 @@ public struct MeetingShowcaseView: View {
             .environment(\.meetingSampleMode, true)
     }
 }
-#endif
