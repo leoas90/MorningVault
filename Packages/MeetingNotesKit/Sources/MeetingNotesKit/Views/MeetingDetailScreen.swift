@@ -137,18 +137,12 @@ struct MeetingDetailScreen: View {
             }
         } else {
             VStack(alignment: .leading, spacing: 0) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("No summary yet")
-                        .font(MeetingsType.rowTitle)
-                        .foregroundStyle(theme.ink)
-                    Text(meeting.transcript.isEmpty
-                         ? "This meeting has no transcript, so there is nothing to summarize."
-                         : "Enhance notes turns the transcript and your notes into a summary, talking points and action items, on device.")
-                        .font(MeetingsType.secondary)
-                        .lineSpacing(3)
-                        .foregroundStyle(theme.inkSoft)
-                }
-                .functionalCard()
+                Hairline()
+                EmptyStateView(symbol: "sparkles", title: "No summary yet",
+                               message: meeting.transcript.isEmpty
+                                   ? "This meeting has no transcript, so there is nothing to summarize."
+                                   : "Enhance notes turns the transcript and your notes into a summary, talking points and action items, on device.")
+                Hairline()
                 NotesSection("My notes") {
                     NotesEditor(text: $meeting.scratchpad, focus: $notesFocused)
                 }

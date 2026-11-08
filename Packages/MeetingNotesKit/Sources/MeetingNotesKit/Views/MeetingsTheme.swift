@@ -59,7 +59,10 @@ public struct MeetingsTheme: Equatable, Sendable {
     var backgroundColor: Color { background ?? Color.clear }
     var hasBackground: Bool { background != nil }
     var ink: Color { inkPrimary ?? .primary }
-    var inkSoft: Color { inkSecondary ?? .secondary }
+    /// Secondary ink. The fallback is the primary label at 62 %, not `.secondary`: the
+    /// system secondary label is 3.4:1 on white, this is 6.2:1 in light and 7.8:1 in dark,
+    /// so eyebrows and meta lines pass 4.5:1 without a host palette.
+    var inkSoft: Color { inkSecondary ?? Color.primary.opacity(0.62) }
     var hairlineColor: Color { hairline ?? Color.primary.opacity(0.10) }
     var onAccentColor: Color { onAccent ?? .white }
     /// 6 % accent wash for pills and strips.
@@ -127,6 +130,9 @@ enum MeetingsSpace {
     static let label: CGFloat = 8
     static let control: CGFloat = 52
     static let target: CGFloat = 44
+    /// Empty tail the home list keeps below its last row, so the floating New meeting
+    /// pill never covers a row. The app's tab bar covers the rest.
+    static let pillClearance: CGFloat = 132
 }
 
 /// Page background that follows the host theme.

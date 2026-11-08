@@ -2,15 +2,24 @@ import Combine
 import SwiftData
 import SwiftUI
 
+/// The controls a recording can zoom out of (and back into).
+enum HomeZoomSource {
+    static let newMeeting = "new-meeting"
+    static let live = "live-recording"
+    static func event(_ id: String) -> String { "event-\(id)" }
+}
+
 /// What a new meeting is started for: a calendar event, nothing, or the recording that is
 /// already running (reopening its page).
-struct NewMeetingRequest: Identifiable {
+struct NewMeetingRequest: Identifiable, Hashable {
     let id = UUID()
     var calendarEventID: String?
     var title: String = ""
     var attendees: [String] = []
     /// Reopen the page of the recording in progress instead of starting a new one.
     var resumesLive = false
+    /// The control the page zooms out of.
+    var sourceID: String = HomeZoomSource.newMeeting
 
     init() {}
 
@@ -18,11 +27,13 @@ struct NewMeetingRequest: Identifiable {
         calendarEventID = event.id
         title = event.title
         attendees = event.attendeeNames
+        sourceID = HomeZoomSource.event(event.id)
     }
 
     static var live: NewMeetingRequest {
         var request = NewMeetingRequest()
         request.resumesLive = true
+        request.sourceID = HomeZoomSource.live
         return request
     }
 }
@@ -31,24 +42,32 @@ struct NewMeetingRequest: Identifiable {
 enum HomeDestination: Hashable {
     case meeting(UUID)
     case openActions
+    case record(NewMeetingRequest)
+
+    var isRecording: Bool {
+        if case .record = self { return true }
+        return false
+    }
 }
 
-/// The first screen: what is coming up (or recording right now), what was recorded,
-/// and one button to start a new meeting.
+/// The first screen, one flow top to bottom: the title, the recording in progress (if
+/// any), what is next on the calendar, open action items, then past meetings by day.
+/// The one call to action is the New meeting pill at the bottom; it is replaced by the
+/// inline recording controls while a meeting records.
 struct HomeScreen: View {
     @Environment(\.modelContext) private var context
     @Environment(\.meetingsTheme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \Meeting.startedAt, order: .reverse) private var meetings: [Meeting]
     @Query(filter: #Predicate<ActionItemRecord> { $0.isDone == false }, sort: \ActionItemRecord.createdAt)
     private var openActions: [ActionItemRecord]
     @StateObject private var calendar = CalendarService()
     /// The one recording session of the tab. Owned here so the recorder's page can be
-    /// closed and reopened while the meeting keeps recording.
+    /// left and reopened while the meeting keeps recording.
     @StateObject private var liveSession = RecordingSession()
     @ObservedObject private var router = MeetingsRouter.shared
     @AppStorage(MarkdownCopiesSetting.key) private var saveMarkdownCopies = false
-    @State private var searchText = ""
-    @State private var newMeeting: NewMeetingRequest?
+    @Namespace private var zoom
     @State private var showVoiceEnrollment = false
     @State private var now = Date()
     @State private var path: [HomeDestination] = []
@@ -57,8 +76,8 @@ struct HomeScreen: View {
 
     /// Previews only: events shown instead of the calendar's.
     var previewEvents: [CalendarEventInfo]?
-    /// Previews only: a recording shown in the hero instead of the live session's.
-    var previewRecording: RecordingHeroState?
+    /// Previews only: a recording shown inline instead of the live session's.
+    var previewRecording: LiveRecordingState?
 
     private let minuteTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
@@ -66,66 +85,50 @@ struct HomeScreen: View {
         NavigationStack(path: $path) {
             List {
                 header
-                    .homeRow(top: 8, bottom: 16)
+                    .homeRow(top: 8, bottom: meetings.isEmpty ? 8 : 12)
 
-                searchField
-                    .homeRow(top: 0, bottom: 20)
+                if meetings.isEmpty {
+                    Text(upcomingEvents.isEmpty
+                         ? "Nothing recorded yet. Notes, transcript and a summary stay on this device."
+                         : "Nothing recorded yet. Record the next meeting, or start one now.")
+                        .font(MeetingsType.secondary)
+                        .lineSpacing(3)
+                        .foregroundStyle(theme.inkSoft)
+                        .homeRow(top: 0, bottom: 16)
+                        .accessibilityHint("Use New meeting to start recording")
+                }
 
                 if let saveError {
                     BannerView(saveError, symbol: "exclamationmark.triangle", onDismiss: { self.saveError = nil })
                         .homeRow(top: 0, bottom: 16)
                 }
 
-                if !isSearching {
-                    hero
-                        .homeRow(top: 0, bottom: MeetingsSpace.cardGap)
+                if true {
+                    if recordingState != nil {
+                        // Only insert the row while live: an empty row still takes the
+                        // List's minimum row height and left a ~100pt hole under the title.
+                        liveBlock
+                            .homeRow(top: 0, bottom: 0)
+                    }
+
+                    if let event = upcomingEvents.first {
+                        Eyebrow(isHappening(event) ? "Now" : "Next")
+                            .homeRow(top: isLive ? MeetingsSpace.sectionGap : 8, bottom: 4)
+                        NextEventRow(event: event, now: now, drawsTopHairline: !isLive,
+                                     onRecord: { start(NewMeetingRequest(event: event)) })
+                            .zoomSource(id: HomeZoomSource.event(event.id), in: zoom)
+                            .homeRow(top: 0, bottom: 0)
+                    }
 
                     if !openActions.isEmpty {
-                        OpenActionsStrip(count: openActions.count) {
+                        OpenActionsRow(count: openActions.count, hasRowAbove: upcomingEvents.first != nil) {
                             path.append(.openActions)
                         }
-                        .homeRow(top: 0, bottom: 0)
+                        .homeRow(top: upcomingEvents.isEmpty ? (isLive ? MeetingsSpace.sectionGap : 4) : 0, bottom: 0)
                     }
                 }
 
-                if meetings.isEmpty {
-                    if !isSearching {
-                        Button {
-                            showVoiceEnrollment = true
-                        } label: {
-                            VStack(spacing: 0) {
-                                Hairline()
-                                HStack(spacing: 12) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("Teach it your voice")
-                                            .font(MeetingsType.rowTitle)
-                                            .foregroundStyle(theme.ink)
-                                        Text("Half a minute of reading, so your turns are labelled You.")
-                                            .font(MeetingsType.meta)
-                                            .foregroundStyle(theme.inkSoft)
-                                    }
-                                    Spacer(minLength: 8)
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .foregroundStyle(theme.inkSoft.opacity(0.7))
-                                }
-                                .padding(.vertical, 14)
-                                Hairline()
-                            }
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .homeRow(top: MeetingsSpace.sectionGap, bottom: 0)
-                    } else {
-                        EmptyStateView(symbol: "magnifyingglass", title: "No matches",
-                                       message: "Nothing in your titles, notes or transcripts matches “\(searchText)”.")
-                            .homeRow(top: 8, bottom: 0)
-                    }
-                } else if filteredMeetings.isEmpty {
-                    EmptyStateView(symbol: "magnifyingglass", title: "No matches",
-                                   message: "Nothing in your titles, notes or transcripts matches “\(searchText)”.")
-                        .homeRow(top: 8, bottom: 0)
-                } else {
+                if !meetings.isEmpty {
                     ForEach(groupedMeetings, id: \.group) { bucket in
                         Eyebrow(bucket.group.title)
                             .homeRow(top: MeetingsSpace.sectionGap, bottom: 4)
@@ -152,10 +155,12 @@ struct HomeScreen: View {
                     .homeRow(top: 0, bottom: 0)
             }
             .listStyle(.plain)
+            .environment(\.defaultMinListRowHeight, 1)
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.immediately)
             .themedPageBackground()
             .hiddenNavigationBar()
+            .safeAreaInset(edge: .bottom, spacing: 0) { newMeetingPill }
             .navigationDestination(for: HomeDestination.self) { destination in
                 switch destination {
                 case .meeting(let meetingID):
@@ -169,22 +174,13 @@ struct HomeScreen: View {
                     }
                 case .openActions:
                     OpenActionsScreen()
+                case .record(let request):
+                    recordingPage(for: request)
                 }
             }
             .refreshable { await refresh() }
             .sheet(isPresented: $showVoiceEnrollment) {
                 VoiceEnrollmentScreen()
-            }
-            .sheet(item: $newMeeting) { request in
-                MeetingScreen(
-                    session: liveSession,
-                    initialTitle: request.title,
-                    initialAttendees: request.attendees,
-                    calendarEventID: request.calendarEventID,
-                    autoStart: !request.resumesLive,
-                    isModal: true
-                )
-                .meetingsTheme(theme)
             }
             .task {
                 sweepOrphanedAudio()
@@ -200,8 +196,11 @@ struct HomeScreen: View {
                     await perform(route)
                 }
             }
-            .onChange(of: newMeeting?.id) { _, id in
-                if id == nil { MeetingsSnapshotPublisher.publishStoreChanges(context: context) }
+            .onChange(of: path) { old, new in
+                // Back from the recorder page: the widget snapshot picks up what was saved.
+                if old.contains(where: \.isRecording), !new.contains(where: \.isRecording) {
+                    MeetingsSnapshotPublisher.publishStoreChanges(context: context)
+                }
             }
         }
     }
@@ -235,65 +234,99 @@ struct HomeScreen: View {
         }
     }
 
-    private var searchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(theme.inkSoft)
-            TextField("Search titles, notes and transcripts", text: $searchText)
-                .font(MeetingsType.secondary)
-                .foregroundStyle(theme.ink)
-                .autocorrectionDisabled()
-            if !searchText.isEmpty {
-                Button {
-                    searchText = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 15))
-                        .foregroundStyle(theme.inkSoft)
-                        .frame(width: 28, height: 28)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear search")
+    // MARK: - Live recording
+
+    /// The recording in progress, inline. Appears and leaves with a fade and a slide from
+    /// the top (a plain fade under Reduce Motion).
+    private var liveBlock: some View {
+        VStack(spacing: 0) {
+            if let state = recordingState {
+                LiveRecordingBlock(
+                    state: state,
+                    onPause: {
+                        if liveSession.phase == .paused { liveSession.resume() } else { liveSession.pause() }
+                    },
+                    onStop: {
+                        Task { await liveSession.stop(context: context) }
+                    },
+                    onOpen: { start(.live) }
+                )
+                .zoomSource(id: HomeZoomSource.live, in: zoom)
+                .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
             }
         }
-        .padding(.horizontal, 12)
-        .frame(height: 40)
-        .background(theme.surfaceColor, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(theme.hairlineColor, lineWidth: 1))
+        .animation(.smooth(duration: 0.35), value: isLive)
     }
 
-    // MARK: - Hero
-
-    @ViewBuilder
-    private var hero: some View {
-        if let state = recordingState {
-            RecordingHeroCard(
-                state: state,
-                layout: .home,
-                onPause: {
-                    if liveSession.phase == .paused { liveSession.resume() } else { liveSession.pause() }
-                },
-                onStop: {
-                    Task { await liveSession.stop(context: context) }
-                },
-                onOpen: { newMeeting = .live }
-            )
-        } else if let event = upcomingEvents.first {
-            NextMeetingCard(event: event, now: now) {
-                newMeeting = NewMeetingRequest(event: event)
-            }
-        } else {
-            QuietHeroCard(isFirstMeeting: meetings.isEmpty) {
-                newMeeting = NewMeetingRequest()
-            }
-        }
-    }
-
-    private var recordingState: RecordingHeroState? {
+    private var recordingState: LiveRecordingState? {
         if let previewRecording { return previewRecording }
         guard liveSession.isRecording else { return nil }
-        return RecordingHeroState(session: liveSession)
+        return LiveRecordingState(session: liveSession)
+    }
+
+    private var isLive: Bool { recordingState != nil }
+
+    // MARK: - New meeting
+
+    /// The persistent call to action: a 52 pt accent pill. While a recording runs the
+    /// inline Pause and Stop take its place.
+    /// The persistent call to action, drawn as a bottom bar the list scrolls behind:
+    /// a hairline, then a centered 52 pt accent pill. While a recording runs the inline
+    /// Pause and Stop take its place and the bar leaves.
+    private var newMeetingPill: some View {
+        VStack(spacing: 0) {
+            if !isLive {
+                Hairline()
+                Button {
+                    start(NewMeetingRequest())
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "mic.fill")
+                            .font(MeetingsType.symbol)
+                        Text("New meeting")
+                            .font(MeetingsType.button)
+                    }
+                    .foregroundStyle(theme.onAccentColor)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: MeetingsSpace.control)
+                    .background(theme.accentColor, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
+                .buttonStyle(.pressable)
+                .zoomSource(id: HomeZoomSource.newMeeting, in: zoom)
+                .accessibilityLabel("New meeting")
+                .accessibilityHint("Starts recording right away")
+                .padding(.horizontal, MeetingsSpace.margin)
+                .padding(.vertical, 12)
+                .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .bottom)))
+            }
+        }
+        .background(theme.backgroundColor.opacity(isLive ? 0 : 0.96))
+        .animation(.smooth(duration: 0.35), value: isLive)
+    }
+
+    /// Pushes the recorder page. A tap while a meeting records reopens that recording
+    /// instead of starting another.
+    private func start(_ request: NewMeetingRequest) {
+        if path.contains(where: \.isRecording) { return }
+        let target: NewMeetingRequest = liveSession.isRecording && !request.resumesLive ? .live : request
+        path.append(.record(target))
+    }
+
+    /// The recorder page, zooming out of the control that started it. Once the meeting
+    /// records, the way back zooms into the inline recording block instead, because the
+    /// New meeting pill has left the screen by then.
+    @ViewBuilder
+    private func recordingPage(for request: NewMeetingRequest) -> some View {
+        let page = MeetingScreen(
+            session: liveSession,
+            initialTitle: request.title,
+            initialAttendees: request.attendees,
+            calendarEventID: request.calendarEventID,
+            autoStart: !request.resumesLive,
+            isModal: false
+        )
+        page.recordingZoom(sourceID: isLive ? HomeZoomSource.live : request.sourceID, in: zoom, reduceMotion: reduceMotion)
     }
 
     // MARK: - Data
@@ -326,13 +359,17 @@ struct HomeScreen: View {
         case .home:
             path.removeAll()
         case .record(let eventID, let title, let attendees):
-            // One recording at a time: a tap while the recorder is up is ignored.
-            guard newMeeting == nil, !ActiveRecordingRegistry.shared.isRecording else { return }
+            // One recording at a time: a Record tap while one runs opens its page.
+            if path.contains(where: \.isRecording) { return }
+            if ActiveRecordingRegistry.shared.isRecording {
+                path = [.record(.live)]
+                return
+            }
             path.removeAll()
             if let eventID, calendar.event(with: eventID) == nil {
                 await calendar.loadToday()
             }
-            guard newMeeting == nil else { return }
+            guard !path.contains(where: \.isRecording), !ActiveRecordingRegistry.shared.isRecording else { return }
             var request = NewMeetingRequest()
             if let eventID, let event = calendar.event(with: eventID) {
                 request = NewMeetingRequest(event: event)
@@ -341,15 +378,11 @@ struct HomeScreen: View {
                 request.title = title
                 request.attendees = attendees
             }
-            newMeeting = request
+            path = [.record(request)]
         case .open(let meetingID):
             guard meetings.contains(where: { $0.id == meetingID }) else { return }
             path = [.meeting(meetingID)]
         }
-    }
-
-    private var isSearching: Bool {
-        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     /// Today's events that have not ended yet.
@@ -357,14 +390,12 @@ struct HomeScreen: View {
         (previewEvents ?? calendar.events).filter { $0.end > now }
     }
 
-    private var filteredMeetings: [Meeting] {
-        meetings.filter { meeting in
-            MeetingSearch.matches(query: searchText, fields: [meeting.title, meeting.scratchpad, meeting.transcript])
-        }
+    private func isHappening(_ event: CalendarEventInfo) -> Bool {
+        event.start <= now && event.end > now
     }
 
     private var groupedMeetings: [(group: MeetingDayGroup, items: [Meeting])] {
-        MeetingDayGroup.grouped(filteredMeetings, date: \.startedAt, now: now)
+        MeetingDayGroup.grouped(meetings, date: \.startedAt, now: now)
     }
 
     private func openCount(for meeting: Meeting) -> Int {
@@ -393,10 +424,10 @@ private extension View {
     }
 }
 
-// MARK: - Hero cards
+// MARK: - Live recording
 
-/// What the recording hero shows, taken from the live session (or a preview).
-struct RecordingHeroState: Equatable {
+/// What the inline recording block shows, taken from the live session (or a preview).
+struct LiveRecordingState: Equatable {
     var elapsed: TimeInterval
     var isPaused: Bool
     var title: String
@@ -424,139 +455,188 @@ struct RecordingHeroState: Equatable {
         self.attendees = attendees
     }
 
-    /// The last sentence or so of the transcript.
-    static func tail(of transcript: String, limit: Int = 140) -> String {
+    /// The last sentence or so of the transcript, cut on a word boundary. The row
+    /// truncates the head, so no leading ellipsis is added here.
+    static func tail(of transcript: String, limit: Int = 90) -> String {
         let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count > limit else { return trimmed }
         let tail = trimmed.suffix(limit)
         if let cut = tail.firstIndex(where: { $0 == "." || $0 == "?" || $0 == "!" }), tail.distance(from: cut, to: tail.endIndex) > 20 {
             return String(tail[tail.index(after: cut)...]).trimmingCharacters(in: .whitespaces)
         }
-        return "…" + tail
+        guard let word = tail.firstIndex(of: " ") else { return String(tail) }
+        return tail[tail.index(after: word)...].trimmingCharacters(in: .whitespaces)
     }
 }
 
-/// The recording in progress: timer hero, breathing dot, last line, Pause and Stop.
-struct RecordingHeroCard: View {
-    enum Layout { case home, page }
-
+/// The recording in progress on the home: breathing dot, the timer, the last line heard,
+/// and Pause / Stop as 44 pt icon buttons on the right. Hairlines above and below, no box.
+/// Tapping the text opens the recorder page.
+struct LiveRecordingBlock: View {
     @Environment(\.meetingsTheme) private var theme
-    let state: RecordingHeroState
-    var layout: Layout = .page
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let state: LiveRecordingState
     let onPause: () -> Void
     let onStop: () -> Void
-    /// Home only: tapping the card opens the recorder page.
-    var onOpen: (() -> Void)?
+    let onOpen: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
-                BreathingDot(color: state.isPaused ? theme.inkSoft : theme.negativeColor, isActive: !state.isPaused)
-                Eyebrow(state.isPaused ? "Paused" : "Recording", color: state.isPaused ? nil : theme.negativeColor)
-                Spacer(minLength: 8)
-                if layout == .home, let onOpen {
-                    Button(action: onOpen) {
-                        HStack(spacing: 4) {
-                            Text("Open")
-                                .font(MeetingsType.metaMedium)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 11, weight: .semibold))
+        VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 12) {
+                Button(action: onOpen) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack(spacing: 8) {
+                            BreathingDot(color: state.isPaused ? theme.inkSoft : theme.negativeColor, isActive: !state.isPaused)
+                            Eyebrow(state.isPaused ? "Paused" : "Recording", color: state.isPaused ? nil : theme.negativeColor)
+                                .contentTransition(.numericText())
                         }
-                        .foregroundStyle(theme.ink)
-                        .padding(.horizontal, 10)
-                        .frame(height: 28)
-                        .background(theme.ink.opacity(0.06), in: Capsule())
-                        .contentShape(Capsule())
+                        ElapsedTimeLabel(elapsed: state.elapsed)
+                            .padding(.top, 8)
+                        if !state.title.isEmpty {
+                            Text(state.title)
+                                .font(MeetingsType.rowTitle)
+                                .foregroundStyle(theme.ink)
+                                .lineLimit(1)
+                                .padding(.top, 8)
+                        }
+                        Text(state.lastLine.isEmpty ? "Listening…" : state.lastLine)
+                            .font(MeetingsType.secondary)
+                            .lineSpacing(3)
+                            .foregroundStyle(theme.inkSoft)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.85)
+                            .padding(.top, state.title.isEmpty ? 8 : 4)
+                            .contentTransition(.opacity)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Open the recording")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
                 }
-            }
+                .buttonStyle(.plain)
+                .accessibilityLabel(state.isPaused ? "Paused recording" : "Recording in progress")
+                .accessibilityHint("Opens the recording")
 
-            ElapsedTimeLabel(elapsed: state.elapsed)
-                .padding(.top, 12)
-
-            if layout == .page {
-                LevelMeter(history: state.isPaused ? [] : state.levels, isActive: !state.isPaused, themed: true)
-                    .padding(.top, 12)
-            }
-
-            if layout == .home {
-                VStack(alignment: .leading, spacing: 4) {
-                    if !state.title.isEmpty {
-                        Text(state.title)
-                            .font(MeetingsType.rowTitle)
-                            .foregroundStyle(theme.ink)
-                            .lineLimit(1)
-                    }
-                    Text(state.lastLine.isEmpty ? "Listening…" : state.lastLine)
-                        .font(MeetingsType.secondary)
-                        .lineSpacing(3)
-                        .foregroundStyle(theme.inkSoft)
-                        .lineLimit(2)
-                }
-                .padding(.top, 12)
-            }
-
-            if layout == .home {
-                HStack(spacing: 12) {
-                    MeetingsButton(
-                        title: state.isPaused ? "Resume" : "Pause",
+                HStack(spacing: 0) {
+                    ControlIconButton(
                         systemImage: state.isPaused ? "play.fill" : "pause.fill",
-                        role: .secondary,
+                        label: state.isPaused ? "Resume" : "Pause",
                         action: onPause
                     )
-                    MeetingsButton(title: "Stop", systemImage: "stop.fill", role: .negative, action: onStop)
+                    ControlIconButton(systemImage: "stop.fill", label: "Stop", tint: theme.negativeColor, action: onStop)
                 }
-                .padding(.top, 20)
+                .padding(.top, 4)
             }
+            .padding(.vertical, 16)
+            .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: state.isPaused)
+            Hairline()
         }
-        .primaryCard()
         .accessibilityElement(children: .contain)
     }
 }
 
-/// The next calendar event with the one Record button.
-struct NextMeetingCard: View {
+/// 44 pt round icon control: a tinted symbol on a 6 % wash. Used for inline Pause and Stop.
+struct ControlIconButton: View {
+    @Environment(\.meetingsTheme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let systemImage: String
+    let label: String
+    var tint: Color?
+    let action: () -> Void
+
+    var body: some View {
+        let color = tint ?? theme.ink
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(color)
+                .contentTransition(reduceMotion ? .opacity : .symbolEffect(.replace))
+                .frame(width: 36, height: 36)
+                .background(color.opacity(0.08), in: Circle())
+                .frame(width: MeetingsSpace.target, height: MeetingsSpace.target)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.pressable)
+        .accessibilityLabel(label)
+    }
+}
+
+/// The small accent record control at the end of the next-event row.
+struct RecordIconButton: View {
+    @Environment(\.meetingsTheme) private var theme
+    let label: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "mic.fill")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(theme.onAccentColor)
+                .frame(width: 36, height: 36)
+                .background(theme.accentColor, in: Circle())
+                .frame(width: MeetingsSpace.target, height: MeetingsSpace.target)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.pressable)
+        .accessibilityLabel(label)
+        .accessibilityHint("Starts recording right away")
+    }
+}
+
+// MARK: - Rows
+
+/// The next calendar event as a plain row: time column, title and people, record control.
+struct NextEventRow: View {
     @Environment(\.meetingsTheme) private var theme
     let event: CalendarEventInfo
     let now: Date
+    /// False when the row follows a block that already ended with a hairline.
+    var drawsTopHairline = true
     let onRecord: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Eyebrow(eyebrow)
-            Text(event.title.isEmpty ? "Untitled event" : event.title)
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(theme.ink)
-                .lineLimit(2)
-                .padding(.top, MeetingsSpace.label)
-            Text(meta)
-                .font(MeetingsType.secondary)
-                .foregroundStyle(theme.inkSoft)
-                .lineLimit(1)
-                .padding(.top, 4)
+        VStack(spacing: 0) {
+            if drawsTopHairline { Hairline() }
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(event.start.formatted(date: .omitted, time: .shortened))
+                        .font(MeetingsType.metaMedium)
+                        .foregroundStyle(theme.ink)
+                    Text(countdown)
+                        .font(MeetingsType.meta)
+                        .foregroundStyle(isNow ? theme.accentColor : theme.inkSoft)
+                }
                 .monospacedDigit()
-            MeetingsButton(title: "Record", systemImage: "mic.fill", role: .primary, action: onRecord)
-                .padding(.top, 20)
-                .accessibilityLabel("Record \(event.title)")
+                .lineLimit(1)
+                .frame(width: 72, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(event.title.isEmpty ? "Untitled event" : event.title)
+                        .font(MeetingsType.rowTitle)
+                        .foregroundStyle(theme.ink)
+                        .lineLimit(1)
+                    Text(meta)
+                        .font(MeetingsType.meta)
+                        .foregroundStyle(theme.inkSoft)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                RecordIconButton(label: "Record \(event.title.isEmpty ? "event" : event.title)", action: onRecord)
+            }
+            .padding(.vertical, 12)
+            Hairline()
         }
-        .primaryCard()
     }
 
     private var isNow: Bool { event.start <= now && event.end > now }
 
-    private var eyebrow: String {
-        if isNow {
-            return "Happening now · until \(event.end.formatted(date: .omitted, time: .shortened))"
-        }
-        return "Next meeting · \(Self.countdown(to: event.start, from: now))"
+    private var countdown: String {
+        isNow ? "until \(event.end.formatted(date: .omitted, time: .shortened))" : Self.countdown(to: event.start, from: now)
     }
 
     private var meta: String {
-        let time = "\(event.start.formatted(date: .omitted, time: .shortened)) – \(event.end.formatted(date: .omitted, time: .shortened))"
         let people = event.attendeeNames.isEmpty ? nil : event.attendeeNames.joined(separator: ", ")
-        return MetaLine.join([time, people])
+        return MetaLine.join([people, event.location]).isEmpty
+            ? "\(event.start.formatted(date: .omitted, time: .shortened)) – \(event.end.formatted(date: .omitted, time: .shortened))"
+            : MetaLine.join([people, event.location])
     }
 
     /// "in 25 min", "in 2 h 10 min", "in a moment".
@@ -571,65 +651,41 @@ struct NextMeetingCard: View {
     }
 }
 
-/// Nothing scheduled (or nothing recorded yet): one sentence and the Record button.
-struct QuietHeroCard: View {
-    @Environment(\.meetingsTheme) private var theme
-    let isFirstMeeting: Bool
-    let onRecord: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Eyebrow(isFirstMeeting ? "Get started" : "Nothing scheduled")
-            Text(isFirstMeeting ? "Record your first meeting" : "Record a meeting")
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(theme.ink)
-                .padding(.top, MeetingsSpace.label)
-            Text("Notes, transcript and a summary stay on this device.")
-                .font(MeetingsType.secondary)
-                .lineSpacing(3)
-                .foregroundStyle(theme.inkSoft)
-                .padding(.top, 4)
-            MeetingsButton(title: "Record", systemImage: "mic.fill", role: .primary, action: onRecord)
-                .padding(.top, 20)
-                .accessibilityHint("Starts recording right away")
-        }
-        .primaryCard()
-    }
-}
-
-/// Compact accent-tinted strip: open action items across meetings.
-struct OpenActionsStrip: View {
+/// Open action items across meetings: a plain row with the count and a chevron.
+struct OpenActionsRow: View {
     @Environment(\.meetingsTheme) private var theme
     let count: Int
+    /// False when this is the first row of its run, so it draws its own top hairline.
+    var hasRowAbove = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: "checklist")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(theme.ink)
-                Text(MetaLine.count(count, "open action item", "open action items"))
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(theme.ink)
-                    .monospacedDigit()
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(theme.inkSoft)
+            VStack(spacing: 0) {
+                if !hasRowAbove { Hairline() }
+                HStack(spacing: 12) {
+                    Text("Open action items")
+                        .font(MeetingsType.rowTitle)
+                        .foregroundStyle(theme.ink)
+                    Spacer(minLength: 8)
+                    Text("\(count)")
+                        .font(MeetingsType.metaMedium)
+                        .foregroundStyle(theme.inkSoft)
+                        .monospacedDigit()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(theme.inkSoft)
+                }
+                .padding(.vertical, 14)
+                Hairline()
             }
-            .padding(.horizontal, 16)
-            .frame(minHeight: MeetingsSpace.target)
-            .background(theme.accentWash, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.pressable)
+        .buttonStyle(.plain)
         .accessibilityLabel("\(count) open action items")
         .accessibilityHint("Shows them all")
     }
 }
-
-// MARK: - Rows
 
 /// One past meeting in the home list: title, meta line, chevron, bottom hairline.
 struct MeetingRow: View {
@@ -655,7 +711,7 @@ struct MeetingRow: View {
                 Spacer(minLength: 8)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(theme.inkSoft.opacity(0.7))
+                    .foregroundStyle(theme.inkSoft)
             }
             .padding(.vertical, 14)
             Hairline()
@@ -744,15 +800,15 @@ struct OpenActionsScreen: View {
 
 // MARK: - Previews
 
-#Preview("Home · light") {
+#Preview("Home · next event · light") {
     MeetingsHubPreview(scheme: .light)
 }
 
-#Preview("Home · dark") {
+#Preview("Home · next event · dark") {
     MeetingsHubPreview(scheme: .dark)
 }
 
-#Preview("Home · recording") {
+#Preview("Home · recording · light") {
     MeetingsHubPreview(scheme: .light, recording: true)
 }
 
@@ -760,7 +816,7 @@ struct OpenActionsScreen: View {
     MeetingsHubPreview(scheme: .dark, recording: true)
 }
 
-#Preview("Home · empty") {
+#Preview("Home · empty · light") {
     MeetingsHubPreview(scheme: .light, empty: true)
 }
 
@@ -777,15 +833,34 @@ struct MeetingsHubPreview: View {
     var body: some View {
         HomeScreen(
             previewEvents: empty ? [] : MeetingPreviewData.sampleEvents(),
-            previewRecording: recording ? RecordingHeroState(
-                elapsed: 1_262,
-                title: "Roadmap sync",
-                lastLine: "Then we ship the beta on Friday and the test group gets a build on Thursday.",
-                levels: MeetingPreviewData.waveform(phase: 1.3)
-            ) : nil
+            previewRecording: recording ? MeetingPreviewData.liveRecording : nil
         )
         .modelContainer(MeetingPreviewData.previewContainer(empty: empty))
         .meetingsTheme(MeetingPreviewData.warmTheme(scheme))
         .preferredColorScheme(scheme)
+    }
+}
+
+extension View {
+    /// The zoom source for the recorder page. `matchedTransitionSource` ships on macOS too,
+    /// so the package's macOS build keeps it.
+    @ViewBuilder
+    func zoomSource(id: String, in namespace: Namespace.ID) -> some View {
+        matchedTransitionSource(id: id, in: namespace)
+    }
+
+    /// The zoom the recorder page pushes with. The zoom transition is iOS only, so the
+    /// package's macOS build falls back to the platform's default push.
+    @ViewBuilder
+    func recordingZoom(sourceID: String, in namespace: Namespace.ID, reduceMotion: Bool) -> some View {
+        #if os(iOS)
+        if reduceMotion {
+            self
+        } else {
+            navigationTransition(.zoom(sourceID: sourceID, in: namespace))
+        }
+        #else
+        self
+        #endif
     }
 }

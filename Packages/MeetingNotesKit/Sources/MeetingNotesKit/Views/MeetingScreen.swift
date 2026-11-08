@@ -59,11 +59,19 @@ struct MeetingScreen: View {
         }
     }
 
+    /// In a sheet the page brings its own navigation stack; pushed from the Meetings home
+    /// it lives on the home's stack, so Back keeps the recording running in the inline
+    /// block there.
+    @ViewBuilder
     private var livePage: some View {
-        NavigationStack {
+        if isModal {
+            NavigationStack {
+                page
+            }
+            .interactiveDismissDisabled(session.isRecording)
+        } else {
             page
         }
-        .interactiveDismissDisabled(session.isRecording)
     }
 
     /// The picture mode drops the navigation stack and the scroll view, because neither
@@ -71,24 +79,18 @@ struct MeetingScreen: View {
     private var samplePage: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Product weekly")
-                .font(.system(size: 20, weight: .semibold))
+                .font(MeetingsType.meetingTitle)
                 .foregroundStyle(theme.ink)
             Text("Ana, Ben, Chi")
                 .font(MeetingsType.meta)
                 .foregroundStyle(theme.inkSoft)
                 .padding(.top, 4)
-            RecordingHeroCard(
-                state: RecordingHeroState(
-                    elapsed: 1_262,
-                    title: "Product weekly",
-                    lastLine: "",
-                    levels: MeetingPreviewData.waveform(phase: 0.8)
-                ),
-                layout: .page,
-                onPause: {},
-                onStop: {}
+            RecordingHero(
+                status: .recording,
+                elapsed: 1_262,
+                levels: MeetingPreviewData.waveform(phase: 0.8)
             )
-            .padding(.top, 16)
+            .padding(.top, 20)
             NotesSection("Transcript · live") {
                 TranscriptRows(
                     rows: [TranscriptRowModel(id: 0, speakerKey: nil, name: nil, start: nil, text: "Ana opened the meeting and asked where the release checklist stands. Ben said the beta build is done and the review is booked for Friday.")],
@@ -122,7 +124,7 @@ struct MeetingScreen: View {
     private var page: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                MeetingTitleField(title: $session.title, style: .compact)
+                MeetingTitleField(title: $session.title, style: .hero)
                     .disabled(session.phase == .starting)
 
                 if !session.attendees.isEmpty {
@@ -134,7 +136,7 @@ struct MeetingScreen: View {
                 }
 
                 hero
-                    .padding(.top, 16)
+                    .padding(.top, 20)
 
                 messages
 
@@ -208,14 +210,9 @@ struct MeetingScreen: View {
                     dismiss()
                 }
             }
-            if sharesSession {
-                Button("Keep recording in the background") { dismiss() }
-            }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text(sharesSession
-                 ? "The meeting keeps recording while this page is closed; the Meetings home shows it."
-                 : "")
+            Text("Closing this sheet ends the recording.")
         }
         .alert("Reminders", isPresented: Binding(
             get: { reminders.message != nil || infoMessage != nil },
@@ -250,28 +247,12 @@ struct MeetingScreen: View {
 
     // MARK: - Hero
 
-    @ViewBuilder
     private var hero: some View {
-        switch session.phase {
-        case .recording, .paused:
-            RecordingHeroCard(
-                state: RecordingHeroState(session: session),
-                layout: .page,
-                onPause: {},
-                onStop: {}
-            )
-        case .idle, .starting, .finished:
-            VStack(alignment: .leading, spacing: 0) {
-                RecordingStatusPill(mode: pillMode, elapsed: session.elapsed)
-                ElapsedTimeLabel(elapsed: session.elapsed)
-                    .padding(.top, 12)
-                    .opacity(session.phase == .finished ? 1 : 0.6)
-                LevelMeter(history: [], isActive: session.phase == .starting, themed: true)
-                    .padding(.top, 12)
-                    .opacity(session.phase == .finished ? 0.35 : 1)
-            }
-            .primaryCard()
-        }
+        RecordingHero(
+            status: pillMode,
+            elapsed: session.elapsed,
+            levels: session.phase == .recording ? session.levelHistory : []
+        )
     }
 
     @ViewBuilder
@@ -435,7 +416,7 @@ struct MeetingScreen: View {
         if isModal {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Close") {
-                    if session.isRecording {
+                    if session.isRecording, !sharesSession {
                         confirmClose = true
                     } else {
                         session.persistEdits(context: context)
@@ -517,6 +498,54 @@ struct MeetingScreen: View {
     }
 }
 
+/// The recording status and the timer as the hero of the page: eyebrow with the breathing
+/// dot, the 56 pt timer, the live meter, a hairline underneath. No box.
+struct RecordingHero: View {
+    @Environment(\.meetingsTheme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let status: RecordingStatusPill.Mode
+    let elapsed: TimeInterval
+    let levels: [Double]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                BreathingDot(color: dotColor, isActive: status == .recording)
+                Eyebrow(label, color: status == .recording ? theme.negativeColor : nil)
+                    .contentTransition(.numericText())
+            }
+            ElapsedTimeLabel(elapsed: elapsed)
+                .padding(.top, 12)
+                .opacity(status == .idle ? 0.5 : 1)
+            LevelMeter(history: status == .paused ? [] : levels, isActive: status == .recording || status == .starting, themed: true)
+                .padding(.top, 12)
+                .opacity(status == .saved || status == .idle ? 0.35 : 1)
+            Hairline()
+                .padding(.top, 20)
+        }
+        .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: status)
+        .accessibilityElement(children: .contain)
+    }
+
+    private var label: String {
+        switch status {
+        case .idle: return "Not recording"
+        case .starting: return "Starting…"
+        case .recording: return "Recording"
+        case .paused: return "Paused"
+        case .saved: return "Saved"
+        }
+    }
+
+    private var dotColor: Color {
+        switch status {
+        case .recording: return theme.negativeColor
+        case .saved: return theme.positiveColor
+        case .idle, .starting, .paused: return theme.inkSoft
+        }
+    }
+}
+
 // MARK: - Previews
 
 #Preview("Recording · light") {
@@ -531,9 +560,11 @@ struct MeetingScreen: View {
         .preferredColorScheme(.dark)
 }
 
-#Preview("Recording · idle") {
-    MeetingScreen(isModal: true)
-        .modelContainer(MeetingPreviewData.previewContainer(empty: true))
-        .meetingsTheme(MeetingPreviewData.warmTheme(.light))
-        .preferredColorScheme(.light)
+#Preview("Recording · idle · pushed") {
+    NavigationStack {
+        MeetingScreen(isModal: false)
+    }
+    .modelContainer(MeetingPreviewData.previewContainer(empty: true))
+    .meetingsTheme(MeetingPreviewData.warmTheme(.light))
+    .preferredColorScheme(.light)
 }
