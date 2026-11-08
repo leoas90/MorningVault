@@ -1,18 +1,15 @@
 import SwiftData
 import SwiftUI
 
-/// The meeting page: one editable notes document with the recorder underneath.
-///
-/// The user types in their own words; the transcript lives behind a toolbar
-/// button so the page stays calm. After Stop the on-device model can turn the
-/// transcript plus the notes into enhanced notes.
+/// The meeting page: the timer as the hero, the live transcript underneath, and the user's
+/// own notes. After Stop the on-device model can turn the transcript plus the notes into
+/// enhanced notes.
 struct MeetingScreen: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    #if DEBUG
+    @Environment(\.meetingsTheme) private var theme
     @Environment(\.meetingSampleMode) private var sampleMode
-    #endif
-    @StateObject private var session = RecordingSession()
+    @StateObject private var session: RecordingSession
     @StateObject private var reminders = RemindersService()
     @State private var showTranscript = false
     @State private var notesMode: NotesMode = .enhanced
@@ -31,17 +28,35 @@ struct MeetingScreen: View {
     var autoStart: Bool = false
     /// Shown in a sheet: adds a Close button.
     var isModal: Bool = false
+    /// True when the session is owned by the home screen, so the sheet can close while the
+    /// meeting keeps recording.
+    private let sharesSession: Bool
+
+    /// - Parameter session: a session owned by the caller (the home screen hands in its
+    ///   own so the page can be closed and reopened while recording). `nil` makes one.
+    init(
+        session: RecordingSession? = nil,
+        initialTitle: String = "",
+        initialAttendees: [String] = [],
+        calendarEventID: String? = nil,
+        autoStart: Bool = false,
+        isModal: Bool = false
+    ) {
+        _session = StateObject(wrappedValue: session ?? RecordingSession())
+        sharesSession = session != nil
+        self.initialTitle = initialTitle
+        self.initialAttendees = initialAttendees
+        self.calendarEventID = calendarEventID
+        self.autoStart = autoStart
+        self.isModal = isModal
+    }
 
     var body: some View {
-        #if DEBUG
         if sampleMode {
             samplePage
         } else {
             livePage
         }
-        #else
-        livePage
-        #endif
     }
 
     private var livePage: some View {
@@ -51,74 +66,109 @@ struct MeetingScreen: View {
         .interactiveDismissDisabled(session.isRecording)
     }
 
-    #if DEBUG
-    /// The picture mode drops the navigation stack and the scroll view,
-    /// because neither can be drawn outside a running window.
+    /// The picture mode drops the navigation stack and the scroll view, because neither
+    /// can be drawn outside a running window.
     private var samplePage: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 0) {
             Text("Product weekly")
-                .font(.title.weight(.bold))
-            RecordingStatusPill(mode: .recording, elapsed: 42)
-            Text(MeetingPreviewData.sampleScratchpad)
-                .font(.body)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(theme.ink)
+            Text("Ana, Ben, Chi")
+                .font(MeetingsType.meta)
+                .foregroundStyle(theme.inkSoft)
+                .padding(.top, 4)
+            RecordingHeroCard(
+                state: RecordingHeroState(
+                    elapsed: 1_262,
+                    title: "Product weekly",
+                    lastLine: "",
+                    levels: MeetingPreviewData.waveform(phase: 0.8)
+                ),
+                layout: .page,
+                onPause: {},
+                onStop: {}
+            )
+            .padding(.top, 16)
+            NotesSection("Transcript · live") {
+                TranscriptRows(
+                    rows: [TranscriptRowModel(id: 0, speakerKey: nil, name: nil, start: nil, text: "Ana opened the meeting and asked where the release checklist stands. Ben said the beta build is done and the review is booked for Friday.")],
+                    volatileText: "Chi asked about the"
+                )
+            }
+            .padding(.top, MeetingsSpace.sectionGap)
+            NotesSection("My notes") {
+                Text(MeetingPreviewData.sampleScratchpad)
+                    .font(MeetingsType.body)
+                    .lineSpacing(6)
+                    .foregroundStyle(theme.ink)
+            }
+            .padding(.top, MeetingsSpace.sectionGap)
             Spacer(minLength: 0)
-            sampleBar
+            Hairline()
+                .padding(.horizontal, -MeetingsSpace.margin)
+            HStack(spacing: 12) {
+                MeetingsButton(title: "Pause", systemImage: "pause.fill", role: .secondary) {}
+                MeetingsButton(title: "Stop", systemImage: "stop.fill", role: .negative) {}
+            }
+            .padding(.top, 12)
         }
-        .padding(.horizontal)
+        .padding(.horizontal, MeetingsSpace.margin)
         .padding(.vertical, 20)
+        .themedPageBackground()
     }
-
-    private var sampleBar: some View {
-        HStack(spacing: 24) {
-            Label("Pause", systemImage: "pause.fill")
-                .frame(minWidth: 100)
-                .padding(.vertical, 10)
-                .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            RecordButton(isRecording: true, size: 64) {}
-            Color.clear.frame(minWidth: 100, maxHeight: 1)
-        }
-    }
-    #endif
 
     // MARK: - Page
 
     private var page: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                MeetingTitleField(title: $session.title)
+            VStack(alignment: .leading, spacing: 0) {
+                MeetingTitleField(title: $session.title, style: .compact)
                     .disabled(session.phase == .starting)
 
-                HStack(spacing: 10) {
-                    RecordingStatusPill(mode: pillMode, elapsed: session.elapsed)
-                    if !session.attendees.isEmpty {
-                        Text(session.attendees.joined(separator: ", "))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    Spacer(minLength: 0)
+                if !session.attendees.isEmpty {
+                    Text(session.attendees.joined(separator: ", "))
+                        .font(MeetingsType.meta)
+                        .foregroundStyle(theme.inkSoft)
+                        .lineLimit(1)
+                        .padding(.top, 4)
                 }
+
+                hero
+                    .padding(.top, 16)
 
                 messages
 
                 if session.phase == .finished, let summary = session.summary {
                     NotesModeToggle(mode: $notesMode)
-                    switch notesMode {
-                    case .enhanced:
-                        EnhancedNotesView(summary: summary, meetingID: session.meetingID)
-                    case .mine:
+                        .padding(.top, MeetingsSpace.sectionGap)
+                    Group {
+                        switch notesMode {
+                        case .enhanced:
+                            EnhancedNotesView(summary: summary, meetingID: session.meetingID)
+                        case .mine:
+                            NotesSection("My notes") {
+                                NotesEditor(text: $session.scratchpad, focus: $notesFocused)
+                            }
+                        }
+                    }
+                    .padding(.top, 20)
+                } else {
+                    transcriptSection
+                        .padding(.top, MeetingsSpace.sectionGap)
+                    NotesSection("My notes") {
                         NotesEditor(text: $session.scratchpad, focus: $notesFocused)
                     }
-                } else {
-                    NotesEditor(text: $session.scratchpad, focus: $notesFocused)
+                    .padding(.top, MeetingsSpace.sectionGap)
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, MeetingsSpace.margin)
             .padding(.top, 8)
             .padding(.bottom, 24)
         }
         .scrollDismissesKeyboard(.interactively)
         .themedPageBackground()
+        .navigationTitle("")
+        .inlineTitle()
         .safeAreaInset(edge: .bottom) { bottomBar }
         .toolbar { toolbarContent }
         .sheet(isPresented: $showTranscript) {
@@ -132,6 +182,7 @@ struct MeetingScreen: View {
                 speakerBanner: session.speakerBanner,
                 onRename: { key, name in session.renameSpeaker(key: key, to: name, context: context) }
             )
+            .meetingsTheme(theme)
         }
         .confirmationDialog("Discard this recording?", isPresented: $confirmDiscard, titleVisibility: .visible) {
             Button("Discard recording", role: .destructive) {
@@ -157,7 +208,14 @@ struct MeetingScreen: View {
                     dismiss()
                 }
             }
-            Button("Keep recording", role: .cancel) {}
+            if sharesSession {
+                Button("Keep recording in the background") { dismiss() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(sharesSession
+                 ? "The meeting keeps recording while this page is closed; the Meetings home shows it."
+                 : "")
         }
         .alert("Reminders", isPresented: Binding(
             get: { reminders.message != nil || infoMessage != nil },
@@ -179,7 +237,7 @@ struct MeetingScreen: View {
         }
         .task {
             if session.title.isEmpty, !initialTitle.isEmpty { session.title = initialTitle }
-            if autoStart, session.phase == .idle {
+            if autoStart, session.phase == .idle || session.phase == .finished {
                 await session.start(
                     calendarEventID: calendarEventID,
                     title: initialTitle,
@@ -190,40 +248,86 @@ struct MeetingScreen: View {
         }
     }
 
+    // MARK: - Hero
+
+    @ViewBuilder
+    private var hero: some View {
+        switch session.phase {
+        case .recording, .paused:
+            RecordingHeroCard(
+                state: RecordingHeroState(session: session),
+                layout: .page,
+                onPause: {},
+                onStop: {}
+            )
+        case .idle, .starting, .finished:
+            VStack(alignment: .leading, spacing: 0) {
+                RecordingStatusPill(mode: pillMode, elapsed: session.elapsed)
+                ElapsedTimeLabel(elapsed: session.elapsed)
+                    .padding(.top, 12)
+                    .opacity(session.phase == .finished ? 1 : 0.6)
+                LevelMeter(history: [], isActive: session.phase == .starting, themed: true)
+                    .padding(.top, 12)
+                    .opacity(session.phase == .finished ? 0.35 : 1)
+            }
+            .primaryCard()
+        }
+    }
+
+    @ViewBuilder
+    private var transcriptSection: some View {
+        let hasText = !session.finalTranscript.isEmpty || !session.volatileTranscript.isEmpty
+        let turns = session.speakerTurns.contains { $0.name != nil } ? session.speakerTurns : []
+        NotesSection(session.isRecording ? "Transcript · live" : "Transcript") {
+            if session.isTranscribingFile {
+                WorkingLine("Transcribing the recording on device…")
+                    .padding(.vertical, 8)
+            } else if session.isIdentifyingSpeakers, !turns.isEmpty {
+                WorkingLine("Identifying speakers…")
+                    .padding(.vertical, 8)
+            }
+            if !turns.isEmpty {
+                TranscriptRows(
+                    rows: TranscriptRowModel.rows(from: turns),
+                    onRename: { key, name in session.renameSpeaker(key: key, to: name, context: context) }
+                )
+            } else if hasText {
+                TranscriptRows(
+                    rows: [TranscriptRowModel(id: 0, speakerKey: nil, name: nil, start: nil, text: session.finalTranscript)],
+                    volatileText: session.volatileTranscript
+                )
+            } else if !session.isTranscribingFile {
+                Text(session.isRecording ? "Words show up here as they are recognized." : "Nothing was recognized yet.")
+                    .font(MeetingsType.secondary)
+                    .foregroundStyle(theme.inkSoft)
+                    .padding(.vertical, 8)
+            }
+        }
+    }
+
     @ViewBuilder
     private var messages: some View {
-        if let error = session.errorMessage {
-            BannerView(
-                message: error,
-                details: session.errorDetails,
-                symbol: "mic.slash.fill",
-                actionTitle: session.errorNeedsSettings ? "Open Settings" : nil,
-                action: session.errorNeedsSettings ? { RecordingPermissions.openSettings() } : nil,
-                onDismiss: { session.clearError() }
-            )
-        }
-        if let banner = session.banner {
-            BannerView(message: banner, details: session.bannerDetails, onDismiss: { session.recorder.clearBanner() })
-        }
-        if session.isTranscribingFile {
-            HStack(spacing: 8) {
-                ProgressView()
-                Text("Transcribing the recording on device…")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 12) {
+            if let error = session.errorMessage {
+                BannerView(
+                    message: error,
+                    details: session.errorDetails,
+                    symbol: "mic.slash",
+                    actionTitle: session.errorNeedsSettings ? "Open Settings" : nil,
+                    action: session.errorNeedsSettings ? { RecordingPermissions.openSettings() } : nil,
+                    onDismiss: { session.clearError() }
+                )
+            }
+            if let banner = session.banner {
+                BannerView(message: banner, details: session.bannerDetails, onDismiss: { session.recorder.clearBanner() })
+            }
+            if session.isIdentifyingSpeakers, session.speakerTurns.isEmpty {
+                WorkingLine("Identifying speakers…")
+            } else if let speakerBanner = session.speakerBanner {
+                BannerView(message: speakerBanner, details: session.speakerBannerDetails, symbol: "person.2.slash")
             }
         }
-        if session.isIdentifyingSpeakers {
-            HStack(spacing: 8) {
-                ProgressView()
-                Text("Identifying speakers…")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            .accessibilityElement(children: .combine)
-        } else if let speakerBanner = session.speakerBanner {
-            BannerView(message: speakerBanner, details: session.speakerBannerDetails, symbol: "person.2.slash")
-        }
+        .padding(.top, session.errorMessage != nil || session.banner != nil || session.isIdentifyingSpeakers || session.speakerBanner != nil ? 16 : 0)
     }
 
     private var pillMode: RecordingStatusPill.Mode {
@@ -241,11 +345,11 @@ struct MeetingScreen: View {
     @ViewBuilder
     private var bottomBar: some View {
         VStack(spacing: 0) {
-            Divider()
+            Hairline()
             Group {
                 switch session.phase {
                 case .idle:
-                    Button {
+                    MeetingsButton(title: "Start recording", systemImage: "mic.fill", role: .primary) {
                         Task {
                             await session.start(
                                 calendarEventID: calendarEventID,
@@ -254,91 +358,51 @@ struct MeetingScreen: View {
                                 context: context
                             )
                         }
-                    } label: {
-                        HStack(spacing: 12) {
-                            RecordButton(isRecording: false, size: 44) {}
-                                .allowsHitTesting(false)
-                                .accessibilityHidden(true)
-                            Text("Start recording")
-                                .font(.headline)
-                        }
-                        .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Start recording")
 
                 case .starting:
-                    HStack(spacing: 10) {
-                        ProgressView()
-                        Text("Starting…")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
+                    WorkingLine("Starting…")
+                        .frame(maxWidth: .infinity)
+                        .frame(height: MeetingsSpace.control)
 
                 case .recording, .paused:
-                    HStack(spacing: 24) {
-                        Button {
+                    HStack(spacing: 12) {
+                        MeetingsButton(
+                            title: session.phase == .paused ? "Resume" : "Pause",
+                            systemImage: session.phase == .paused ? "play.fill" : "pause.fill",
+                            role: .secondary
+                        ) {
                             if session.phase == .paused { session.resume() } else { session.pause() }
-                        } label: {
-                            Label(
-                                session.phase == .paused ? "Resume" : "Pause",
-                                systemImage: session.phase == .paused ? "play.fill" : "pause.fill"
-                            )
-                            .frame(minWidth: 100)
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
-
-                        VStack(spacing: 4) {
-                            RecordButton(isRecording: true, isPaused: session.phase == .paused, size: 64) {
-                                Task { await session.stop(context: context) }
-                            }
-                            Text("Stop")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .accessibilityHidden(true)
+                        MeetingsButton(title: "Stop", systemImage: "stop.fill", role: .negative) {
+                            Task { await session.stop(context: context) }
                         }
-
-                        Color.clear
-                            .frame(minWidth: 100, maxHeight: 1)
-                            .accessibilityHidden(true)
                     }
 
                 case .finished:
                     finishedBar
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, MeetingsSpace.margin)
             .padding(.vertical, 12)
         }
-        .background(.bar)
+        .background(theme.backgroundColor.opacity(0.96))
     }
 
     @ViewBuilder
     private var finishedBar: some View {
         switch session.summaryState {
         case .working:
-            HStack(spacing: 10) {
-                ProgressView()
-                Text("Writing the notes on device…")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
+            WorkingLine("Writing the notes on device…")
+                .frame(maxWidth: .infinity)
+                .frame(height: MeetingsSpace.control)
 
         case .finished:
             if isModal {
-                Button {
+                MeetingsButton(title: "Done", role: .primary) {
                     session.persistEdits(context: context)
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
             } else {
                 EmptyView()
             }
@@ -347,24 +411,18 @@ struct MeetingScreen: View {
             VStack(spacing: 8) {
                 if case .unavailable(let message) = session.summaryState {
                     Text(message)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .font(MeetingsType.meta)
+                        .foregroundStyle(theme.inkSoft)
                         .multilineTextAlignment(.center)
                 } else if case .failed(let message) = session.summaryState {
                     Text(message)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .font(MeetingsType.meta)
+                        .foregroundStyle(theme.inkSoft)
                         .multilineTextAlignment(.center)
                 }
-                Button {
+                MeetingsButton(title: "Enhance notes", systemImage: "sparkles", role: .primary) {
                     Task { await session.enhance(context: context) }
-                } label: {
-                    Label("Enhance notes", systemImage: "sparkles")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
                 .disabled(session.isTranscribingFile)
             }
         }
@@ -457,4 +515,25 @@ struct MeetingScreen: View {
             }
         }
     }
+}
+
+// MARK: - Previews
+
+#Preview("Recording · light") {
+    MeetingShowcaseView()
+        .meetingsTheme(MeetingPreviewData.warmTheme(.light))
+        .preferredColorScheme(.light)
+}
+
+#Preview("Recording · dark") {
+    MeetingShowcaseView()
+        .meetingsTheme(MeetingPreviewData.warmTheme(.dark))
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Recording · idle") {
+    MeetingScreen(isModal: true)
+        .modelContainer(MeetingPreviewData.previewContainer(empty: true))
+        .meetingsTheme(MeetingPreviewData.warmTheme(.light))
+        .preferredColorScheme(.light)
 }

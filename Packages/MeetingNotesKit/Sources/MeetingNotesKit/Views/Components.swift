@@ -1,8 +1,314 @@
 import SwiftUI
 
-/// The round red record control: a white circle when idle, a white square
-/// (stop) while recording.
+// MARK: - Shared editorial pieces
+//
+// Every Meetings screen is built from the pieces in this file: the eyebrow, the hairline,
+// the two card treatments, pills, the checkbox and the 52 pt buttons. Keep styling here so
+// the screens only describe structure.
+
+/// 11 pt semibold uppercase label with 0.8 tracking, in secondary ink.
+struct Eyebrow: View {
+    @Environment(\.meetingsTheme) private var theme
+    let text: String
+    var color: Color?
+
+    init(_ text: String, color: Color? = nil) {
+        self.text = text
+        self.color = color
+    }
+
+    var body: some View {
+        Text(text)
+            .font(MeetingsType.eyebrow)
+            .textCase(.uppercase)
+            .tracking(0.8)
+            .foregroundStyle(color ?? theme.inkSoft)
+            .lineLimit(1)
+    }
+}
+
+/// 1 pt rule in the hairline color.
+struct Hairline: View {
+    @Environment(\.meetingsTheme) private var theme
+    var color: Color?
+
+    var body: some View {
+        Rectangle()
+            .fill(color ?? theme.hairlineColor)
+            .frame(height: 1)
+            .accessibilityHidden(true)
+    }
+}
+
+/// The one primary card on a screen: radius 28, padding 20, a soft shadow in light mode and
+/// a hairline in dark mode.
+struct PrimaryCardModifier: ViewModifier {
+    @Environment(\.meetingsTheme) private var theme
+    @Environment(\.colorScheme) private var colorScheme
+    var padding: CGFloat = 20
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: theme.primaryRadius, style: .continuous)
+        content
+            .padding(padding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(theme.surfaceColor, in: shape)
+            .overlay(shape.strokeBorder(theme.hairlineColor, lineWidth: colorScheme == .dark ? 1 : 0))
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0 : 0.08), radius: 20, y: 8)
+    }
+}
+
+/// A secondary, functional card: radius 20, padding 16, lighter shadow / hairline.
+struct FunctionalCardModifier: ViewModifier {
+    @Environment(\.meetingsTheme) private var theme
+    @Environment(\.colorScheme) private var colorScheme
+    var padding: CGFloat = 16
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: theme.functionalRadius, style: .continuous)
+        content
+            .padding(padding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(theme.surfaceColor, in: shape)
+            .overlay(shape.strokeBorder(theme.hairlineColor, lineWidth: colorScheme == .dark ? 1 : 0))
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0 : 0.05), radius: 12, y: 4)
+    }
+}
+
+/// Small rounded label on a 6 % tint: owners, due dates, counts.
+struct TintPill: View {
+    @Environment(\.meetingsTheme) private var theme
+    let text: String
+    var tint: Color?
+    var systemImage: String?
+
+    var body: some View {
+        HStack(spacing: 4) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            Text(text)
+                .font(MeetingsType.metaMedium)
+        }
+        .lineLimit(1)
+        .foregroundStyle(tint ?? theme.ink)
+        .padding(.horizontal, 8)
+        .frame(minHeight: 22)
+        .background((tint ?? theme.ink).opacity(0.06), in: Capsule())
+    }
+}
+
+/// 22 pt circle checkbox: hairline ring when open, filled accent with a check when done.
+struct CheckCircle: View {
+    @Environment(\.meetingsTheme) private var theme
+    let isDone: Bool
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .strokeBorder(isDone ? Color.clear : theme.inkSoft.opacity(0.6), lineWidth: 1.5)
+            Circle()
+                .fill(isDone ? theme.accentColor : Color.clear)
+            Image(systemName: "checkmark")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(theme.onAccentColor)
+                .opacity(isDone ? 1 : 0)
+        }
+        .frame(width: 22, height: 22)
+        .accessibilityHidden(true)
+    }
+}
+
+/// The breathing dot next to "Recording". Still under Reduce Motion and when inactive.
+struct BreathingDot: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let color: Color
+    var isActive = true
+    @State private var breathing = false
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: 8, height: 8)
+            .opacity(breathing ? 0.45 : 1)
+            .scaleEffect(breathing ? 0.85 : 1)
+            .onAppear { update() }
+            .onChange(of: isActive) { _, _ in update() }
+            .accessibilityHidden(true)
+    }
+
+    private func update() {
+        if isActive, !reduceMotion {
+            withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) { breathing = true }
+        } else {
+            withAnimation(.easeOut(duration: 0.2)) { breathing = false }
+        }
+    }
+}
+
+/// Pressed controls scale to 0.98; a plain fade under Reduce Motion.
+struct PressableButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1)
+            .opacity(configuration.isPressed ? 0.85 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+extension ButtonStyle where Self == PressableButtonStyle {
+    static var pressable: PressableButtonStyle { PressableButtonStyle() }
+}
+
+/// The 52 pt full-width control. `primary` is the accent (one per screen), `secondary` is a
+/// surface with a hairline, `negative` is the Stop control.
+struct MeetingsButton: View {
+    enum Role { case primary, secondary, negative }
+
+    @Environment(\.meetingsTheme) private var theme
+    @Environment(\.isEnabled) private var isEnabled
+    let title: String
+    var systemImage: String?
+    var role: Role = .primary
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                if let systemImage {
+                    Image(systemName: systemImage)
+                        .font(MeetingsType.symbol)
+                }
+                Text(title)
+                    .font(MeetingsType.button)
+            }
+            .lineLimit(1)
+            .foregroundStyle(foreground)
+            .frame(maxWidth: .infinity)
+            .frame(height: MeetingsSpace.control)
+            .background(fill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(role == .secondary ? theme.ink.opacity(0.14) : Color.clear, lineWidth: 1)
+            )
+            .opacity(isEnabled ? 1 : 0.5)
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.pressable)
+    }
+
+    private var fill: Color {
+        switch role {
+        case .primary: return theme.accentColor
+        case .secondary: return theme.ink.opacity(0.05)
+        case .negative: return theme.negativeColor
+        }
+    }
+
+    private var foreground: Color {
+        switch role {
+        case .primary, .negative: return theme.onAccentColor
+        case .secondary: return theme.ink
+        }
+    }
+}
+
+/// Neutral 44×44 symbol button for toolbars and headers; never accent-coloured.
+struct IconButton: View {
+    @Environment(\.meetingsTheme) private var theme
+    let systemImage: String
+    let label: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(theme.ink)
+                .frame(width: MeetingsSpace.target, height: MeetingsSpace.target)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.pressable)
+        .accessibilityLabel(label)
+    }
+}
+
+/// A 32 pt segmented control drawn in the Meetings language.
+struct SegmentedTabs<Item: Hashable>: View {
+    @Environment(\.meetingsTheme) private var theme
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let items: [Item]
+    let title: (Item) -> String
+    @Binding var selection: Item
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(items, id: \.self) { item in
+                let selected = item == selection
+                Button {
+                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.25)) { selection = item }
+                } label: {
+                    Text(title(item))
+                        .font(.system(size: 13, weight: selected ? .semibold : .medium))
+                        .foregroundStyle(selected ? theme.ink : theme.inkSoft)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 28)
+                        .background {
+                            if selected {
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(theme.surfaceColor)
+                                    .shadow(color: .black.opacity(colorScheme == .dark ? 0 : 0.08), radius: 4, y: 1)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                            .strokeBorder(theme.hairlineColor, lineWidth: colorScheme == .dark ? 1 : 0)
+                                    )
+                            }
+                        }
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(selected ? [.isSelected] : [])
+            }
+        }
+        .padding(2)
+        .frame(height: 32)
+        .background(theme.ink.opacity(0.06), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+}
+
+/// Joins non-empty parts with " · ".
+enum MetaLine {
+    static func join(_ parts: [String?]) -> String {
+        parts.compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+
+    /// "3 speakers", "1 speaker".
+    static func count(_ n: Int, _ singular: String, _ plural: String) -> String {
+        "\(n) \(n == 1 ? singular : plural)"
+    }
+
+    /// "26 min", "1 h 05 min", "under a minute": the length of a meeting in a meta line.
+    static func duration(_ seconds: TimeInterval) -> String {
+        let minutes = Int((seconds / 60).rounded())
+        if minutes < 1 { return "under a minute" }
+        if minutes < 60 { return "\(minutes) min" }
+        let hours = minutes / 60
+        let rest = minutes % 60
+        return rest == 0 ? "\(hours) h" : String(format: "%d h %02d min", hours, rest)
+    }
+}
+
+// MARK: - Public pieces (kept for hosts)
+
+/// The round record control: a white circle when idle, a white square (stop) while recording.
+/// Uses the theme accent when idle and the negative color while recording.
 public struct RecordButton: View {
+    @Environment(\.meetingsTheme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let isRecording: Bool
     private let isPaused: Bool
     private let size: CGFloat
@@ -19,29 +325,30 @@ public struct RecordButton: View {
         Button(action: action) {
             ZStack {
                 Circle()
-                    .fill(Color.red)
+                    .fill(isRecording ? theme.negativeColor : theme.accentColor)
                     .frame(width: size, height: size)
-                    .shadow(color: Color.red.opacity(0.25), radius: 10, y: 4)
+                    .shadow(color: (isRecording ? theme.negativeColor : theme.accentColor).opacity(0.25), radius: 10, y: 4)
                 if isRecording {
                     RoundedRectangle(cornerRadius: size * 0.08, style: .continuous)
-                        .fill(Color.white)
+                        .fill(theme.onAccentColor)
                         .frame(width: size * 0.34, height: size * 0.34)
                 } else {
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: size * 0.4, height: size * 0.4)
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: size * 0.36, weight: .medium))
+                        .foregroundStyle(theme.onAccentColor)
                 }
             }
             .contentShape(Circle())
-            .animation(.snappy, value: isRecording)
+            .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: isRecording)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .accessibilityLabel(isRecording ? "Stop recording" : "Start recording")
         .accessibilityHint(isPaused ? "Recording is paused" : "")
     }
 }
 
-/// A small capsule that says what the recorder is doing: "Recording 00:42".
+/// A small status line that says what the recorder is doing: a breathing dot and
+/// "Recording 00:42".
 public struct RecordingStatusPill: View {
     public enum Mode: Equatable, Sendable {
         case idle
@@ -51,6 +358,7 @@ public struct RecordingStatusPill: View {
         case saved
     }
 
+    @Environment(\.meetingsTheme) private var theme
     private let mode: Mode
     private let elapsed: TimeInterval
 
@@ -60,30 +368,24 @@ public struct RecordingStatusPill: View {
     }
 
     public var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "circle.fill")
-                .font(.system(size: 8))
-                .foregroundStyle(dotColor)
-                .symbolEffect(.pulse, options: .repeating, isActive: mode == .recording)
+        HStack(spacing: 8) {
+            BreathingDot(color: dotColor, isActive: mode == .recording)
             Text(label)
-                .font(.footnote.weight(.medium).monospacedDigit())
+                .font(MeetingsType.metaMedium.monospacedDigit())
                 .contentTransition(.numericText())
+                .foregroundStyle(mode == .idle ? theme.inkSoft : theme.ink)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(Color.primary.opacity(0.05), in: Capsule())
-        .foregroundStyle(mode == .idle ? .secondary : .primary)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
     }
 
     private var dotColor: Color {
         switch mode {
-        case .recording: return .red
-        case .paused: return .orange
-        case .starting: return .secondary
-        case .saved: return .green
-        case .idle: return .secondary
+        case .recording: return theme.negativeColor
+        case .paused: return theme.inkSoft
+        case .starting: return theme.inkSoft
+        case .saved: return theme.positiveColor
+        case .idle: return theme.inkSoft.opacity(0.5)
         }
     }
 
@@ -108,36 +410,74 @@ public struct RecordingStatusPill: View {
     }
 }
 
-/// A row of bars that shows the microphone level over time.
+/// Microphone level over time, drawn as a row of bars in a `Canvas`. With no history the
+/// meter shows a quiet "listening" pulse instead of an empty box.
 public struct LevelMeter: View {
+    @Environment(\.meetingsTheme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let history: [Double]
-    private let tint: Color
+    private let tint: Color?
+    private let isActive: Bool
+    @State private var pulse = false
 
     public init(history: [Double], tint: Color = .accentColor) {
         self.history = history
         self.tint = tint
+        self.isActive = true
+    }
+
+    /// Package initialiser: theme-tinted, `isActive` drives the idle pulse.
+    init(history: [Double], isActive: Bool, themed: Bool) {
+        self.history = history
+        self.tint = nil
+        self.isActive = isActive
     }
 
     public var body: some View {
-        GeometryReader { proxy in
-            let bars = max(1, min(Int(proxy.size.width / 7), max(history.count, 1)))
-            let values = Array(history.suffix(bars))
-            HStack(alignment: .center, spacing: 3) {
-                ForEach(Array(values.enumerated()), id: \.offset) { _, value in
-                    Capsule()
-                        .fill(tint.opacity(0.35 + 0.65 * value))
-                        .frame(width: 4, height: max(4, 44 * value))
-                }
+        let color = tint ?? theme.ink
+        Canvas { context, size in
+            let barWidth: CGFloat = 3
+            let gap: CGFloat = 3
+            let count = max(1, Int((size.width + gap) / (barWidth + gap)))
+            let values = Self.resample(history, to: count)
+            let midY = size.height / 2
+            for (index, value) in values.enumerated() {
+                let x = CGFloat(index) * (barWidth + gap)
+                let height = max(3, size.height * CGFloat(value) * 0.92)
+                let rect = CGRect(x: x, y: midY - height / 2, width: barWidth, height: height)
+                let path = Path(roundedRect: rect, cornerRadius: barWidth / 2)
+                let alpha = history.isEmpty ? (pulse ? 0.45 : 0.22) : 0.25 + 0.6 * value
+                context.fill(path, with: .color(color.opacity(alpha)))
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
-        .frame(height: 48)
+        .frame(height: 44)
+        .onAppear { updatePulse() }
+        .onChange(of: isActive) { _, _ in updatePulse() }
+        .onChange(of: history.isEmpty) { _, _ in updatePulse() }
         .accessibilityLabel("Microphone level")
+    }
+
+    private func updatePulse() {
+        if isActive, history.isEmpty, !reduceMotion {
+            withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) { pulse = true }
+        } else {
+            withAnimation(.easeOut(duration: 0.2)) { pulse = false }
+        }
+    }
+
+    /// Stretches or trims `values` to `count` bars; an empty history becomes a flat line.
+    static func resample(_ values: [Double], to count: Int) -> [Double] {
+        guard count > 0 else { return [] }
+        guard !values.isEmpty else { return Array(repeating: 0.08, count: count) }
+        if values.count >= count { return Array(values.suffix(count)) }
+        let padding = Array(repeating: 0.06, count: count - values.count)
+        return padding + values
     }
 }
 
-/// The elapsed time, shown in a monospaced font.
+/// The elapsed time, shown as the hero of the recording screen.
 public struct ElapsedTimeLabel: View {
+    @Environment(\.meetingsTheme) private var theme
     private let elapsed: TimeInterval
 
     public init(elapsed: TimeInterval) {
@@ -146,7 +486,8 @@ public struct ElapsedTimeLabel: View {
 
     public var body: some View {
         Text(Self.text(for: elapsed))
-            .font(.system(.title2, design: .monospaced).weight(.medium))
+            .font(MeetingsType.heroTimer)
+            .foregroundStyle(theme.ink)
             .contentTransition(.numericText())
             .accessibilityLabel("Recorded for \(Int(elapsed)) seconds")
     }
@@ -181,7 +522,7 @@ public struct BannerView: View {
     public init(
         message: String,
         details: String? = nil,
-        symbol: String = "info.circle.fill",
+        symbol: String = "info.circle",
         actionTitle: String? = nil,
         action: (() -> Void)? = nil,
         onDismiss: (() -> Void)? = nil
@@ -197,7 +538,7 @@ public struct BannerView: View {
     /// Splits a `UserMessage.plain(...)`-style pair: plain sentence + raw details.
     public init(
         _ text: UserMessage,
-        symbol: String = "info.circle.fill",
+        symbol: String = "info.circle",
         actionTitle: String? = nil,
         action: (() -> Void)? = nil,
         onDismiss: (() -> Void)? = nil
@@ -210,14 +551,20 @@ public struct BannerView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Image(systemName: symbol)
-                    .foregroundStyle(.tint)
+                    .font(MeetingsType.symbol)
+                    .foregroundStyle(theme.inkSoft)
                 Text(message)
-                    .font(.footnote)
+                    .font(MeetingsType.secondary)
+                    .lineSpacing(3)
+                    .foregroundStyle(theme.ink)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if let onDismiss {
                     Button(action: onDismiss) {
                         Image(systemName: "xmark")
-                            .font(.caption.weight(.semibold))
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(theme.inkSoft)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Dismiss")
@@ -225,29 +572,24 @@ public struct BannerView: View {
             }
             if let actionTitle, let action {
                 Button(actionTitle, action: action)
-                    .font(.footnote.weight(.semibold))
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    .font(MeetingsType.metaMedium)
+                    .foregroundStyle(theme.accentColor)
+                    .buttonStyle(.plain)
             }
             if let details, !details.isEmpty {
                 DisclosureGroup("Details", isExpanded: $showDetails) {
                     Text(details)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(MeetingsType.meta)
+                        .foregroundStyle(theme.inkSoft)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, 4)
                 }
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
+                .font(MeetingsType.metaMedium)
+                .foregroundStyle(theme.inkSoft)
             }
         }
-        .padding(12)
-        .background(theme.surfaceColor, in: RoundedRectangle(cornerRadius: theme.cardRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: theme.cardRadius, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-        )
+        .functionalCard()
     }
 }
 
@@ -284,8 +626,9 @@ public struct UserMessage: Equatable, Sendable {
     }
 }
 
-/// A calm placeholder for lists that have nothing in them yet.
+/// A calm placeholder for lists that have nothing in them yet: no illustration, one line.
 public struct EmptyStateView: View {
+    @Environment(\.meetingsTheme) private var theme
     private let symbol: String
     private let title: String
     private let message: String
@@ -297,23 +640,22 @@ public struct EmptyStateView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 10) {
-            Image(systemName: symbol)
-                .font(.system(size: 34, weight: .light))
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.headline)
+                .font(MeetingsType.rowTitle)
+                .foregroundStyle(theme.ink)
             Text(message)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+                .font(MeetingsType.secondary)
+                .lineSpacing(3)
+                .foregroundStyle(theme.inkSoft)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 36)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 20)
     }
 }
 
-/// A small label used for section titles.
+/// A small label used for section titles. Drawn as an eyebrow; the symbol is kept for
+/// source compatibility and not shown.
 public struct SectionHeader: View {
     private let title: String
     private let systemImage: String
@@ -324,28 +666,24 @@ public struct SectionHeader: View {
     }
 
     public var body: some View {
-        Label(title, systemImage: systemImage)
-            .font(.footnote.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .textCase(nil)
-    }
-}
-
-/// The light, rounded card every block of content sits on.
-struct CardBackground: ViewModifier {
-    @Environment(\.meetingsTheme) private var theme
-
-    func body(content: Content) -> some View {
-        content
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(theme.surfaceColor, in: RoundedRectangle(cornerRadius: theme.cardRadius, style: .continuous))
+        Eyebrow(title)
     }
 }
 
 extension View {
+    /// The one primary card on a screen.
+    func primaryCard(padding: CGFloat = 20) -> some View {
+        modifier(PrimaryCardModifier(padding: padding))
+    }
+
+    /// A secondary, functional card.
+    func functionalCard(padding: CGFloat = 16) -> some View {
+        modifier(FunctionalCardModifier(padding: padding))
+    }
+
+    /// Earlier name of `functionalCard()`.
     func card() -> some View {
-        modifier(CardBackground())
+        functionalCard()
     }
 
     /// Inline navigation title where the platform supports it.
@@ -353,6 +691,16 @@ extension View {
     func inlineTitle() -> some View {
         #if os(iOS)
         navigationBarTitleDisplayMode(.inline)
+        #else
+        self
+        #endif
+    }
+
+    /// Hides the navigation bar on iOS (the screen draws its own title).
+    @ViewBuilder
+    func hiddenNavigationBar() -> some View {
+        #if os(iOS)
+        toolbar(.hidden, for: .navigationBar)
         #else
         self
         #endif

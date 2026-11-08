@@ -1,100 +1,105 @@
 import SwiftData
 import SwiftUI
 
-/// A saved meeting: the same notes-first page as the live one, without the recorder.
+/// Which part of a saved meeting is on screen.
+enum DetailTab: String, CaseIterable, Identifiable {
+    case summary
+    case transcript
+    case actions
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .summary: return "Summary"
+        case .transcript: return "Transcript"
+        case .actions: return "Actions"
+        }
+    }
+}
+
+/// A saved meeting: title, meta line, then Summary / Transcript / Actions.
 struct MeetingDetailScreen: View {
     @Bindable var meeting: Meeting
     @Environment(\.modelContext) private var context
+    @Environment(\.meetingsTheme) private var theme
     @StateObject private var playback = AudioPlaybackController()
     @StateObject private var reminders = RemindersService()
     @StateObject private var summarizer = MeetingSummarizer()
     @StateObject private var calendar = CalendarService()
+    @State private var tab: DetailTab = .summary
     @State private var notesMode: NotesMode = .enhanced
-    @State private var showTranscript = false
     @State private var infoMessage: String?
-    @State private var speakerTurns: [SpokenTurn] = []
+    @State private var transcriptRows: [TranscriptRowModel] = []
     /// The calendar event this meeting was recorded for, when it still exists.
     @State private var linkedEvent: CalendarEventInfo?
     /// A write to the store that failed, shown until dismissed.
     @State private var saveError: UserMessage?
     @FocusState private var notesFocused: Bool
 
+    /// Previews only: the tab to open on.
+    init(meeting: Meeting, tab: DetailTab = .summary) {
+        _meeting = Bindable(wrappedValue: meeting)
+        _tab = State(initialValue: tab)
+    }
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                MeetingTitleField(title: $meeting.title)
+            VStack(alignment: .leading, spacing: 0) {
+                MeetingTitleField(title: $meeting.title, style: .hero)
 
-                HStack(spacing: 6) {
-                    Text(meeting.startedAt.formatted(date: .abbreviated, time: .shortened))
-                    Text("·")
-                    Text(MarkdownExporter.durationText(meeting.duration))
-                    if !meeting.attendeeNames.isEmpty {
-                        Text("·")
-                        Text(meeting.attendeeNames.joined(separator: ", "))
-                            .lineLimit(1)
-                    }
-                }
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                Eyebrow(metaLine)
+                    .padding(.top, MeetingsSpace.label)
 
                 if let linkedEvent {
                     LinkedEventRow(event: linkedEvent)
+                        .padding(.top, 12)
                 }
 
-                if let saveError {
-                    BannerView(saveError, symbol: "exclamationmark.triangle.fill", onDismiss: { self.saveError = nil })
-                }
-                if let error = playback.errorMessage {
-                    BannerView(message: error)
-                }
-                if case .unavailable(let message) = summarizer.state {
-                    BannerView(message: message)
-                } else if case .failed(let message) = summarizer.state {
-                    BannerView(message: message)
-                }
-
-                if let summary {
-                    NotesModeToggle(mode: $notesMode)
-                    switch notesMode {
-                    case .enhanced:
-                        EnhancedNotesView(summary: summary, meetingID: meeting.id)
-                    case .mine:
-                        NotesEditor(text: $meeting.scratchpad, focus: $notesFocused)
+                VStack(alignment: .leading, spacing: 12) {
+                    if let saveError {
+                        BannerView(saveError, symbol: "exclamationmark.triangle", onDismiss: { self.saveError = nil })
                     }
-                } else {
-                    NotesEditor(text: $meeting.scratchpad, focus: $notesFocused)
+                    if let error = playback.errorMessage {
+                        BannerView(message: error)
+                    }
+                    if case .unavailable(let message) = summarizer.state {
+                        BannerView(message: message)
+                    } else if case .failed(let message) = summarizer.state {
+                        BannerView(message: message)
+                    }
                 }
+                .padding(.top, hasBanners ? 16 : 0)
+
+                SegmentedTabs(items: DetailTab.allCases, title: \.title, selection: $tab)
+                    .padding(.top, 20)
+                    .accessibilityLabel("Section")
+
+                Group {
+                    switch tab {
+                    case .summary: summaryTab
+                    case .transcript: transcriptTab
+                    case .actions: actionsTab
+                    }
+                }
+                .padding(.top, 24)
             }
-            .padding(.horizontal)
+            .padding(.horizontal, MeetingsSpace.margin)
             .padding(.top, 8)
-            .padding(.bottom, 24)
+            .padding(.bottom, 32)
         }
         .scrollDismissesKeyboard(.interactively)
         .themedPageBackground()
         .navigationTitle("")
+        .inlineTitle()
         .safeAreaInset(edge: .bottom) {
-            if summary == nil || summarizer.state == .working {
+            if tab == .summary, summary == nil || summarizer.state == .working {
                 bottomBar
             }
         }
         .toolbar { toolbarContent }
-        .sheet(isPresented: $showTranscript) {
-            TranscriptSheet(
-                finalText: meeting.transcript,
-                volatileText: "",
-                isLive: false,
-                turns: speakerTurns,
-                onRename: { key, name in
-                    attempt("The speaker name could not be saved.") {
-                        try MeetingPersistence.renameSpeaker(key: key, to: name, in: meeting, context: context)
-                    }
-                    loadSpeakerTurns()
-                    MeetingPersistence.writeToAppGroup(for: meeting, context: context)
-                }
-            )
-        }
         .onAppear {
-            loadSpeakerTurns()
+            loadTranscript()
             if let id = meeting.calendarEventID {
                 linkedEvent = calendar.resolveEvent(identifier: id)
             }
@@ -118,8 +123,100 @@ struct MeetingDetailScreen: View {
         .onDisappear { playback.stop() }
     }
 
+    // MARK: - Tabs
+
+    @ViewBuilder
+    private var summaryTab: some View {
+        if let summary {
+            VStack(alignment: .leading, spacing: 0) {
+                EnhancedNotesView(summary: summary, meetingID: meeting.id, includesActionItems: false)
+                NotesSection("My notes") {
+                    NotesEditor(text: $meeting.scratchpad, minHeight: 120, focus: $notesFocused)
+                }
+                .padding(.top, MeetingsSpace.sectionGap)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("No summary yet")
+                        .font(MeetingsType.rowTitle)
+                        .foregroundStyle(theme.ink)
+                    Text(meeting.transcript.isEmpty
+                         ? "This meeting has no transcript, so there is nothing to summarize."
+                         : "Enhance notes turns the transcript and your notes into a summary, talking points and action items, on device.")
+                        .font(MeetingsType.secondary)
+                        .lineSpacing(3)
+                        .foregroundStyle(theme.inkSoft)
+                }
+                .functionalCard()
+                NotesSection("My notes") {
+                    NotesEditor(text: $meeting.scratchpad, focus: $notesFocused)
+                }
+                .padding(.top, MeetingsSpace.sectionGap)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var transcriptTab: some View {
+        if transcriptRows.isEmpty {
+            if meeting.transcript.isEmpty {
+                EmptyStateView(symbol: "text.alignleft", title: "No transcript",
+                               message: "Nothing was recognized for this meeting.")
+            } else {
+                TranscriptRows(rows: [TranscriptRowModel(id: 0, speakerKey: nil, name: nil, start: nil, text: meeting.transcript)])
+            }
+        } else {
+            TranscriptRows(rows: transcriptRows, onRename: { key, name in
+                attempt("The speaker name could not be saved.") {
+                    try MeetingPersistence.renameSpeaker(key: key, to: name, in: meeting, context: context)
+                }
+                loadTranscript()
+                MeetingPersistence.writeToAppGroup(for: meeting, context: context)
+            })
+        }
+    }
+
+    @ViewBuilder
+    private var actionsTab: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let summary, !summary.actionItems.isEmpty {
+                ActionItemsList(meetingID: meeting.id, fallback: summary.actionItems)
+                MeetingsButton(title: "Add to Reminders", systemImage: "list.bullet.clipboard", role: .secondary) {
+                    sendToReminders()
+                }
+                .padding(.top, 24)
+            } else {
+                EmptyStateView(symbol: "checklist", title: "No action items",
+                               message: summary == nil
+                                   ? "Enhance the notes on the Summary tab to pull out who does what."
+                                   : "Nothing in this meeting needed a follow-up.")
+            }
+        }
+    }
+
+    // MARK: - Data
+
     private var summary: MeetingSummary? {
         MeetingPersistence.summary(of: meeting)
+    }
+
+    private var hasBanners: Bool {
+        if saveError != nil || playback.errorMessage != nil { return true }
+        if case .unavailable = summarizer.state { return true }
+        if case .failed = summarizer.state { return true }
+        return false
+    }
+
+    /// "Nov 6 · 25 min · 3 speakers"
+    private var metaLine: String {
+        let speakers = max(meeting.speakerLabels.count, meeting.attendeeNames.count)
+        return MetaLine.join([
+            meeting.startedAt.formatted(date: .abbreviated, time: .omitted),
+            meeting.startedAt.formatted(date: .omitted, time: .shortened),
+            MetaLine.duration(meeting.duration),
+            speakers > 0 ? MetaLine.count(speakers, "speaker", "speakers") : nil
+        ])
     }
 
     /// Runs a store write and turns a failure into the banner.
@@ -131,55 +228,39 @@ struct MeetingDetailScreen: View {
         }
     }
 
-    private func loadSpeakerTurns() {
+    private func loadTranscript() {
         let segments = MeetingPersistence.fetchTranscriptSegments(for: meeting.id, context: context)
-        let labels = meeting.speakerLabels
-        speakerTurns = SpeakerAssignment.turns(
-            from: segments.map { TranscriptPiece(text: $0.text, start: $0.startTime, end: $0.endTime) },
-            keys: segments.map(\.speakerKey),
-            names: { key in labels.first { $0.key == key }?.name }
-        )
+        transcriptRows = TranscriptRowModel.rows(from: segments, labels: meeting.speakerLabels)
     }
 
     private var bottomBar: some View {
         VStack(spacing: 0) {
-            Divider()
+            Hairline()
             Group {
                 if summarizer.state == .working {
-                    HStack(spacing: 10) {
-                        ProgressView()
-                        Text("Writing the notes on device…")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
+                    WorkingLine("Writing the notes on device…")
+                        .frame(maxWidth: .infinity)
+                        .frame(height: MeetingsSpace.control)
                 } else {
-                    Button {
+                    MeetingsButton(title: "Enhance notes", systemImage: "sparkles", role: .primary) {
                         Task { await enhance() }
-                    } label: {
-                        Label("Enhance notes", systemImage: "sparkles")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                    .disabled(meeting.transcript.isEmpty && meeting.scratchpad.isEmpty)
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, MeetingsSpace.margin)
             .padding(.vertical, 12)
         }
-        .background(.bar)
+        .background(theme.backgroundColor.opacity(0.96))
     }
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
-            Button {
-                showTranscript = true
-            } label: {
-                Label("Transcript", systemImage: "text.quote")
+            ShareLink(item: MeetingPersistence.markdown(for: meeting, context: context)) {
+                Label("Export", systemImage: "square.and.arrow.up")
             }
-            .accessibilityLabel("Show transcript")
+            .accessibilityLabel("Export notes")
         }
         ToolbarItem(placement: .primaryAction) {
             Menu {
@@ -189,9 +270,6 @@ struct MeetingDetailScreen: View {
                     Label("Add to Reminders", systemImage: "list.bullet.clipboard")
                 }
                 .disabled(summary == nil)
-                ShareLink(item: MeetingPersistence.markdown(for: meeting, context: context)) {
-                    Label("Share notes", systemImage: "square.and.arrow.up")
-                }
                 if summary != nil {
                     Button {
                         Task { await enhance() }
@@ -241,6 +319,7 @@ struct MeetingDetailScreen: View {
             MeetingPersistence.writeToAppGroup(for: meeting, context: context)
             MeetingsSnapshotPublisher.publishStoreChanges(context: context)
             notesMode = .enhanced
+            tab = .summary
         }
     }
 
@@ -270,34 +349,67 @@ struct MeetingDetailScreen: View {
 
 /// The calendar event a meeting was recorded for: its time and place.
 struct LinkedEventRow: View {
+    @Environment(\.meetingsTheme) private var theme
     let event: CalendarEventInfo
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: "calendar")
-                .foregroundStyle(.tint)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(event.title.isEmpty ? "Calendar event" : event.title)
-                    .font(.footnote.weight(.medium))
-                    .lineLimit(1)
-                Text(timeText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if let location = event.location, !location.isEmpty {
-                    Text(location)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(theme.inkSoft)
+            Text(MetaLine.join([event.title.isEmpty ? "Calendar event" : event.title, timeText, event.location]))
+                .font(MeetingsType.meta)
+                .foregroundStyle(theme.inkSoft)
+                .lineLimit(2)
         }
         .accessibilityElement(children: .combine)
     }
 
     private var timeText: String {
-        let day = event.start.formatted(date: .abbreviated, time: .omitted)
         let from = event.start.formatted(date: .omitted, time: .shortened)
         let to = event.end.formatted(date: .omitted, time: .shortened)
-        return "\(day) · \(from) – \(to)"
+        return "\(from) – \(to)"
+    }
+}
+
+// MARK: - Previews
+
+#Preview("Detail · summary") {
+    MeetingDetailPreview(scheme: .light, tab: .summary)
+}
+
+#Preview("Detail · summary · dark") {
+    MeetingDetailPreview(scheme: .dark, tab: .summary)
+}
+
+#Preview("Detail · actions") {
+    MeetingDetailPreview(scheme: .light, tab: .actions)
+}
+
+#Preview("Detail · actions · dark") {
+    MeetingDetailPreview(scheme: .dark, tab: .actions)
+}
+
+#Preview("Detail · transcript") {
+    MeetingDetailPreview(scheme: .light, tab: .transcript)
+}
+
+/// The enhanced sample meeting in a navigation stack, with the Warm palette.
+struct MeetingDetailPreview: View {
+    let scheme: ColorScheme
+    let tab: DetailTab
+    private let container = MeetingPreviewData.previewContainer()
+
+    var body: some View {
+        NavigationStack {
+            if let meeting = MeetingPreviewData.sampleMeeting(in: container.mainContext) {
+                MeetingDetailScreen(meeting: meeting, tab: tab)
+            } else {
+                Text("No sample meeting")
+            }
+        }
+        .modelContainer(container)
+        .meetingsTheme(MeetingPreviewData.warmTheme(scheme))
+        .preferredColorScheme(scheme)
     }
 }

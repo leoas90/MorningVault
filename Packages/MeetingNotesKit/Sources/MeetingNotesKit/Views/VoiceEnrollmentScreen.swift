@@ -171,36 +171,68 @@ public struct VoiceEnrollmentScreen: View {
     public var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Your voice")
+                        .font(MeetingsType.pageTitle)
+                        .foregroundStyle(theme.ink)
+                        .accessibilityAddTraits(.isHeader)
+
                     status
+                        .padding(.top, MeetingsSpace.label)
+
                     Text("Read this out loud in your normal voice, about 30 seconds. The recording stays in memory and is thrown away; only a small voice fingerprint is kept on this phone.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                    Text(Self.paragraph)
-                        .font(.body)
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .font(MeetingsType.secondary)
+                        .lineSpacing(3)
+                        .foregroundStyle(theme.inkSoft)
+                        .padding(.top, 12)
+
+                    readingCard
+                        .padding(.top, 20)
+
+                    if case .failed(let message) = session.phase {
+                        BannerView(message, symbol: "exclamationmark.triangle")
+                            .padding(.top, MeetingsSpace.cardGap)
+                    }
+
                     controls
+                        .padding(.top, MeetingsSpace.cardGap)
+
+                    Hairline()
+                        .padding(.top, MeetingsSpace.sectionGap)
+
                     Toggle(isOn: $session.learnsFromRenames) {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text("Learn from corrections")
+                                .font(MeetingsType.rowTitle)
+                                .foregroundStyle(theme.ink)
                             Text("When you mark a speaker as You in a meeting, the fingerprint is updated with that voice.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .font(MeetingsType.meta)
+                                .lineSpacing(2)
+                                .foregroundStyle(theme.inkSoft)
                         }
                     }
+                    .tint(theme.accentColor)
+                    .padding(.vertical, 14)
+
                     if session.isEnrolled {
+                        Hairline()
                         Button(role: .destructive) {
                             confirmDelete = true
                         } label: {
                             Label("Delete voice profile", systemImage: "trash")
+                                .font(MeetingsType.secondary)
+                                .foregroundStyle(theme.negativeColor)
+                                .frame(minHeight: MeetingsSpace.target)
                         }
+                        .buttonStyle(.plain)
                     }
                 }
-                .padding()
+                .padding(.horizontal, MeetingsSpace.margin)
+                .padding(.top, 8)
+                .padding(.bottom, 32)
             }
-            .navigationTitle("Your voice")
+            .themedPageBackground()
+            .navigationTitle("")
             .inlineTitle()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -222,40 +254,63 @@ public struct VoiceEnrollmentScreen: View {
         }
     }
 
+    /// The paragraph to read, with the thin accent progress bar while recording.
+    private var readingCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                if session.phase == .recording {
+                    BreathingDot(color: theme.negativeColor)
+                    Eyebrow("Recording \(ElapsedTimeLabel.text(for: session.elapsed))", color: theme.negativeColor)
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
+                } else {
+                    Eyebrow("Read this")
+                }
+                Spacer(minLength: 8)
+                if session.phase == .recording {
+                    Text("\(Int(min(session.elapsed, VoiceEnrollmentSession.targetSeconds)))s of \(Int(VoiceEnrollmentSession.targetSeconds))s")
+                        .font(MeetingsType.metaMono)
+                        .foregroundStyle(theme.inkSoft)
+                        .monospacedDigit()
+                }
+            }
+            Text(Self.paragraph)
+                .font(MeetingsType.body)
+                .lineSpacing(6)
+                .foregroundStyle(theme.ink)
+                .padding(.top, 12)
+            if session.phase == .recording {
+                EnrollmentProgressBar(
+                    progress: min(session.elapsed / VoiceEnrollmentSession.targetSeconds, 1),
+                    level: session.level
+                )
+                .padding(.top, 16)
+            }
+        }
+        .primaryCard()
+    }
+
     @ViewBuilder
     private var status: some View {
         switch session.phase {
-        case .idle:
+        case .idle, .failed:
             if let profile = session.profile {
-                Label(
-                    "Enrolled \(profile.updatedAt.formatted(date: .abbreviated, time: .shortened)) · \(profile.sampleCount) sample\(profile.sampleCount == 1 ? "" : "s")",
-                    systemImage: "checkmark.seal.fill"
-                )
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                Eyebrow("Enrolled \(profile.updatedAt.formatted(date: .abbreviated, time: .shortened)) · \(MetaLine.count(profile.sampleCount, "sample", "samples"))")
             } else {
-                Label("Not enrolled yet", systemImage: "person.crop.circle.badge.questionmark")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                Eyebrow("Not enrolled yet")
             }
         case .recording:
-            HStack(spacing: 10) {
-                RecordingStatusPill(mode: .recording, elapsed: session.elapsed)
-                ProgressView(value: min(session.elapsed, VoiceEnrollmentSession.targetSeconds), total: VoiceEnrollmentSession.targetSeconds)
-            }
+            Eyebrow("Keep reading")
         case .processing:
-            HStack(spacing: 8) {
-                ProgressView()
-                Text("Building your voice fingerprint on device…")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
+            WorkingLine("Building your voice fingerprint on device…")
         case .done:
-            Label("Your voice is saved. Meetings will label you as You.", systemImage: "checkmark.circle.fill")
-                .font(.subheadline)
-                .foregroundStyle(theme.accentColor)
-        case .failed(let message):
-            BannerView(message, symbol: "exclamationmark.triangle.fill")
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                Text("Your voice is saved. Meetings will label you as You.")
+                    .font(MeetingsType.metaMedium)
+            }
+            .foregroundStyle(theme.positiveColor)
         }
     }
 
@@ -263,35 +318,64 @@ public struct VoiceEnrollmentScreen: View {
     private var controls: some View {
         switch session.phase {
         case .recording:
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: 12) {
+                MeetingsButton(title: "Cancel", role: .secondary) {
                     Task { await session.cancel() }
-                } label: {
-                    Text("Cancel").frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-                Button {
+                MeetingsButton(title: "Finish", systemImage: "checkmark", role: .primary) {
                     Task { await session.finish() }
-                } label: {
-                    Text("Finish").frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
                 .disabled(!session.canFinish)
             }
         case .processing:
             EmptyView()
         case .idle, .done, .failed:
-            Button {
+            MeetingsButton(
+                title: session.isEnrolled ? "Record again" : "Start reading",
+                systemImage: "mic.fill",
+                role: .primary
+            ) {
                 Task { await session.start() }
-            } label: {
-                Label(session.isEnrolled ? "Record again" : "Start reading", systemImage: "mic.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
         }
     }
+}
+
+/// Thin accent bar for the 30 second reading, with a faint level tint behind it.
+struct EnrollmentProgressBar: View {
+    @Environment(\.meetingsTheme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let progress: Double
+    let level: Double
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(theme.hairlineColor)
+                Capsule()
+                    .fill(theme.accentColor.opacity(0.25 + 0.5 * level))
+                    .frame(width: max(4, proxy.size.width * progress))
+                    .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: progress)
+            }
+        }
+        .frame(height: 4)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Reading progress")
+        .accessibilityValue("\(Int(progress * 100)) percent")
+    }
+}
+
+// MARK: - Previews
+
+#Preview("Enrollment · light") {
+    VoiceEnrollmentScreen()
+        .meetingsTheme(MeetingPreviewData.warmTheme(.light))
+        .preferredColorScheme(.light)
+}
+
+#Preview("Enrollment · dark") {
+    VoiceEnrollmentScreen()
+        .meetingsTheme(MeetingPreviewData.warmTheme(.dark))
+        .preferredColorScheme(.dark)
 }
