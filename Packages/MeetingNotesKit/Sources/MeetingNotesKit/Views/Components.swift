@@ -3,8 +3,9 @@ import SwiftUI
 // MARK: - Shared editorial pieces
 //
 // Every Meetings screen is built from the pieces in this file: the eyebrow, the hairline,
-// the two card treatments, pills, the checkbox and the 52 pt buttons. Keep styling here so
-// the screens only describe structure.
+// pills, the checkbox and the 52 pt buttons. The Meetings tab is one flow separated by
+// hairlines; the card modifiers below are kept for banners and the voice enrollment sheet
+// only. Keep styling here so the screens only describe structure.
 
 /// 11 pt semibold uppercase label with 0.8 tracking, in secondary ink.
 struct Eyebrow: View {
@@ -170,6 +171,7 @@ struct MeetingsButton: View {
 
     @Environment(\.meetingsTheme) private var theme
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let title: String
     var systemImage: String?
     var role: Role = .primary
@@ -181,11 +183,14 @@ struct MeetingsButton: View {
                 if let systemImage {
                     Image(systemName: systemImage)
                         .font(MeetingsType.symbol)
+                        .contentTransition(reduceMotion ? .opacity : .symbolEffect(.replace))
                 }
                 Text(title)
                     .font(MeetingsType.button)
+                    .contentTransition(reduceMotion ? .opacity : .numericText())
             }
             .lineLimit(1)
+            .animation(.smooth(duration: 0.25), value: title)
             .foregroundStyle(foreground)
             .frame(maxWidth: .infinity)
             .frame(height: MeetingsSpace.control)

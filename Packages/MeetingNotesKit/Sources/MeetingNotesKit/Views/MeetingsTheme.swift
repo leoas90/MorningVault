@@ -59,7 +59,10 @@ public struct MeetingsTheme: Equatable, Sendable {
     var backgroundColor: Color { background ?? Color.clear }
     var hasBackground: Bool { background != nil }
     var ink: Color { inkPrimary ?? .primary }
-    var inkSoft: Color { inkSecondary ?? .secondary }
+    /// Secondary ink. The fallback is the primary label at 62 %, not `.secondary`: the
+    /// system secondary label is 3.4:1 on white, this is 6.2:1 in light and 7.8:1 in dark,
+    /// so eyebrows and meta lines pass 4.5:1 without a host palette.
+    var inkSoft: Color { inkSecondary ?? Color.primary.opacity(0.62) }
     var hairlineColor: Color { hairline ?? Color.primary.opacity(0.10) }
     var onAccentColor: Color { onAccent ?? .white }
     /// 6 % accent wash for pills and strips.

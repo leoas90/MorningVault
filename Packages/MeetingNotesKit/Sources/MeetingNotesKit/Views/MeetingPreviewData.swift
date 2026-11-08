@@ -185,6 +185,17 @@ public enum MeetingPreviewData {
         ]
     }
 
+    /// The recording in progress shown by the home previews: 21 minutes in, mid-sentence.
+    static var liveRecording: LiveRecordingState {
+        LiveRecordingState(
+            elapsed: 1_262,
+            title: "Roadmap sync",
+            lastLine: "Then we ship the beta on Friday and the test group gets a build on Thursday.",
+            levels: waveform(phase: 1.3),
+            attendees: ["Ana", "Ben", "Chi", "Dee"]
+        )
+    }
+
     /// The sample text used by the picture mode of the host app.
     public static let sampleTranscript = """
     Ana opened the meeting and asked where the release checklist stands. \
