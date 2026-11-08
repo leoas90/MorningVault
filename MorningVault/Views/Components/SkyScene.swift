@@ -62,7 +62,9 @@ struct SkyStyle: Equatable {
     var sunPosition: CGPoint
     var showsSun: Bool
     var showsMoon: Bool
-    var cloudColor: Color
+    var cloudLit: Color
+    var cloudBase: Color
+    var cloudShadow: Color
     var cloudOpacity: Double
     var sunGlowOpacity: Double
 
@@ -110,23 +112,31 @@ struct SkyStyle: Equatable {
         func blend(_ colors: [Color], toward target: Color, _ amount: Double) -> [Color] {
             colors.map { $0.mix(with: target, by: amount, in: .perceptual) }
         }
-        var cloudColor: Color = dark ? Color(hex: "4E586C") : Color.white
-        var cloudOpacity: Double = dark ? 0.9 : 0.96
+        // Cloud palette: lit top / base / shadow, per scheme and weather.
+        var cloudLit: Color = dark ? Color(hex: "7D869C") : Color.white
+        var cloudBase: Color = dark ? Color(hex: "3F475C") : Color(hex: "E3E8EF")
+        var cloudShadow: Color = dark ? Color(hex: "0B0E18") : Color(hex: "6E7A8C")
+        var cloudOpacity: Double = 1
         switch weather {
         case .clear:
             break
         case .partlyCloudy:
             gradient = blend(gradient, toward: dark ? Color(hex: "1A1E2A") : Color(hex: "D9DEE3"), 0.15)
+            // A fair-weather cloud, not a storm cell: paler in dark mode.
+            if dark { cloudLit = Color(hex: "9AA3B8"); cloudBase = Color(hex: "545E78"); cloudShadow = Color(hex: "141826") }
         case .cloudy:
             gradient = blend(gradient, toward: dark ? Color(hex: "1E222B") : Color(hex: "C9CFD6"), 0.45)
-            cloudColor = dark ? Color(hex: "525B6D") : Color(hex: "F2F3F5")
+            cloudLit = dark ? Color(hex: "6F7A91") : Color(hex: "F7F8FA")
+            cloudBase = dark ? Color(hex: "394154") : Color(hex: "CBD2DC")
         case .rain, .storm:
             gradient = blend(gradient, toward: dark ? Color(hex: "161A22") : Color(hex: "A3AEBB"), weather == .storm ? 0.75 : 0.6)
-            cloudColor = dark ? Color(hex: "3D4556") : Color(hex: "7E8A99")
-            cloudOpacity = dark ? 0.95 : 0.8
+            cloudLit = dark ? Color(hex: "5E687E") : Color(hex: "C4CCD6")
+            cloudBase = dark ? Color(hex: "2C3344") : Color(hex: "7E8A99")
+            cloudShadow = dark ? Color(hex: "05070D") : Color(hex: "46505E")
         case .snow:
             gradient = blend(gradient, toward: dark ? Color(hex: "1C2028") : Color(hex: "DADEE3"), 0.5)
-            cloudColor = dark ? Color(hex: "4A5364") : Color(hex: "F4F5F7")
+            cloudLit = dark ? Color(hex: "76819A") : Color.white
+            cloudBase = dark ? Color(hex: "3B4357") : Color(hex: "D7DDE5")
         case .fog:
             gradient = blend(gradient, toward: dark ? Color(hex: "1A1C22") : Color(hex: "D4D5D6"), 0.7)
         }
@@ -137,7 +147,7 @@ struct SkyStyle: Equatable {
             phase: phase, weather: weather, gradient: gradient, usesLightText: light,
             tint: gradient[1], sunColor: sun, glowColor: halo, sunPosition: sunPos,
             showsSun: showsSun, showsMoon: showsMoon,
-            cloudColor: cloudColor, cloudOpacity: cloudOpacity, sunGlowOpacity: glow
+            cloudLit: cloudLit, cloudBase: cloudBase, cloudShadow: cloudShadow, cloudOpacity: cloudOpacity, sunGlowOpacity: glow
         )
     }
 }
@@ -174,11 +184,11 @@ struct SkyScene: View {
                 if s.weather == .fog {
                     fogBands(in: size, style: s)
                 }
+                if s.weather == .rain || s.weather == .storm {
+                    rain(in: size, style: s)   // behind the clouds: it falls from them
+                }
                 if s.weather.cloudCount > 0 {
                     clouds(in: size, style: s)
-                }
-                if s.weather == .rain || s.weather == .storm {
-                    rain(in: size, style: s)
                 }
                 if s.weather == .snow {
                     snow(in: size, style: s)
@@ -250,71 +260,87 @@ struct SkyScene: View {
         .allowsHitTesting(false)
     }
 
-    /// One or two large soft volumes built from overlapping blurred circles and capsules.
+    /// Clouds are authored silhouettes (unions of circles), not blurred blobs: a crisp edge
+    /// softened by ~1 pt, a lit top fading to a shaded base, an underside shadow, and a far layer
+    /// that is smaller, paler and softer for depth. The temperature block owns the lower-left,
+    /// so clouds live in the upper band and to the right.
     private func clouds(in size: CGSize, style s: SkyStyle) -> some View {
         let w = size.width
         let h = size.height
+        let warmTop = s.phase == .dawn || s.phase == .dusk
+        let lit = warmTop ? s.cloudLit.mix(with: s.glowColor, by: 0.22, in: .perceptual) : s.cloudLit
         return ZStack {
-            // One cloud (partly cloudy) sits left of the sun; the second volume covers the right.
-            cloudVolume(width: w * 0.62, height: h * 0.20)
-                .position(x: s.weather.cloudCount > 1 ? w * 0.62 : w * 0.40, y: h * 0.34)
             if s.weather.cloudCount > 1 {
-                cloudVolume(width: w * 0.5, height: h * 0.16)
-                    .position(x: w * 0.22, y: h * 0.22)
-                    .opacity(0.85)
+                // Far bank: upper-left, paler and softer (atmospheric perspective).
+                cloudVolume(lobes: CloudShape.farLobes, width: w * 0.46, lit: lit.opacity(0.85), base: s.cloudBase.opacity(0.85),
+                            shadow: s.cloudShadow, blur: 2.5)
+                    .frame(width: w * 0.46, height: w * 0.46 * CloudShape.aspect)
+                    .position(x: w * 0.26, y: h * 0.21)
             }
+            // Near cloud: upper-right. Partly cloudy drops it so it clips the sun's upper-left edge.
+            cloudVolume(lobes: CloudShape.nearLobes, width: w * 0.64, lit: lit, base: s.cloudBase,
+                        shadow: s.cloudShadow, blur: 1.2)
+                .frame(width: w * 0.64, height: w * 0.64 * CloudShape.aspect)
+                .position(x: s.weather.cloudCount > 1 ? w * 0.70 : w * 0.60,
+                          y: s.weather == .partlyCloudy ? h * 0.40 : h * 0.30)
         }
-        .foregroundStyle(s.cloudColor)
         .opacity(s.cloudOpacity)
         .allowsHitTesting(false)
     }
 
-    private func cloudVolume(width: CGFloat, height: CGFloat) -> some View {
-        ZStack {
-            // Soft underside shadow gives the volume depth, then the lit body.
-            cloudLobes(width: width, height: height)
-                .foregroundStyle(Color.black.opacity(0.10))
-                .offset(y: height * 0.22)
-                .blur(radius: 14)
-            cloudLobes(width: width, height: height)
-                .blur(radius: 6)
+    private func cloudVolume(lobes: [CloudShape.Lobe], width: CGFloat, lit: Color, base: Color,
+                             shadow: Color, blur: CGFloat) -> some View {
+        let shape = CloudShape(lobes: lobes)
+        return ZStack {
+            // Ground shadow under the volume.
+            shape
+                .fill(shadow.opacity(0.22))
+                .offset(y: width * 0.03)
+                .blur(radius: width * 0.05)
+            // Body: lit top to shaded base.
+            shape
+                .fill(LinearGradient(stops: [
+                    .init(color: lit, location: 0),
+                    .init(color: base, location: 0.62),
+                    .init(color: base.mix(with: shadow, by: 0.35, in: .perceptual), location: 1)
+                ], startPoint: .top, endPoint: .bottom))
+            // Soft core shading so the lobes read as rounded volumes.
+            shape
+                .fill(RadialGradient(colors: [lit.opacity(0.55), lit.opacity(0)],
+                                     center: UnitPoint(x: 0.42, y: 0.22), startRadius: 0, endRadius: width * 0.42))
         }
-        .frame(width: width * 1.4, height: height * 2.6)
+        .compositingGroup()
+        .blur(radius: blur)
     }
 
-    private func cloudLobes(width: CGFloat, height: CGFloat) -> some View {
-        ZStack {
-            Capsule()
-                .frame(width: width, height: height * 0.9)
-                .offset(y: height * 0.15)
-            Circle()
-                .frame(width: height * 1.5, height: height * 1.5)
-                .offset(x: -width * 0.18, y: -height * 0.15)
-            Circle()
-                .frame(width: height * 1.9, height: height * 1.9)
-                .offset(x: width * 0.08, y: -height * 0.35)
-            Circle()
-                .frame(width: height * 1.2, height: height * 1.2)
-                .offset(x: width * 0.32, y: -height * 0.05)
-        }
-    }
-
-    /// Fine diagonal streaks at fixed pseudo-random positions.
+    /// Fine diagonal streaks in two depth layers, falling from below the cloud bases.
     private func rain(in size: CGSize, style s: SkyStyle) -> some View {
         Canvas { context, _ in
-            var x: CGFloat = 6
+            let near = s.usesLightText ? Color.white.opacity(0.34) : Color(hex: "3A4656").opacity(0.42)
+            let far = s.usesLightText ? Color.white.opacity(0.16) : Color(hex: "3A4656").opacity(0.20)
             var seed: UInt32 = 7
-            let color = s.usesLightText ? Color.white.opacity(0.28) : Color(hex: "2F3A48").opacity(0.35)
-            while x < size.width {
+            func next() -> CGFloat {
                 seed = seed &* 1_103_515_245 &+ 12_345
-                // Streaks live in the sky's upper 60 %; the temperature block sits below.
-                let y = CGFloat((seed >> 8) % 1000) / 1000 * size.height * 0.5 + size.height * 0.08
-                let length: CGFloat = 14 + CGFloat((seed >> 4) % 12)
-                var path = Path()
-                path.move(to: CGPoint(x: x, y: y))
-                path.addLine(to: CGPoint(x: x - 3, y: y + length))
-                context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: 1.2, lineCap: .round))
-                x += 9 + CGFloat(seed % 7)
+                return CGFloat((seed >> 8) % 1000) / 1000
+            }
+            for layer in 0..<2 {
+                let isNear = layer == 1
+                var x: CGFloat = isNear ? 10 : 4
+                while x < size.width {
+                    let r = next()
+                    // Streaks start under the cloud bases and stay clear of the temperature block
+                    // (lower-left), so the left 45 % stops higher.
+                    let top = size.height * 0.36
+                    let bottom = size.height * (x < size.width * 0.45 ? 0.52 : 0.68)
+                    let y = top + r * (bottom - top)
+                    let length: CGFloat = isNear ? 20 + next() * 12 : 10 + next() * 8
+                    var path = Path()
+                    path.move(to: CGPoint(x: x, y: y))
+                    path.addLine(to: CGPoint(x: x - length * 0.18, y: y + length))
+                    context.stroke(path, with: .color(isNear ? near : far),
+                                   style: StrokeStyle(lineWidth: isNear ? 1.4 : 0.9, lineCap: .round))
+                    x += (isNear ? 22 : 14) + next() * 16
+                }
             }
         }
         .allowsHitTesting(false)
@@ -349,6 +375,40 @@ struct SkyScene: View {
         }
         .padding(.top, size.height * 0.2)
         .allowsHitTesting(false)
+    }
+}
+
+// MARK: - Cloud silhouette
+
+/// A cloud as a union of circles in unit coordinates (x, y, r relative to width). Filled with
+/// nonzero winding so the overlaps merge into one silhouette.
+struct CloudShape: Shape {
+    struct Lobe { let x: CGFloat; let y: CGFloat; let r: CGFloat }
+    var lobes: [Lobe]
+    static let aspect: CGFloat = 0.46
+
+    /// Big cumulus: flat base, tall centre-left mound, shoulders either side.
+    static let nearLobes: [Lobe] = [
+        Lobe(x: 0.50, y: 0.31, r: 0.18), Lobe(x: 0.35, y: 0.36, r: 0.15), Lobe(x: 0.64, y: 0.35, r: 0.14),
+        Lobe(x: 0.42, y: 0.27, r: 0.11), Lobe(x: 0.57, y: 0.26, r: 0.10), Lobe(x: 0.28, y: 0.33, r: 0.09),
+        Lobe(x: 0.73, y: 0.34, r: 0.09), Lobe(x: 0.20, y: 0.41, r: 0.11), Lobe(x: 0.81, y: 0.41, r: 0.10),
+        Lobe(x: 0.50, y: 0.41, r: 0.16), Lobe(x: 0.33, y: 0.42, r: 0.14), Lobe(x: 0.68, y: 0.42, r: 0.13),
+    ]
+    /// Smaller, flatter bank for the far layer.
+    static let farLobes: [Lobe] = [
+        Lobe(x: 0.45, y: 0.35, r: 0.16), Lobe(x: 0.30, y: 0.39, r: 0.12), Lobe(x: 0.62, y: 0.38, r: 0.13),
+        Lobe(x: 0.38, y: 0.31, r: 0.08), Lobe(x: 0.54, y: 0.30, r: 0.08), Lobe(x: 0.78, y: 0.43, r: 0.09),
+        Lobe(x: 0.16, y: 0.44, r: 0.08), Lobe(x: 0.46, y: 0.43, r: 0.14),
+    ]
+
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        let w = rect.width
+        for l in lobes {
+            let r = l.r * w
+            p.addEllipse(in: CGRect(x: rect.minX + l.x * w - r, y: rect.minY + l.y * w - r, width: r * 2, height: r * 2))
+        }
+        return p
     }
 }
 
