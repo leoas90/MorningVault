@@ -1,38 +1,68 @@
 import SwiftUI
 
 struct MarketsView: View {
-    @StateObject private var viewModel = MarketsViewModel()
+    @StateObject private var viewModel: MarketsViewModel
     @State private var newSymbol: String = ""
     @State private var newEntryPrice: String = ""
     @State private var hasAppeared = false
     @State private var pricesLoadTaskStarted = false
+    @State private var isEditing = false
     @FocusState private var isFieldFocused: Bool
+
+    init() {
+        _viewModel = StateObject(wrappedValue: MarketsViewModel())
+    }
+
+    /// Previews: inject rows and quotes; the view skips loading and fetching.
+    init(previewSymbols: [TrackedSymbol], quotes: [String: (price: Double, change: Double)], updatedAt: Date? = Date()) {
+        let vm = MarketsViewModel()
+        vm.isPreview = true
+        vm.trackedSymbols = previewSymbols
+        vm.prices = quotes
+        vm.setPreviewFetchDate(updatedAt)
+        _viewModel = StateObject(wrappedValue: vm)
+    }
 
     var body: some View {
         NavigationStack {
-            List {
-                symbolsSection
-                addSymbolSection
-                infoSection
-            }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(Color.warmBackground.ignoresSafeArea())
-            .navigationTitle("Markets")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                EditButton()
-                if viewModel.isLoadingPrices {
-                    ProgressView()
-                } else {
-                    Button {
-                        Task { await viewModel.fetchLivePrices() }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    header
+                        .padding(.top, 8)
+
+                    ForEach(Array(viewModel.trackedSymbols.enumerated()), id: \.element.symbol) { index, item in
+                        SymbolCard(
+                            item: item,
+                            quote: viewModel.quote(for: item.symbol),
+                            isEditing: isEditing,
+                            delay: Double(index) * AppAnimation.cardStaggerDelay,
+                            onDelete: { withAnimation(.easeOut(duration: 0.2)) { viewModel.remove(item.symbol) } },
+                            onPriceChange: { price in viewModel.updatePrice(for: item.symbol, price: price) }
+                        )
                     }
-                    .accessibilityLabel("Refresh prices")
+
+                    if viewModel.trackedSymbols.isEmpty {
+                        EmptyStateView(
+                            title: "Nothing tracked yet",
+                            message: "Add a stock or crypto symbol below. Up to \(MarketsViewModel.maxSymbols); prices come through MorningVault's own proxy.",
+                            systemImage: "chart.line.uptrend.xyaxis"
+                        )
+                    }
+
+                    addSymbolCard
+
+                    Text("Track up to \(MarketsViewModel.maxSymbols) symbols. Prices come through MorningVault's own proxy and are stored only on your device.")
+                        .font(.caption)
+                        .foregroundStyle(Color.inkSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 18)
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
             }
+            .background(Color.backgroundColor.ignoresSafeArea())
+            .toolbar(.hidden, for: .navigationBar)
+            .scrollDismissesKeyboard(.interactively)
             .safeAreaInset(edge: .bottom) {
                 if isFieldFocused {
                     HStack {
@@ -40,6 +70,7 @@ struct MarketsView: View {
                         Button("Done") {
                             isFieldFocused = false
                         }
+                        .font(.body.weight(.semibold))
                         .padding()
                     }
                     .background(.bar)
@@ -50,86 +81,152 @@ struct MarketsView: View {
             .task {
                 guard !pricesLoadTaskStarted else { return }
                 pricesLoadTaskStarted = true
-                viewModel.load()
                 withAnimation(.easeOut(duration: 0.35)) {
                     hasAppeared = true
                 }
+                guard !viewModel.isPreview else { return }
+                viewModel.load()
                 // Debounce: skip if live prices were fetched within last 60 seconds
                 await viewModel.fetchLivePricesIfStale(cooldown: 60)
             }
             .opacity(hasAppeared ? 1 : 0)
-            .offset(y: hasAppeared ? 0 : 12)
+            .offset(y: hasAppeared ? 0 : 8)
         }
     }
 
-    private var symbolsSection: some View {
-        Section {
-            ForEach(Array(viewModel.trackedSymbols.enumerated()), id: \.element.symbol) { index, item in
-                SymbolRowView(
-                    item: item,
-                    quote: viewModel.quote(for: item.symbol),
-                    delay: Double(index) * AppAnimation.cardStaggerDelay,
-                    onDelete: { viewModel.remove(item.symbol) },
-                    onPriceChange: { price in viewModel.updatePrice(for: item.symbol, price: price) }
-                )
-                .cardRow()
+    // MARK: Header
+
+    private var subtitle: String {
+        if let date = viewModel.lastPriceFetch {
+            return "Updated \(EditorialFormat.time(date)) · Prices delayed up to 5 min"
+        }
+        return viewModel.isLoadingPrices ? "Fetching prices…" : "Prices delayed up to 5 min"
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Eyebrow(text: EditorialFormat.dateEyebrow())
+            HStack(alignment: .center) {
+                Text("Markets")
+                    .font(.display(34))
+                    .foregroundStyle(Color.inkPrimary)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                headerButtons
             }
-            .onDelete { indexSet in
-                for i in indexSet {
-                    viewModel.remove(viewModel.trackedSymbols[i].symbol)
+            Text(subtitle)
+                .font(.footnote)
+                .foregroundStyle(Color.inkSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var headerButtons: some View {
+            HStack(spacing: 8) {
+                Button(isEditing ? "Done" : "Edit") {
+                    withAnimation(.easeInOut(duration: 0.2)) { isEditing.toggle() }
                 }
-            }
-        } header: {
-            Text("Tracked symbols")
-        } footer: {
-            Text("Entry price enables P&L tracking. Tap a price to edit.")
-                .font(.caption)
-        }
-    }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.inkPrimary)
+                .padding(.horizontal, 14)
+                .frame(height: 44)
+                .background(Color.surfaceColor, in: Capsule())
+                .overlay(Capsule().strokeBorder(Color.inkPrimary.opacity(0.16), lineWidth: 1))
+                .buttonStyle(.plain)
+                .accessibilityLabel(isEditing ? "Finish editing" : "Edit symbols")
 
-    private var addSymbolSection: some View {
-        Section {
-            HStack {
-                TextField("Symbol (e.g. AAPL)", text: $newSymbol)
-                    .textInputAutocapitalization(.characters)
-                    .frame(maxWidth: 130)
-                    .focused($isFieldFocused)
-                TextField("Entry $", text: $newEntryPrice)
-                    .keyboardType(.decimalPad)
-                    .frame(maxWidth: 100)
-                    .focused($isFieldFocused)
                 Button {
-                    let sym = newSymbol.uppercased().trimmingCharacters(in: .whitespaces)
-                    guard !sym.isEmpty else { return }
-                    viewModel.add(symbol: sym, entryPrice: Double(newEntryPrice))
-                    newSymbol = ""
-                    newEntryPrice = ""
+                    guard !viewModel.isLoadingPrices else { return }
                     Task { await viewModel.fetchLivePrices() }
                 } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .foregroundStyle(viewModel.isAtLimit ? Color.warmTextSecondary : Color.warmPositive)
+                    ZStack {
+                        Circle()
+                            .fill(Color.surfaceColor)
+                            .overlay(Circle().strokeBorder(Color.inkPrimary.opacity(0.16), lineWidth: 1))
+                        if viewModel.isLoadingPrices {
+                            ProgressView()
+                                .controlSize(.small)
+                                .tint(Color.inkPrimary)
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Color.inkPrimary)
+                        }
+                    }
+                    .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
-                .disabled(newSymbol.trimmingCharacters(in: .whitespaces).isEmpty || viewModel.isAtLimit)
-                .accessibilityLabel("Add symbol")
+                .accessibilityLabel("Refresh prices")
             }
-            .cardRow()
-            .disabled(viewModel.isAtLimit)
-        } header: {
-            Text("Add symbol")
-        } footer: {
-            if viewModel.isAtLimit {
-                Text("You're tracking \(MarketsViewModel.maxSymbols) symbols, the maximum. Remove one to add another.")
-            }
-        }
     }
 
-    private var infoSection: some View {
-        Section {
-            Text("Track up to \(MarketsViewModel.maxSymbols) symbols. Prices come through MorningVault's own proxy and are stored only on your device.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+    // MARK: Add symbol
+
+    private var canAdd: Bool {
+        !newSymbol.trimmingCharacters(in: .whitespaces).isEmpty && !viewModel.isAtLimit
+    }
+
+    private func addSymbol() {
+        guard canAdd else { return }
+        let sym = newSymbol.uppercased().trimmingCharacters(in: .whitespaces)
+        guard !sym.isEmpty else { return }
+        viewModel.add(symbol: sym, entryPrice: Double(newEntryPrice))
+        newSymbol = ""
+        newEntryPrice = ""
+        isFieldFocused = false
+        guard !viewModel.isPreview else { return }
+        Task { await viewModel.fetchLivePrices() }
+    }
+
+    private var addSymbolCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Eyebrow(text: "Track a symbol")
+
+            fieldRow {
+                TextField("Symbol", text: $newSymbol, prompt: Text("Symbol, e.g. AAPL or BTC").foregroundStyle(Color.inkSecondary))
+                    .textInputAutocapitalization(.characters)
+                    .autocorrectionDisabled()
+                    .submitLabel(.next)
+                    .focused($isFieldFocused)
+            }
+
+            fieldRow {
+                TextField("Entry price", text: $newEntryPrice, prompt: Text("Entry price (optional)").foregroundStyle(Color.inkSecondary))
+                    .keyboardType(.decimalPad)
+                    .focused($isFieldFocused)
+            }
+
+            Button(action: addSymbol) {
+                Text("Track symbol")
+                    .font(.headline)
+                    .foregroundStyle(canAdd ? Color.onAccent : Color.inkSecondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(canAdd ? Color.appAccentColor : Color.inkPrimary.opacity(0.08), in: RoundedRectangle(cornerRadius: AppRadius.button, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Track symbol")
+            .accessibilityHint(canAdd ? "" : (viewModel.isAtLimit ? "At the symbol limit" : "Enter a symbol first"))
+
+            if viewModel.isAtLimit {
+                Text("You're tracking \(MarketsViewModel.maxSymbols) symbols, the maximum. Remove one to add another.")
+                    .font(.caption)
+                    .foregroundStyle(Color.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .editorialCard()
+    }
+
+    private func fieldRow<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .font(.body)
+            .foregroundStyle(Color.inkPrimary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Color.inkPrimary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.inkPrimary.opacity(0.14), lineWidth: 1))
     }
 }
 
@@ -138,6 +235,8 @@ final class MarketsViewModel: ObservableObject {
     @Published var trackedSymbols: [TrackedSymbol] = []
     @Published var prices: [String: (price: Double, change: Double)] = [:]  // symbol → (price, change24h%)
     @Published var isLoadingPrices = false
+    /// Previews: skip UserDefaults and the network.
+    var isPreview = false
 
     // MARK: - Load symbols
 
@@ -152,6 +251,7 @@ final class MarketsViewModel: ObservableObject {
     }
 
     func save() {
+        guard !isPreview else { return }
         if let encoded = try? JSONEncoder().encode(trackedSymbols) {
             UserDefaults.standard.set(encoded, forKey: "tracked_symbols")
         }
@@ -192,6 +292,7 @@ final class MarketsViewModel: ObservableObject {
         for row in quotes where row.error == nil && row.price > 0 {
             prices[row.symbol] = (row.price, row.change24h)
         }
+        lastPriceFetch = Date()
     }
 
     /// Debounced fetch — skips if prices were updated within `cooldown` seconds.
@@ -204,126 +305,167 @@ final class MarketsViewModel: ObservableObject {
 
     @Published private(set) var lastPriceFetch: Date?
 
+    func setPreviewFetchDate(_ date: Date?) {
+        lastPriceFetch = date
+    }
+
     /// Live quote for a symbol, or nil until the proxy answers (the row shows a dash).
     func quote(for symbol: String) -> (price: Double, change: Double)? {
         prices[symbol]
     }
 }
 
-private struct SymbolRowView: View {
+// MARK: - Symbol card
+
+private struct SymbolCard: View {
     let item: TrackedSymbol
     let quote: (price: Double, change: Double)?
+    let isEditing: Bool
     let delay: Double
     let onDelete: () -> Void
     let onPriceChange: (Double) -> Void
 
+    @State private var isEditingEntry = false
     @State private var priceText: String = ""
-    @State private var pressScale: CGFloat = 1.0
     @FocusState private var isPriceFocused: Bool
 
-    private var trend: NumberText.Trend {
-        guard let quote else { return .neutral }
-        return quote.change > 0 ? .up : (quote.change < 0 ? .down : .neutral)
-    }
-
-    private var trendColor: Color {
-        switch trend {
-        case .up: return Color.warmPositive
-        case .down: return Color.warmNegative
-        case .neutral: return Color.warmTextSecondary
-        }
-    }
-
-    private func dismissKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    private var pnl: (percent: Double, perUnit: Double)? {
+        guard let quote, let entry = item.entryPrice, entry > 0 else { return nil }
+        return ((quote.price - entry) / entry * 100, quote.price - entry)
     }
 
     var body: some View {
-        HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(item.symbol)
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .foregroundStyle(Color.warmTextPrimary)
-
-                if let ep = item.entryPrice {
-                    Text("Entry: $\(String(format: "%.2f", ep))")
-                        .font(.caption)
-                        .foregroundStyle(Color.warmTextSecondary)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                if isEditing {
+                    Button(action: onDelete) {
+                        Image(systemName: "minus.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(Color.negativeColor)
+                            .frame(width: 32, height: 32)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Remove \(item.symbol)")
+                    .transition(.scale.combined(with: .opacity))
                 }
-            }
 
-            Spacer()
+                Text(item.symbol)
+                    .font(.display(22))
+                    .foregroundStyle(Color.inkPrimary)
 
-            // Live price + 24h change; a dash until the proxy has answered. No invented data.
-            VStack(alignment: .trailing, spacing: 2) {
+                Spacer(minLength: 8)
+
+                // Live price + 24h change; a dash until the proxy has answered. No invented data.
                 if let quote {
-                    Text(MarketBackendService.formatPrice(symbol: item.symbol, price: quote.price))
-                        .font(.system(.subheadline, design: .monospaced).weight(.semibold))
-                        .foregroundStyle(Color.warmTextPrimary)
-                    Text(String(format: "%@%.2f%%", quote.change >= 0 ? "+" : "", quote.change))
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(trendColor)
+                    Text(EditorialFormat.price(symbol: item.symbol, quote.price))
+                        .font(.title3.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(Color.inkPrimary)
+                        .contentTransition(.numericText())
+                    ChangePill(change: quote.change)
                 } else {
                     Text("—")
-                        .font(.subheadline)
-                        .foregroundStyle(Color.warmTextSecondary)
+                        .font(.title3)
+                        .foregroundStyle(Color.inkSecondary)
                         .accessibilityLabel("No quote yet")
                 }
             }
             .animation(.default, value: quote?.price)
 
-            // Entry price input
-            TextField("Entry $", text: $priceText)
+            if isEditingEntry {
+                entryEditor
+            } else if let entry = item.entryPrice {
+                HStack(spacing: 6) {
+                    Text("Entry \(EditorialFormat.price(symbol: item.symbol, entry))")
+                        .font(.footnote.monospacedDigit())
+                        .foregroundStyle(Color.inkSecondary)
+                    if let pnl {
+                        Text("·")
+                            .foregroundStyle(Color.inkSecondary)
+                        Text(String(format: "%@%.2f%% since entry", pnl.percent >= 0 ? "+" : "−", abs(pnl.percent)))
+                            .font(.footnote.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(pnl.percent >= 0 ? Color.positiveColor : Color.negativeColor)
+                    }
+                    Spacer()
+                    Button("Edit") { beginEditingEntry() }
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Color.appAccentColor)
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Edit entry price for \(item.symbol)")
+                }
+            } else {
+                Button { beginEditingEntry() } label: {
+                    Label("Add entry price", systemImage: "plus")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Color.appAccentColor)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Add entry price for \(item.symbol)")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .editorialCard(padding: 16)
+        .cardEntrance(delay: delay)
+        .contextMenu {
+            Button("Remove \(item.symbol)", role: .destructive, action: onDelete)
+        }
+    }
+
+    private func beginEditingEntry() {
+        priceText = item.entryPrice.map { String(format: "%.2f", $0) } ?? ""
+        withAnimation(.easeInOut(duration: 0.2)) { isEditingEntry = true }
+        isPriceFocused = true
+    }
+
+    private func commitEntry() {
+        if let v = Double(priceText), v > 0 {
+            onPriceChange(v)
+        } else if priceText.trimmingCharacters(in: .whitespaces).isEmpty {
+            onPriceChange(0)
+        }
+        isPriceFocused = false
+        withAnimation(.easeInOut(duration: 0.2)) { isEditingEntry = false }
+    }
+
+    private var entryEditor: some View {
+        HStack(spacing: 10) {
+            TextField("Entry price", text: $priceText, prompt: Text("Entry price").foregroundStyle(Color.inkSecondary))
                 .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 80)
+                .font(.body.monospacedDigit())
+                .foregroundStyle(Color.inkPrimary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(Color.inkPrimary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.inkPrimary.opacity(0.14), lineWidth: 1))
                 .focused($isPriceFocused)
-                .scaleEffect(pressScale)
+                .onSubmit(commitEntry)
                 .toolbar {
                     ToolbarItem(placement: .keyboard) {
                         HStack {
                             Spacer()
-                            Button("Done") {
-                                let val = Double(priceText)
-                                if let v = val, v > 0 {
-                                    onPriceChange(v)
-                                }
-                                isPriceFocused = false
-                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                            }
+                            Button("Done", action: commitEntry)
                         }
                     }
                 }
-                .onChange(of: isPriceFocused) { _, focused in
-                    if focused {
-                        priceText = item.entryPrice == nil ? "" : String(format: "%.2f", item.entryPrice!)
-                    }
-                }
+            Button("Save", action: commitEntry)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.onAccent)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
+                .background(Color.appAccentColor, in: Capsule())
+                .buttonStyle(.plain)
+            Button("Cancel") {
+                isPriceFocused = false
+                withAnimation(.easeInOut(duration: 0.2)) { isEditingEntry = false }
+            }
+            .font(.subheadline)
+            .foregroundStyle(Color.inkSecondary)
+            .buttonStyle(.plain)
         }
-        .padding(.vertical, 8)
-        .swipeActions(edge: .trailing) {
-            Button("Delete", role: .destructive) { onDelete() }
-        }
-        .cardEntrance(delay: delay)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                        pressScale = 0.98
-                    }
-                }
-                .onEnded { _ in
-                    withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
-                        pressScale = 1.0
-                    }
-                }
-        )
     }
 }
 
 /// Brief card language inside a `List`: each row on `warmSurface` with `AppRadius.card`,
-/// separators hidden. Rows stay in a List so swipe-to-delete keeps working.
+/// separators hidden. Kept for any List-based screen that still wants card rows.
 struct CardListRow: ViewModifier {
     func body(content: Content) -> some View {
         content
@@ -340,6 +482,20 @@ extension View {
     func cardRow() -> some View { modifier(CardListRow()) }
 }
 
-#Preview {
-    MarketsView()
+#Preview("Markets · light") {
+    ThemeStore.shared.themeRaw = AppTheme.light.rawValue
+    return MarketsView(
+        previewSymbols: [TrackedSymbol(symbol: "SPY", entryPrice: 702.10), TrackedSymbol(symbol: "BTC", entryPrice: nil)],
+        quotes: ["SPY": (price: 735.29, change: -2.70), "BTC": (price: 75699.0, change: 1.12)]
+    )
+    .preferredColorScheme(.light)
+}
+
+#Preview("Markets · dark") {
+    ThemeStore.shared.themeRaw = AppTheme.dark.rawValue
+    return MarketsView(
+        previewSymbols: [TrackedSymbol(symbol: "SPY", entryPrice: 702.10), TrackedSymbol(symbol: "BTC", entryPrice: nil)],
+        quotes: ["SPY": (price: 735.29, change: -2.70), "BTC": (price: 75699.0, change: 1.12)]
+    )
+    .preferredColorScheme(.dark)
 }

@@ -238,153 +238,151 @@ enum ColorAppearance: String, CaseIterable, Identifiable {
 
 // Static accessors — read `ThemeStore.shared`, which is @Observable, so any view body that
 // uses them re-renders in place when the theme or appearance changes.
+//
+// Palette ("morning paper"): a paper background, a slightly lighter surface for cards, ink
+// for text, and one saturated accent per appearance. Dark mode keeps the hue of each
+// appearance (a warm black, a cool black, a green-black) and lifts the accent instead of
+// greying it out.
+
+/// Raw hex values per appearance. Light and dark are both listed so `.system` can build a
+/// dynamic color and `.light`/`.dark` can pin one side.
+struct AppPalette: Sendable {
+    let backgroundLight: String
+    let backgroundDark: String
+    let surfaceLight: String
+    let surfaceDark: String
+    let accentLight: String
+    let accentDark: String
+    let positiveLight: String
+    let positiveDark: String
+    let negativeLight: String
+    let negativeDark: String
+    let inkLight: String
+    let inkDark: String
+    let inkSecondaryLight: String
+    let inkSecondaryDark: String
+
+    static func palette(for appearance: ColorAppearance) -> AppPalette {
+        switch appearance {
+        case .warm:
+            return AppPalette(
+                backgroundLight: "F7F2EA", backgroundDark: "0F0E0D",
+                surfaceLight: "FFFCF7", surfaceDark: "1A1816",
+                accentLight: "C95A2A", accentDark: "E8824F",
+                positiveLight: "276A4E", positiveDark: "5FB88F",
+                negativeLight: "A63D30", negativeDark: "E8766A",
+                inkLight: "1C1917", inkDark: "F3EEE6",
+                inkSecondaryLight: "6B6560", inkSecondaryDark: "A69F96")
+        case .cool:
+            return AppPalette(
+                backgroundLight: "F1F4F8", backgroundDark: "0E1116",
+                surfaceLight: "FFFFFF", surfaceDark: "181C23",
+                accentLight: "3B5B8C", accentDark: "7FA3D9",
+                positiveLight: "276A4E", positiveDark: "5FB88F",
+                negativeLight: "A63D30", negativeDark: "E8766A",
+                inkLight: "171A1F", inkDark: "EEF1F5",
+                inkSecondaryLight: "5F6670", inkSecondaryDark: "9AA3AF")
+        case .calm:
+            return AppPalette(
+                backgroundLight: "F2F5F1", backgroundDark: "0E120F",
+                surfaceLight: "FBFDFB", surfaceDark: "171C18",
+                accentLight: "3F7A5F", accentDark: "7CC4A0",
+                positiveLight: "276A4E", positiveDark: "5FB88F",
+                negativeLight: "A63D30", negativeDark: "E8766A",
+                inkLight: "161A17", inkDark: "ECF1EC",
+                inkSecondaryLight: "5F6A62", inkSecondaryDark: "98A59C")
+        }
+    }
+}
 
 extension Color {
+    /// Resolves a light/dark hex pair against the Theme setting: `.system` follows the
+    /// device, `.light`/`.dark` pin one side (so a forced theme never shows the other).
+    @MainActor private static func themed(_ theme: AppTheme, light: String, dark: String) -> Color {
+        switch theme {
+        case .system: return Color(UIColor.dynamic(light: UIColor(hex: light), dark: UIColor(hex: dark)))
+        case .light: return Color(UIColor(hex: light))
+        case .dark: return Color(UIColor(hex: dark))
+        }
+    }
+
+    @MainActor private static var currentPalette: AppPalette {
+        AppPalette.palette(for: ThemeStore.shared.appearance)
+    }
+
     @MainActor static var backgroundColor: Color {
-        let theme = ThemeStore.shared.theme
-        return backgroundColor(for: theme)
+        backgroundColor(for: ThemeStore.shared.theme)
     }
 
     @MainActor static var surfaceColor: Color {
-        let theme = ThemeStore.shared.theme
-        return surfaceColor(for: theme)
+        surfaceColor(for: ThemeStore.shared.theme)
     }
 
     @MainActor static func backgroundColor(for theme: AppTheme) -> Color {
-        let appearance = ThemeStore.shared.appearance
-        switch theme {
-        case .system:
-            return Color(UIColor.dynamic(
-                light: appearance == .warm ? UIColor(hex: "FBF8F3") : (appearance == .cool ? UIColor(hex: "F0F4F8") : UIColor(hex: "F5F7F5")),
-                dark: UIColor(hex: "0D0D0F")))
-        case .light:
-            if appearance == .warm {
-                return Color(UIColor(hex: "FBF8F3"))
-            } else if appearance == .cool {
-                return Color(UIColor(hex: "F0F4F8"))
-            } else {
-                return Color(UIColor(hex: "F5F7F5"))  // calm sage green tint
-            }
-        case .dark:
-            return Color(UIColor(hex: "0D0D0F"))  // premium dark
-        }
+        let p = currentPalette
+        return themed(theme, light: p.backgroundLight, dark: p.backgroundDark)
     }
 
     @MainActor static func surfaceColor(for theme: AppTheme) -> Color {
-        let appearance = ThemeStore.shared.appearance
-        switch theme {
-        case .system:
-            return Color(UIColor.dynamic(
-                light: appearance == .warm ? UIColor(hex: "FFFDF9") : (appearance == .cool ? UIColor(hex: "FFFFFF") : UIColor(hex: "FAFCFA")),
-                dark: UIColor(hex: "1C1C1E")))
-        case .light:
-            if appearance == .warm {
-                return Color(UIColor(hex: "FFFDF9"))
-            } else if appearance == .cool {
-                return Color(UIColor(hex: "FFFFFF"))
-            } else {
-                return Color(UIColor(hex: "FAFCFA"))  // calm off-white
-            }
-        case .dark:
-            return Color(UIColor(hex: "1C1C1E"))
-        }
+        let p = currentPalette
+        return themed(theme, light: p.surfaceLight, dark: p.surfaceDark)
     }
 
     @MainActor static var appAccentColor: Color {
-        let theme = ThemeStore.shared.theme
-        return appAccentColor(for: theme)
+        appAccentColor(for: ThemeStore.shared.theme)
     }
 
     @MainActor static func appAccentColor(for theme: AppTheme) -> Color {
-        let appearance = ThemeStore.shared.appearance
-        switch theme {
-        case .system:
-            if appearance == .warm {
-                return Color(UIColor(hex: "D4A373"))
-            } else if appearance == .cool {
-                return Color(UIColor(hex: "7E8EA8"))
-            } else {
-                return Color(UIColor(hex: "81B29A"))
-            }
-        case .light:
-            if appearance == .warm {
-                return Color(UIColor(hex: "D4A373"))
-            } else if appearance == .cool {
-                return Color(UIColor(hex: "7E8EA8"))
-            } else {
-                return Color(UIColor(hex: "81B29A"))  // calm sage green
-            }
-        case .dark:
-            return Color(UIColor(hex: "6B7280"))  // muted gray
-        }
+        let p = currentPalette
+        return themed(theme, light: p.accentLight, dark: p.accentDark)
     }
 
     @MainActor static var positiveColor: Color {
-        let theme = ThemeStore.shared.theme
-        return _positiveColor(for: theme)
+        _positiveColor(for: ThemeStore.shared.theme)
     }
 
     @MainActor static func _positiveColor(for theme: AppTheme) -> Color {
-        let appearance = ThemeStore.shared.appearance
-        switch theme {
-        case .system:
-            return appearance == .calm ? Color(UIColor(hex: "81B29A")) : .green
-        case .light:
-            if appearance == .warm {
-                return Color(UIColor(hex: "81B29A"))
-            } else if appearance == .cool {
-                return .green
-            } else {
-                return Color(UIColor(hex: "81B29A"))  // calm sage
-            }
-        case .dark:
-            return .green
-        }
+        let p = currentPalette
+        return themed(theme, light: p.positiveLight, dark: p.positiveDark)
     }
 
     /// Down moves and bearish badges. Distinct from the accent in every appearance, and a
     /// clearly red hue in Dark so "down" never looks like "neutral".
     @MainActor static var negativeColor: Color {
-        let theme = ThemeStore.shared.theme
-        let appearance = ThemeStore.shared.appearance
-        let light: UIColor
-        switch appearance {
-        case .warm: light = UIColor(hex: "C8553D")   // terracotta red
-        case .cool: light = UIColor(hex: "C0392B")   // cool crimson
-        case .calm: light = UIColor(hex: "B5564B")   // muted brick
-        }
-        let dark = UIColor(hex: "FF6B6B")            // readable red on the dark surface
-        switch theme {
-        case .system:
-            return Color(UIColor.dynamic(light: light, dark: dark))
-        case .light:
-            return Color(light)
-        case .dark:
-            return Color(dark)
-        }
+        let p = currentPalette
+        return themed(ThemeStore.shared.theme, light: p.negativeLight, dark: p.negativeDark)
+    }
+
+    /// Primary text ("ink"). Near-black on paper, warm off-white on the dark surface.
+    @MainActor static var inkPrimary: Color {
+        let p = currentPalette
+        return themed(ThemeStore.shared.theme, light: p.inkLight, dark: p.inkDark)
+    }
+
+    /// Secondary text. Chosen to pass 4.5:1 on the surface color in both modes.
+    @MainActor static var inkSecondary: Color {
+        let p = currentPalette
+        return themed(ThemeStore.shared.theme, light: p.inkSecondaryLight, dark: p.inkSecondaryDark)
+    }
+
+    /// Hairline rules and card borders: ink at low opacity so it follows the theme.
+    @MainActor static var hairline: Color {
+        inkPrimary.opacity(0.08)
+    }
+
+    /// Text on an accent-filled control: white on the light accent, ink on the lighter dark
+    /// accent (white on it fails contrast).
+    @MainActor static var onAccent: Color {
+        let p = currentPalette
+        return themed(ThemeStore.shared.theme, light: "FFFFFF", dark: p.backgroundDark)
     }
 
     @MainActor static var aiSummaryBadgeColor: Color {
-        let theme = ThemeStore.shared.theme
-        return aiSummaryBadgeColor(for: theme)
+        aiSummaryBadgeColor(for: ThemeStore.shared.theme)
     }
 
     @MainActor static func aiSummaryBadgeColor(for theme: AppTheme) -> Color {
-        let appearance = ThemeStore.shared.appearance
-        switch theme {
-        case .system:
-            return appearance == .warm ? Color(UIColor(hex: "E07A5F")) : Color(UIColor(hex: "7E8EA8"))
-        case .light:
-            if appearance == .warm {
-                return Color(UIColor(hex: "E07A5F"))
-            } else if appearance == .cool {
-                return Color(UIColor(hex: "7E8EA8"))
-            } else {
-                return Color(UIColor(hex: "81B29A"))  // calm green
-            }
-        case .dark:
-            return Color(UIColor(hex: "6B7280"))  // muted gray
-        }
+        appAccentColor(for: theme)
     }
 }
 

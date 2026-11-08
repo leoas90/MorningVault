@@ -9,10 +9,11 @@ struct OnboardingSourcesStep: View {
             // Header
             VStack(spacing: 8) {
                 Text("Stay informed")
-                    .font(.largeTitle.bold())
+                    .font(.display(32))
+                    .foregroundStyle(Color.inkPrimary)
                 Text("Choose your news sources. You can change them later in Settings › Data sources › Edit sources.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.inkSecondary)
                     .multilineTextAlignment(.center)
             }
             .padding(.top, 48)
@@ -91,7 +92,7 @@ struct SourceSelectionRow: View {
                         .foregroundStyle(.primary)
                     Text(description)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.inkSecondary)
                         .lineLimit(1)
                 }
 
