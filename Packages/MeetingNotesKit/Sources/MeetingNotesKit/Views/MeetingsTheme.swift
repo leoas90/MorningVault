@@ -130,6 +130,8 @@ enum MeetingsSpace {
     static let label: CGFloat = 8
     static let control: CGFloat = 52
     static let target: CGFloat = 44
+    /// What the app's tab bar reserves below the home. Previews pin it themselves.
+    static let tabClearance: CGFloat = 56
 }
 
 /// Page background that follows the host theme.

@@ -113,8 +113,9 @@ struct HomeScreen: View {
 
                     if let event = upcomingEvents.first {
                         Eyebrow(isHappening(event) ? "Now" : "Next")
-                            .homeRow(top: isLive ? MeetingsSpace.sectionGap : 4, bottom: 4)
-                        NextEventRow(event: event, now: now, onRecord: { start(NewMeetingRequest(event: event)) })
+                            .homeRow(top: isLive ? MeetingsSpace.sectionGap : 8, bottom: 4)
+                        NextEventRow(event: event, now: now, drawsTopHairline: !isLive,
+                                     onRecord: { start(NewMeetingRequest(event: event)) })
                             .zoomSource(id: HomeZoomSource.event(event.id), in: zoom)
                             .homeRow(top: 0, bottom: 0)
                     }
@@ -271,8 +272,8 @@ struct HomeScreen: View {
 
     // MARK: - Live recording
 
-    /// The recording in progress, inline between hairlines. Appears and leaves with a fade
-    /// and a slide from the top (a plain fade under Reduce Motion).
+    /// The recording in progress, inline. Appears and leaves with a fade and a slide from
+    /// the top (a plain fade under Reduce Motion).
     private var liveBlock: some View {
         VStack(spacing: 0) {
             if let state = recordingState {
@@ -497,15 +498,16 @@ struct LiveRecordingState: Equatable {
         self.attendees = attendees
     }
 
-    /// The last sentence or so of the transcript.
-    static func tail(of transcript: String, limit: Int = 140) -> String {
+    /// The last sentence or so of the transcript. Cut on a word, never mid-word.
+    static func tail(of transcript: String, limit: Int = 90) -> String {
         let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count > limit else { return trimmed }
         let tail = trimmed.suffix(limit)
         if let cut = tail.firstIndex(where: { $0 == "." || $0 == "?" || $0 == "!" }), tail.distance(from: cut, to: tail.endIndex) > 20 {
             return String(tail[tail.index(after: cut)...]).trimmingCharacters(in: .whitespaces)
         }
-        return "…" + tail
+        guard let word = tail.firstIndex(of: " ") else { return "…" + tail }
+        return "…" + tail[tail.index(after: word)...].trimmingCharacters(in: .whitespaces)
     }
 }
 
@@ -522,7 +524,6 @@ struct LiveRecordingBlock: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Hairline()
             HStack(alignment: .top, spacing: 12) {
                 Button(action: onOpen) {
                     VStack(alignment: .leading, spacing: 0) {
@@ -545,6 +546,7 @@ struct LiveRecordingBlock: View {
                             .lineSpacing(3)
                             .foregroundStyle(theme.inkSoft)
                             .lineLimit(2)
+                            .truncationMode(.head)
                             .padding(.top, state.title.isEmpty ? 8 : 4)
                             .contentTransition(.opacity)
                     }
@@ -628,11 +630,13 @@ struct NextEventRow: View {
     @Environment(\.meetingsTheme) private var theme
     let event: CalendarEventInfo
     let now: Date
+    /// False when the row follows a block that already ended with a hairline.
+    var drawsTopHairline = true
     let onRecord: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            Hairline()
+            if drawsTopHairline { Hairline() }
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(event.start.formatted(date: .omitted, time: .shortened))
@@ -876,6 +880,9 @@ struct MeetingsHubPreview: View {
         .modelContainer(MeetingPreviewData.previewContainer(empty: empty))
         .meetingsTheme(MeetingPreviewData.warmTheme(scheme))
         .preferredColorScheme(scheme)
+        // The app draws the home above a tab bar, which reserves the bottom inset the
+        // New meeting pill sits in. Previews have no tab bar, so pin the same inset.
+        .safeAreaPadding(.bottom, MeetingsSpace.tabClearance)
     }
 }
 

@@ -364,23 +364,28 @@ struct TranscriptRows: View {
     var volatileText: String = ""
     /// Called with the speaker key and the new name.
     var onRename: ((String, String) -> Void)?
+    /// Fixed column the timestamps sit in, so the turns line up. No column when no row
+    /// carries a time.
+    private var timeColumn: CGFloat {
+        rows.contains { $0.start != nil } ? 52 : 0
+    }
     @State private var renaming: TranscriptRowModel?
     @State private var newName = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                VStack(alignment: .leading, spacing: 6) {
-                    if row.speakerKey != nil || row.name != nil || row.start != nil {
-                        HStack(spacing: 8) {
-                            speakerLabel(row)
-                            if let start = row.start {
-                                Text(TranscriptRowModel.timestamp(start))
-                                    .font(MeetingsType.metaMono)
-                                    .foregroundStyle(theme.inkSoft)
-                                    .monospacedDigit()
-                            }
-                        }
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    if timeColumn > 0 {
+                        Text(row.start.map { TranscriptRowModel.timestamp($0) } ?? "")
+                            .font(MeetingsType.metaMono)
+                            .foregroundStyle(theme.inkSoft)
+                            .monospacedDigit()
+                            .frame(width: timeColumn, alignment: .leading)
+                    }
+                    VStack(alignment: .leading, spacing: 6) {
+                    if row.speakerKey != nil || row.name != nil {
+                        speakerLabel(row)
                     }
                     if index == rows.count - 1, !volatileText.isEmpty {
                         Text("\(row.text) \(Text(volatileText).foregroundStyle(theme.inkSoft))")
@@ -395,8 +400,9 @@ struct TranscriptRows: View {
                             .foregroundStyle(theme.ink)
                             .textSelection(.enabled)
                     }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 14)
                 if index < rows.count - 1 { Hairline() }
             }
