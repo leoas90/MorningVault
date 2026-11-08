@@ -46,6 +46,7 @@
 		96D3E937B4CB2AF95DFF2920 /* MeetingPrepCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0D4005055984F536F9A3C03 /* MeetingPrepCard.swift */; };
 		9994A34682A8B9FAE5024E49 /* MorningVaultWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7F326B33C09D42D7161B8064 /* MorningVaultWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		9A643DE807D78C3B5A270B31 /* SharedBriefingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA716AFE1B7CFF2B49C066F4 /* SharedBriefingStore.swift */; };
+		9DACD9BC231ED3565039C8FB /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DCC6E36072110A0C9A13105 /* DesignSystem.swift */; };
 		A279BFD7446F1715B100AD06 /* SinceYesterdayService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F262638492997BDB559DCA /* SinceYesterdayService.swift */; };
 		A2BFE25D447520BF05FCF662 /* MeetingsDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2FD59B96D01494EBE1A9597 /* MeetingsDeepLink.swift */; };
 		A489201F8F6DA14C54FF5D7C /* BriefingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F951050E0F4C265855B07D /* BriefingIntents.swift */; };
@@ -118,6 +119,7 @@
 		53A27C5D739FF263892E7845 /* BriefingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingViewModel.swift; sourceTree = "<group>"; };
 		57398225F0C285023D3C56AC /* AlarmService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmService.swift; sourceTree = "<group>"; };
 		5D4F604E0DBCADA9DF649363 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		5DCC6E36072110A0C9A13105 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		6091C9B0146CAF03D736103D /* TrackedSymbol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackedSymbol.swift; sourceTree = "<group>"; };
 		6376F2CF2B5439BE403B053D /* CoreLocation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreLocation.framework; path = System/Library/Frameworks/CoreLocation.framework; sourceTree = SDKROOT; };
 		6619476E0FF29E35D1B6F96A /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
@@ -343,6 +345,7 @@
 		EC2B793A0664A3088994FF97 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				5DCC6E36072110A0C9A13105 /* DesignSystem.swift */,
 				E0D4005055984F536F9A3C03 /* MeetingPrepCard.swift */,
 				66CF0FA6E0A29BDFA3A898DC /* MorningSnapshotCard.swift */,
 			);
@@ -510,6 +513,7 @@
 				2E932C7B9F19E3955192EB5B /* CalendarService.swift in Sources */,
 				B281FE55E090E469DAF71AAD /* ContentView.swift in Sources */,
 				6930C99BB5D04D6E57C1E262 /* DataModels.swift in Sources */,
+				9DACD9BC231ED3565039C8FB /* DesignSystem.swift in Sources */,
 				F7C67B03B804B670B426A0DD /* GreetingComposer.swift in Sources */,
 				F3480E6D0027A5C1884D74E5 /* GreetingService.swift in Sources */,
 				AECF485B2044FA53AB0A4C19 /* HealthKitService.swift in Sources */,
@@ -559,15 +563,15 @@
 		09D4CC953A62A211F79AC159 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ONLY_ACTIVE_ARCH = YES;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				APP_SHORTCUTS_ENABLE_FLEXIBLE_MATCHING = NO;
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = 8ZPN58AQLD;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PROVISIONING_PROFILE_SPECIFIER = MorningVaultAppStores;
 				SDKROOT = iphoneos;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 1;

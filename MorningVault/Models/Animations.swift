@@ -3,8 +3,8 @@ import SwiftUI
 // MARK: - Animation Constants
 
 enum AppAnimation {
-    static let cardEntranceDuration: Double = 0.4
-    static let cardStaggerDelay: Double = 0.06
+    static let cardEntranceDuration: Double = 0.35
+    static let cardStaggerDelay: Double = 0.04
     static let springResponse: Double = 0.4
     static let springDamping: Double = 0.8
     static let tickAnimationDuration: Double = 0.15
@@ -38,7 +38,7 @@ struct CardEntranceModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .opacity(shouldReduceMotion ? 1 : (isVisible ? 1 : 0))
-            .offset(y: shouldReduceMotion ? 0 : (isVisible ? 0 : 20))
+            .offset(y: shouldReduceMotion ? 0 : (isVisible ? 0 : 8))
             .onAppear {
                 if !shouldReduceMotion {
                     withAnimation(.easeOut(duration: AppAnimation.cardEntranceDuration).delay(delay)) {

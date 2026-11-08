@@ -15,23 +15,14 @@ struct MeetingPrepCard: View {
                 }
             } label: {
                 HStack(alignment: .top, spacing: 12) {
-                    // Icon
-                    Image(systemName: "person.2.wave.2")
-                        .font(.title3)
-                        .foregroundStyle(Color.warmPrimaryAccent)
-                        .frame(width: 32, height: 32)
-                        .background(Color.warmPrimaryAccent.opacity(0.15))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Meeting prep")
-                            .font(.caption)
-                            .foregroundStyle(Color.warmTextSecondary)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Eyebrow(text: "Meeting prep")
 
                         Text(prep.meetingTitle)
-                            .font(.headline)
+                            .font(.display(22))
                             .foregroundStyle(Color.warmTextPrimary)
-                            .lineLimit(prep.isExpanded ? 2 : 1)
+                            .lineLimit(prep.isExpanded ? 3 : 2)
+                            .multilineTextAlignment(.leading)
 
                         HStack(spacing: 4) {
                             Image(systemName: "clock")
@@ -68,14 +59,12 @@ struct MeetingPrepCard: View {
 
             // Expanded content
             if prep.isExpanded {
-                Divider()
+                Hairline()
 
                 // Attendees
                 if !prep.attendees.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Attendees")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Color.warmTextSecondary)
+                        Eyebrow(text: "Attendees")
                         Text(prep.attendees.joined(separator: ", "))
                             .font(.subheadline)
                             .foregroundStyle(Color.warmTextPrimary)
@@ -85,9 +74,7 @@ struct MeetingPrepCard: View {
                 // Agenda
                 if let agenda = prep.agenda, !agenda.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Agenda")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Color.warmTextSecondary)
+                        Eyebrow(text: "Agenda")
                         Text(agenda)
                             .font(.subheadline)
                             .foregroundStyle(Color.warmTextPrimary)
@@ -97,9 +84,7 @@ struct MeetingPrepCard: View {
                 // Talking Points
                 if !prep.talkingPoints.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Talking points")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Color.warmTextSecondary)
+                        Eyebrow(text: "Talking points")
 
                         ForEach(prep.talkingPoints, id: \.self) { point in
                             HStack(alignment: .top, spacing: 8) {
@@ -118,9 +103,7 @@ struct MeetingPrepCard: View {
                 // Past Positions
                 if !prep.yourPastPositions.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Your past positions")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Color.warmTextSecondary)
+                        Eyebrow(text: "Your past positions")
 
                         ForEach(prep.yourPastPositions, id: \.self) { position in
                             HStack(alignment: .top, spacing: 8) {
@@ -145,15 +128,8 @@ struct MeetingPrepCard: View {
                 }
             }
         }
-        // Same padding / radius / shadow as the other Brief cards so it sits in the stack cleanly.
-        .padding(20)
-        .background(Color.warmCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
-        .overlay(
-            RoundedRectangle(cornerRadius: AppRadius.card)
-                .stroke(Color.warmPrimaryAccent.opacity(0.2), lineWidth: 1)
-        )
-        .shadow(color: Color.warmTextPrimary.opacity(0.06), radius: 8, x: 0, y: 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .editorialCard()
     }
 }
 

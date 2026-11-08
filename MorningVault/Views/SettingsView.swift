@@ -60,57 +60,82 @@ struct SettingsView: View {
 
     private var themeDescription: String {
         switch currentTheme {
-        case .system: return "Adapts to your device's light/dark setting"
-        case .light: return "Always light mode"
-        case .dark: return "Premium dark — always dark mode"
+        case .system: return "Follows your iPhone's Light or Dark setting."
+        case .light: return "Always light."
+        case .dark: return "Always dark."
         }
     }
 
     private var appearanceDescription: String {
         switch themeStore.appearance {
-        case .cool: return "Cool gray-blue tones — calm and focused"
-        case .warm: return "Soft cream tones — warm and energizing"
-        case .calm: return "Soft sage green tones — calm and balanced"
+        case .cool: return "Paper white with a slate-blue accent."
+        case .warm: return "Cream paper with an ember accent."
+        case .calm: return "Pale sage paper with a moss-green accent."
         }
     }
 
     var body: some View {
         NavigationStack {
             Form {
+                // MARK: - Header
+                Section {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Eyebrow(text: "MorningVault")
+                        Text("Settings")
+                            .font(.display(34))
+                            .foregroundStyle(Color.inkPrimary)
+                            .accessibilityAddTraits(.isHeader)
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 0, trailing: 20))
+                }
+
                 // MARK: - Personalization
                 personalizationSection
+                    .listRowBackground(Color.surfaceColor)
 
                 // MARK: - Alarm Time
                 alarmSection
+                    .listRowBackground(Color.surfaceColor)
 
                 // MARK: - Appearance
                 appearanceSection
+                    .listRowBackground(Color.surfaceColor)
 
                 // MARK: - Units
                 unitsSection
+                    .listRowBackground(Color.surfaceColor)
 
                 // MARK: - Voice
                 voiceSection
+                    .listRowBackground(Color.surfaceColor)
 
                 // MARK: - Data Sources
                 dataSourcesSection
+                    .listRowBackground(Color.surfaceColor)
 
                 // MARK: - Privacy
                 privacySection
+                    .listRowBackground(Color.surfaceColor)
 
                 // MARK: - Permissions
                 permissionsSection
+                    .listRowBackground(Color.surfaceColor)
 
                 // MARK: - About
                 aboutSection
+                    .listRowBackground(Color.surfaceColor)
 
                 // MARK: - Advanced (collapsed)
                 advancedSection
+                    .listRowBackground(Color.surfaceColor)
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.backgroundColor.ignoresSafeArea())
+            .tint(Color.appAccentColor)
             .opacity(hasAppeared ? 1 : 0)
-            .offset(y: hasAppeared ? 0 : 12)
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
+            .offset(y: hasAppeared ? 0 : 8)
+            .toolbar(.hidden, for: .navigationBar)
             .onAppear {
                 if !UIAccessibility.isReduceMotionEnabled {
                     withAnimation(.easeOut(duration: 0.35)) {
@@ -134,7 +159,7 @@ struct SettingsView: View {
                     .font(.body.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(Color(uiColor: .systemBackground))
+                    .background(Color.surfaceColor)
                 }
             }
             .cardEntrance(delay: 0.0)
@@ -145,14 +170,14 @@ struct SettingsView: View {
 
     private var personalizationSection: some View {
         Section("Personalization") {
-            TextField("Your name", text: $userName)
+            TextField("Your name", text: $userName, prompt: Text("Your name").foregroundStyle(Color.inkSecondary))
                 .textContentType(.givenName)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.words)
                 .focused($isNameFieldFocused)
             Text("Used for the greeting in your morning briefing. Your name stays on this device.")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
         }
     }
 
@@ -170,14 +195,16 @@ struct SettingsView: View {
     private var alarmSection: some View {
         Section {
             DatePicker(
-                "Briefing time",
                 selection: briefingTimeBinding,
                 displayedComponents: .hourAndMinute
-            )
+            ) {
+                Label("Briefing time", systemImage: "alarm")
+            }
+            .datePickerStyle(.compact)
             .onChange(of: briefingTimeSeconds) { _, _ in applyAlarm() }
 
             Toggle("Weekdays only", isOn: $weekdaysOnly)
-                .tint(Color.warmPrimaryAccent)
+                .tint(Color.appAccentColor)
                 .onChange(of: weekdaysOnly) { _, _ in applyAlarm() }
 
             if let err = alarmService.lastError {
@@ -198,11 +225,11 @@ struct SettingsView: View {
                         DisclosureGroup("Details", isExpanded: $showAlarmErrorDetails) {
                             Text(details)
                                 .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.inkSecondary)
                                 .textSelection(.enabled)
                         }
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.inkSecondary)
                     }
                 }
             }
@@ -256,8 +283,8 @@ struct SettingsView: View {
 
     private var appearanceSection: some View {
         Group {
-            Section("Theme") {
-                Picker("Theme", selection: $themeStore.themeRaw) {
+            Section {
+                Picker("Appearance", selection: $themeStore.themeRaw) {
                     ForEach(AppTheme.allCases) { theme in
                         Label(theme.displayName, systemImage: theme.icon)
                             .tag(theme.rawValue)
@@ -265,10 +292,14 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.inline)
                 .labelsHidden()
+            } header: {
+                Text("Appearance")
+            } footer: {
+                Text(themeDescription)
             }
 
-            Section("Appearance") {
-                Picker("Appearance", selection: $themeStore.appearanceRaw) {
+            Section {
+                Picker("Palette", selection: $themeStore.appearanceRaw) {
                     ForEach(ColorAppearance.allCases) { appearance in
                         Label(appearance.displayName, systemImage: appearance.icon)
                             .tag(appearance.rawValue)
@@ -276,10 +307,10 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.inline)
                 .labelsHidden()
-
+            } header: {
+                Text("Palette")
+            } footer: {
                 Text(appearanceDescription)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -314,7 +345,7 @@ struct SettingsView: View {
 
             Text(unitsDescription)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
         }
     }
 
@@ -335,13 +366,13 @@ struct SettingsView: View {
             Toggle(isOn: $voiceBriefingEnabled) {
                 Label("Voice briefing", systemImage: "speaker.wave.2")
             }
-            .tint(Color.warmPrimaryAccent)
+            .tint(Color.appAccentColor)
 
             if voiceBriefingEnabled {
                 Toggle(isOn: $naturalVoiceEnabled) {
                     Label("Natural voice", systemImage: "waveform")
                 }
-                .tint(Color.warmPrimaryAccent)
+                .tint(Color.appAccentColor)
                 .onChange(of: naturalVoiceEnabled) { _, on in
                     if on { NaturalVoiceGuard.reset() }
                 }
@@ -354,7 +385,7 @@ struct SettingsView: View {
 
                 Text(naturalVoiceFooter)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.inkSecondary)
             }
         }
     }
@@ -411,7 +442,7 @@ struct SettingsView: View {
                 Spacer()
                 Text("Approximate only")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.inkSecondary)
             }
 
             HStack {
@@ -419,7 +450,7 @@ struct SettingsView: View {
                 Spacer()
                 Text(localOnly ? "All local" : "External")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.inkSecondary)
             }
         } header: {
             Text("Privacy")
@@ -443,7 +474,7 @@ struct SettingsView: View {
                     Label("HealthKit", systemImage: "heart.text.square")
                     Spacer()
                     Image(systemName: healthService.isAuthorized ? "checkmark.circle.fill" : "exclamationmark.circle")
-                        .foregroundStyle(healthService.isAuthorized ? .green : .orange)
+                        .foregroundStyle(healthService.isAuthorized ? Color.positiveColor : Color.appAccentColor)
                 }
             }
 
@@ -454,7 +485,7 @@ struct SettingsView: View {
                     Label("Calendar", systemImage: "calendar")
                     Spacer()
                     Image(systemName: calendarService.isAuthorized ? "checkmark.circle.fill" : "exclamationmark.circle")
-                        .foregroundStyle(calendarService.isAuthorized ? .green : .orange)
+                        .foregroundStyle(calendarService.isAuthorized ? Color.positiveColor : Color.appAccentColor)
                 }
             }
 
@@ -466,7 +497,7 @@ struct SettingsView: View {
                     Label("Location (Weather)", systemImage: "location")
                     Spacer()
                     Image(systemName: weatherService.isAuthorized ? "checkmark.circle.fill" : "exclamationmark.circle")
-                        .foregroundStyle(weatherService.isAuthorized ? .green : .orange)
+                        .foregroundStyle(weatherService.isAuthorized ? Color.positiveColor : Color.appAccentColor)
                 }
             }
 
@@ -480,7 +511,7 @@ struct SettingsView: View {
                     Label("Notifications", systemImage: "bell")
                     Spacer()
                     Image(systemName: alarmService.authorizationState == .authorized ? "checkmark.circle.fill" : "exclamationmark.circle")
-                        .foregroundStyle(alarmService.authorizationState == .authorized ? .green : .orange)
+                        .foregroundStyle(alarmService.authorizationState == .authorized ? Color.positiveColor : Color.appAccentColor)
                 }
             }
 
@@ -532,7 +563,7 @@ struct SettingsView: View {
             Label(title, systemImage: icon)
             Spacer()
             Image(systemName: granted ? "checkmark.circle.fill" : "exclamationmark.circle")
-                .foregroundStyle(granted ? .green : .orange)
+                .foregroundStyle(granted ? Color.positiveColor : Color.appAccentColor)
         }
     }
 
@@ -550,13 +581,13 @@ struct SettingsView: View {
                 Text("Version")
                 Spacer()
                 Text(getMarketingVersion())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.inkSecondary)
             }
             HStack {
                 Text("Build")
                 Spacer()
                 Text(getBuildNumber())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.inkSecondary)
             }
         }
     }
@@ -583,7 +614,7 @@ struct AnimatedToggle: View {
         Toggle(isOn: $isOn) {
             Label(label, systemImage: icon)
         }
-        .tint(Color.warmPrimaryAccent)
+        .tint(Color.appAccentColor)
         .scaleEffect(scale)
         .onChange(of: isOn) { _, _ in
             // Haptic feedback
@@ -601,6 +632,14 @@ struct AnimatedToggle: View {
     }
 }
 
-#Preview {
-    SettingsView()
+#Preview("Settings · light") {
+    ThemeStore.shared.themeRaw = AppTheme.light.rawValue
+    return SettingsView()
+        .preferredColorScheme(.light)
+}
+
+#Preview("Settings · dark") {
+    ThemeStore.shared.themeRaw = AppTheme.dark.rawValue
+    return SettingsView()
+        .preferredColorScheme(.dark)
 }

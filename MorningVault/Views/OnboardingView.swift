@@ -9,7 +9,7 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            Color.warmBackground
+            Color.backgroundColor
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
@@ -38,17 +38,19 @@ struct OnboardingView: View {
                         } label: {
                             Text("Next")
                                 .font(.headline)
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Color.onAccent)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 16)
-                                .background(Color.warmPrimaryAccent)
-                                .clipShape(RoundedRectangle(cornerRadius: AppRadius.button))
+                                .background(Color.appAccentColor, in: RoundedRectangle(cornerRadius: AppRadius.button, style: .continuous))
                         }
+                        .buttonStyle(.plain)
                         .accessibilityHint("Goes to the next step")
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
                 .padding(.bottom, 24)
+                .background(Color.backgroundColor)
             }
         }
     }
@@ -68,7 +70,7 @@ struct OnboardingPageIndicator: View {
         HStack(spacing: 8) {
             ForEach(0..<total, id: \.self) { index in
                 Capsule()
-                    .fill(index == current ? Color.warmPrimaryAccent : Color.secondary.opacity(0.3))
+                    .fill(index == current ? Color.appAccentColor : Color.inkSecondary.opacity(0.5))
                     .frame(width: index == current ? 24 : 8, height: 8)
                     .animation(.spring(response: 0.35, dampingFraction: 0.7), value: current)
             }

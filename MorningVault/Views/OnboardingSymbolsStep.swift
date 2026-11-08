@@ -51,10 +51,11 @@ struct OnboardingSymbolsStep: View {
             // Header
             VStack(spacing: 8) {
                 Text("Track markets")
-                    .font(.largeTitle.bold())
+                    .font(.display(32))
+                    .foregroundStyle(Color.inkPrimary)
                 Text("Select symbols to watch. You can edit these anytime in the Markets tab.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.inkSecondary)
                     .multilineTextAlignment(.center)
             }
             .padding(.top, 48)
@@ -70,7 +71,7 @@ struct OnboardingSymbolsStep: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(group.category)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.inkSecondary)
                                 .textCase(.uppercase)
                                 .padding(.leading, 4)
 
@@ -98,7 +99,7 @@ struct OnboardingSymbolsStep: View {
             // Selected count
             Text("\(selectedSymbols.count) of \(MarketsViewModel.maxSymbols) symbol\(selectedSymbols.count == 1 ? "" : "s") selected")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
                 .padding(.vertical, 8)
                 .opacity(hasAppeared ? 1 : 0)
 
@@ -172,7 +173,7 @@ struct SymbolChip: View {
                     .font(.headline)
                 Text(name)
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.inkSecondary)
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity)

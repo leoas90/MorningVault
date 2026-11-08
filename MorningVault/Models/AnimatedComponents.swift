@@ -9,9 +9,9 @@ import SwiftUI
 /// Consistent corner radii used throughout the app.
 /// Update here to propagate a radius change everywhere.
 enum AppRadius {
-    static let card: CGFloat = 20
+    static let card: CGFloat = 22
     static let button: CGFloat = 14
-    static let banner: CGFloat = 8
+    static let banner: CGFloat = 10
     static let badge: CGFloat = 6
 }
 
@@ -31,9 +31,11 @@ extension Color {
     @MainActor static var warmCardBackground: Color { Color.surfaceColor }
     @MainActor static var warmPrimaryAccent: Color { Color.appAccentColor }
     @MainActor static var warmSecondaryAccent: Color { Color.positiveColor }
-    @MainActor static var warmTextPrimary: Color { Color(UIColor.dynamic(light: .black, dark: .white)) }
-    @MainActor static var warmTextSecondary: Color { Color(UIColor.dynamic(light: UIColor(white: 0.4, alpha: 1), dark: UIColor(white: 0.7, alpha: 1))) }
-    @MainActor static var warmDivider: Color { Color(UIColor.dynamic(light: UIColor(white: 0.9, alpha: 1), dark: UIColor(white: 0.2, alpha: 1))) }
+    // Ink tokens (see `Color.inkPrimary` / `inkSecondary` in MorningVaultApp.swift). The
+    // `warm…` names are kept as aliases so existing call sites keep compiling.
+    @MainActor static var warmTextPrimary: Color { Color.inkPrimary }
+    @MainActor static var warmTextSecondary: Color { Color.inkSecondary }
+    @MainActor static var warmDivider: Color { Color.hairline }
     @MainActor static var warmPositive: Color { Color.positiveColor }
     @MainActor static var warmNegative: Color { Color.negativeColor }
     @MainActor static var warmAISummary: Color { Color.aiSummaryBadgeColor }
@@ -290,12 +292,9 @@ struct AnimatedCard<Content: View>: View {
 
     var body: some View {
         content()
-            .padding(20)
-            .background(Color.warmSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: Color.warmTextPrimary.opacity(0.06), radius: 8, x: 0, y: 4)
+            .editorialCard()
             .opacity(hasAppeared ? 1 : 0)
-            .offset(y: hasAppeared ? 0 : 20)
+            .offset(y: hasAppeared ? 0 : 8)
             .onAppear {
                 if !UIAccessibility.isReduceMotionEnabled {
                     DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
