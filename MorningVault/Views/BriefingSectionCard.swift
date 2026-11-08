@@ -463,7 +463,7 @@ extension Notification.Name {
 
 // MARK: - Empty State View
 
-/// Quiet card: names the actual cause (source off, permission, nothing loaded) and nothing else.
+/// Flat block (no card): names the actual cause (source off, permission, nothing loaded) and nothing else.
 struct EmptyStateView: View {
     let title: String
     let message: String
@@ -484,7 +484,6 @@ struct EmptyStateView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .editorialCard()
     }
 }
 

@@ -129,7 +129,6 @@ struct MeetingPrepCard: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .editorialCard()
     }
 }
 

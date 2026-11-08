@@ -239,9 +239,10 @@ struct TabIcon: View {
 
 // MARK: - Brief Tab
 
-/// The Brief: the weather hero card (L1), then answer first (greeting, one lede sentence),
-/// evidence second (the Next card as the one functional surface (L2), a compact changes strip,
-/// the Markets hairline list, health, headlines). Share and Listen live in the navigation bar.
+/// The Brief, one continuous flow with no cards: the full-bleed weather hero (L1), then
+/// answer first (greeting, one lede sentence), evidence second (the Next rows, the changes
+/// rows, the Markets hairline list, health, headlines), all separated by hairlines on the
+/// 20 pt margin grid. Share and Listen float in the navigation bar over the sky.
 struct BriefTabView: View {
     @ObservedObject var viewModel: BriefingViewModel
     let userName: String
@@ -320,82 +321,90 @@ struct BriefTabView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: Grid4.section) {
-                    heroCard
-                        .padding(.top, 4)
+            GeometryReader { geo in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Grid4.section) {
+                        // Full bleed: the hero carries its own horizontal padding and its sky
+                        // hangs up through the top safe area (status bar + navigation bar);
+                        // everything below sits on the 20 pt margin grid.
+                        hero(topInset: geo.safeAreaInsets.top)
 
-                    answerBlock
+                        VStack(alignment: .leading, spacing: Grid4.section) {
+                            answerBlock
 
-                    if viewModel.isLoading && viewModel.briefingSections.isEmpty {
-                        LoadingStateView()
-                    } else if viewModel.briefingSections.isEmpty && viewModel.meetingPrep == nil {
-                        let state = emptyState
-                        EmptyStateView(title: state.title, message: state.message, systemImage: state.icon)
-                    } else {
-                        evidence
-                    }
+                            if viewModel.isLoading && viewModel.briefingSections.isEmpty {
+                                LoadingStateView()
+                            } else if viewModel.briefingSections.isEmpty && viewModel.meetingPrep == nil {
+                                let state = emptyState
+                                EmptyStateView(title: state.title, message: state.message, systemImage: state.icon)
+                            } else {
+                                evidence
+                            }
 
-                    privacyFooter
-                }
-                .padding(.horizontal, Grid4.margin)
-                .padding(.bottom, 24)
-                .id(refreshCount)
-                .transition(.opacity)
-            }
-            .background(Color.backgroundColor.ignoresSafeArea())
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: share) {
-                        Image(systemName: "square.and.arrow.up")
-                    }
-                    .accessibilityLabel("Share briefing")
-                }
-                if voiceBriefingEnabled {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(action: toggleListen) {
-                            Label(isVoicePlaying ? "Stop" : "Listen", systemImage: isVoicePlaying ? "stop.fill" : "waveform")
-                                .labelStyle(.titleAndIcon)
-                                .font(.system(size: 15, weight: .semibold))
+                            privacyFooter
                         }
-                        .tint(Color.appAccentColor)
-                        .accessibilityLabel(isVoicePlaying ? "Stop voice briefing" : "Listen to briefing")
+                        .padding(.horizontal, Grid4.margin)
+                    }
+                    .padding(.bottom, 24)
+                    .id(refreshCount)
+                    .transition(.opacity)
+                }
+                .background(Color.backgroundColor.ignoresSafeArea())
+                .navigationTitle("")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbarBackground(.hidden, for: .navigationBar)
+                .toolbarColorScheme(heroStyle.usesLightText ? .dark : .light, for: .navigationBar)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(action: share) {
+                            Image(systemName: "square.and.arrow.up")
+                        }
+                        .accessibilityLabel("Share briefing")
+                    }
+                    if voiceBriefingEnabled {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button(action: toggleListen) {
+                                Label(isVoicePlaying ? "Stop" : "Listen", systemImage: isVoicePlaying ? "stop.fill" : "waveform")
+                                    .labelStyle(.titleAndIcon)
+                                    .font(.system(size: 15, weight: .semibold))
+                            }
+                            .tint(Color.appAccentColor)
+                            .accessibilityLabel(isVoicePlaying ? "Stop voice briefing" : "Listen to briefing")
+                        }
                     }
                 }
+                .contentMargins(.bottom, 24, for: .scrollContent)
+                .refreshable {
+                    await viewModel.generateBriefing()
+                    withAnimation(.easeInOut(duration: 0.32)) { refreshCount += 1 }
+                }
+                .sensoryFeedback(.success, trigger: refreshCount)
+                .scrollDismissesKeyboard(.interactively)
+                .task {
+                    guard !viewModel.hasLoaded else { return }
+                    await viewModel.loadData()
+                }
+                .task(id: greetingTaskKey) {
+                    // Once per day per name; a cached greeting returns immediately.
+                    await greeting.refresh(name: userName, context: greetingContext)
+                }
+                .onChange(of: weatherEnabled) { _, _ in
+                    Task { await viewModel.loadData(force: true) }
+                }
+                .task(id: voiceBriefingEnabled) {
+                    // Load Emma's voice before the first Listen tap.
+                    if voiceBriefingEnabled { voiceService.prewarm() }
+                }
+                .onChange(of: voiceService.isPlaying) { _, playing in
+                    // The synthesizer finishing (or being cut off) is what ends "playing".
+                    isVoicePlaying = playing
+                }
+                .sheet(isPresented: $showShareSheet) {
+                    ShareSheet(items: shareItems.isEmpty ? [briefingShareText()] : shareItems)
+                        .presentationDetents([.medium, .large])
+                }
+                .onAppear(perform: runEntrance)
             }
-            .contentMargins(.bottom, 24, for: .scrollContent)
-            .refreshable {
-                await viewModel.generateBriefing()
-                withAnimation(.easeInOut(duration: 0.32)) { refreshCount += 1 }
-            }
-            .sensoryFeedback(.success, trigger: refreshCount)
-            .scrollDismissesKeyboard(.interactively)
-            .task {
-                guard !viewModel.hasLoaded else { return }
-                await viewModel.loadData()
-            }
-            .task(id: greetingTaskKey) {
-                // Once per day per name; a cached greeting returns immediately.
-                await greeting.refresh(name: userName, context: greetingContext)
-            }
-            .onChange(of: weatherEnabled) { _, _ in
-                Task { await viewModel.loadData(force: true) }
-            }
-            .task(id: voiceBriefingEnabled) {
-                // Load Emma's voice before the first Listen tap.
-                if voiceBriefingEnabled { voiceService.prewarm() }
-            }
-            .onChange(of: voiceService.isPlaying) { _, playing in
-                // The synthesizer finishing (or being cut off) is what ends "playing".
-                isVoicePlaying = playing
-            }
-            .sheet(isPresented: $showShareSheet) {
-                ShareSheet(items: shareItems.isEmpty ? [briefingShareText()] : shareItems)
-                    .presentationDetents([.medium, .large])
-            }
-            .onAppear(perform: runEntrance)
         }
     }
 
@@ -474,18 +483,23 @@ struct BriefTabView: View {
 
     // MARK: Hero (L1)
 
-    private var heroCard: some View {
-        WeatherHeroCard(
+    /// Sky style for the current hour / weather / scheme (drives the nav bar glyph colour).
+    private var heroStyle: SkyStyle {
+        SkyStyle.resolve(hour: hour, condition: weather?.condition, colorScheme: colorScheme)
+    }
+
+    private func hero(topInset: CGFloat) -> some View {
+        WeatherHero(
             hour: hour,
             weather: weather,
             dateText: EditorialFormat.dateEyebrow(now),
             updatedText: viewModel.morningSnapshot.updatedAt.map(EditorialFormat.time),
             isUpdating: viewModel.isLoading,
             greeting: greetingLine,
-            notice: weatherNotice
+            notice: weatherNotice,
+            topInset: topInset
         )
         .opacity(sceneIn ? 1 : 0)
-        .scaleEffect(sceneIn || reduceMotion ? 1 : 1.02)
     }
 
     private var weatherNotice: String? {
@@ -641,7 +655,6 @@ struct BriefTabView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .editorialCard()
         .accessibilityElement(children: .contain)
     }
 
@@ -689,13 +702,14 @@ struct BriefTabView: View {
 
     // MARK: Changes
 
-    /// Compact tinted strip (accent at 6 %, radius 14, 12 pt padding), at most two rows.
+    /// Eyebrow plus plain rows with 16 pt glyphs (no strip), at most two rows.
     private var changesStrip: some View {
         let lines = Array(viewModel.sinceYesterday.prefix(2))
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: 0) {
             Eyebrow(text: viewModel.sinceYesterday.count == 1 ? "1 change since yesterday" : "\(viewModel.sinceYesterday.count) changes since yesterday",
                     color: Color.appAccentColor)
-            ForEach(lines, id: \.self) { line in
+                .padding(.bottom, 2)
+            ForEach(Array(lines.enumerated()), id: \.element) { index, line in
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Image(systemName: changeGlyph(line).name)
                         .font(.system(size: 16, weight: .medium))
@@ -707,12 +721,14 @@ struct BriefTabView: View {
                         .foregroundStyle(Color.inkPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                         .lineLimit(2)
+                    Spacer(minLength: 0)
                 }
+                .padding(.vertical, 12)
+                .frame(minHeight: 44)
+                if index < lines.count - 1 { Hairline() }
             }
         }
-        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.appAccentColor.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityElement(children: .combine)
     }
 
