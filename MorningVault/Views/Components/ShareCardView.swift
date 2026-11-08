@@ -14,125 +14,110 @@ struct ShareCardView: View {
     let nextEvent: CalendarLine?
     let quotes: [MorningSnapshotQuote]
     let dateText: String
+    var updatedText: String? = nil
     var colorScheme: ColorScheme = .light
 
     static let size = CGSize(width: 1080, height: 1350)
+    /// The hero card is laid out at phone size (353 × 250) and scaled: same geometry as the app.
+    private static let heroScale: CGFloat = 960 / 353
 
-    private var style: SkyStyle { SkyStyle.resolve(hour: hour, condition: weather?.condition, colorScheme: colorScheme) }
-    private var sceneInk: Color { style.usesLightText ? .white : Color(hex: "121214") }
-    private var canvas: Color { colorScheme == .dark ? Color(hex: "0B0C11") : Color(hex: "F3F0E9") }
-    private var ink: Color { colorScheme == .dark ? Color(hex: "F5F2EC") : Color(hex: "121214") }
-    private var inkSecondary: Color { colorScheme == .dark ? Color(hex: "ABA8A2") : Color(hex: "6E6A63") }
+    private var canvas: Color { colorScheme == .dark ? Color(hex: "17141B") : Color(hex: "F6F2EC") }
+    private var ink: Color { colorScheme == .dark ? Color(hex: "F7F2EA") : Color(hex: "171615") }
+    private var inkSecondary: Color { colorScheme == .dark ? Color(hex: "B8B0B7") : Color(hex: "66615B") }
+    private var separator: Color { colorScheme == .dark ? Color(hex: "3A333C") : Color(hex: "DDD7CF") }
+    private func semantic(_ change: Double) -> Color {
+        if change < 0 { return Color(hex: colorScheme == .dark ? "F07870" : "B83A3A") }
+        return Color(hex: colorScheme == .dark ? "58BFA6" : "16735D")
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ZStack(alignment: .bottomLeading) {
-                SkyScene(hour: hour, condition: weather?.condition)
-                    .environment(\.colorScheme, colorScheme)
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Text(dateText.uppercased())
-                            .font(.system(size: 26, weight: .semibold))
-                            .tracking(3)
-                        Spacer()
-                        Text("MORNINGVAULT")
-                            .font(.system(size: 26, weight: .semibold))
-                            .tracking(3)
-                    }
-                    .foregroundStyle(sceneInk.opacity(0.85))
-                    .padding(.bottom, 320)
-                    if let weather {
-                        Text(weather.temperature)
-                            .font(.system(size: 220, weight: .medium, design: .serif))
-                            .monospacedDigit()
-                            .foregroundStyle(sceneInk)
-                        Text("\(weather.condition) · \(weather.location)")
-                            .font(.system(size: 40, weight: .medium))
-                            .foregroundStyle(sceneInk.opacity(0.9))
-                    }
-                }
-                .padding(64)
-            }
-            .frame(height: 720)
-            .overlay(alignment: .bottom) {
-                LinearGradient(colors: [canvas.opacity(0), canvas], startPoint: .top, endPoint: .bottom)
-                    .frame(height: 160)
-            }
+        VStack(alignment: .leading, spacing: 64) {
+            WeatherHeroCard(hour: hour, weather: weather, dateText: dateText, updatedText: updatedText,
+                            greeting: greeting, colorSchemeOverride: colorScheme, animated: false)
+                .environment(\.colorScheme, colorScheme)
+                .frame(width: 353, height: WeatherHeroCard.height)
+                .scaleEffect(Self.heroScale, anchor: .topLeading)
+                .frame(width: 960, height: WeatherHeroCard.height * Self.heroScale, alignment: .topLeading)
 
-            VStack(alignment: .leading, spacing: 28) {
+            VStack(alignment: .leading, spacing: 24) {
                 Text(greeting)
-                    .font(.system(size: 72, weight: .medium, design: .serif))
+                    .font(.system(size: 84, weight: .semibold, design: .serif))
                     .foregroundStyle(ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                 if let lede {
                     Text(lede)
-                        .font(.system(size: 40, weight: .regular, design: .serif))
+                        .font(.system(size: 48, weight: .regular))
                         .foregroundStyle(ink)
                         .lineSpacing(10)
-                        .lineLimit(3)
+                        .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                if let nextEvent {
-                    HStack(alignment: .firstTextBaseline, spacing: 24) {
-                        Text("NEXT")
-                            .font(.system(size: 24, weight: .semibold))
-                            .tracking(3)
-                            .foregroundStyle(inkSecondary)
-                        Text(nextEvent.time)
-                            .font(.system(size: 36, weight: .medium).monospacedDigit())
-                            .foregroundStyle(inkSecondary)
-                        Text(nextEvent.title)
-                            .font(.system(size: 36, weight: .semibold))
-                            .foregroundStyle(ink)
-                            .lineLimit(1)
-                    }
+            }
+
+            if let nextEvent {
+                HStack(alignment: .firstTextBaseline, spacing: 24) {
+                    Text("NEXT")
+                        .font(.system(size: 26, weight: .semibold))
+                        .tracking(2)
+                        .foregroundStyle(inkSecondary)
+                    Text(nextEvent.time)
+                        .font(.system(size: 36, weight: .medium).monospacedDigit())
+                        .foregroundStyle(inkSecondary)
+                    Text(nextEvent.title)
+                        .font(.system(size: 38, weight: .semibold))
+                        .foregroundStyle(ink)
+                        .lineLimit(1)
                 }
-                if !quotes.isEmpty {
-                    Rectangle().fill(ink.opacity(0.1)).frame(height: 2)
+            }
+
+            if !quotes.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    Rectangle().fill(separator).frame(height: 2)
                     HStack(spacing: 48) {
                         ForEach(quotes.prefix(2)) { q in
-                            HStack(spacing: 24) {
-                                VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 28) {
+                                VStack(alignment: .leading, spacing: 6) {
                                     Text(q.symbol)
-                                        .font(.system(size: 24, weight: .semibold))
-                                        .tracking(3)
+                                        .font(.system(size: 26, weight: .semibold))
+                                        .tracking(2)
                                         .foregroundStyle(inkSecondary)
                                     Text(q.priceText)
-                                        .font(.system(size: 48, weight: .medium).monospacedDigit())
+                                        .font(.system(size: 56, weight: .medium).monospacedDigit())
+                                        .lineLimit(1)
+                                        .fixedSize()
                                         .foregroundStyle(ink)
                                     Text("\(q.change24h > 0 ? "▲" : (q.change24h < 0 ? "▼" : "")) \(String(format: "%.2f", abs(q.change24h)))%")
-                                        .font(.system(size: 26, weight: .semibold).monospacedDigit())
-                                        .foregroundStyle(q.change24h >= 0 ? Color(hex: colorScheme == .dark ? "58C9A6" : "157B65")
-                                                                           : Color(hex: colorScheme == .dark ? "FF746C" : "C44740"))
+                                        .font(.system(size: 30, weight: .semibold).monospacedDigit())
+                                        .foregroundStyle(semantic(q.change24h))
                                 }
                                 if q.series.count > 1 {
-                                    Sparkline(points: q.series, prevClose: q.prevClose,
-                                              color: q.change24h >= 0 ? Color(hex: colorScheme == .dark ? "58C9A6" : "157B65")
-                                                                      : Color(hex: colorScheme == .dark ? "FF746C" : "C44740"),
-                                              lineWidth: 3, animated: false)
-                                        .frame(width: 180, height: 64)
+                                    Sparkline(points: q.series, prevClose: q.prevClose, color: semantic(q.change24h),
+                                              lineWidth: 4, animated: false)
+                                        .frame(width: 160, height: 64)
                                 }
                             }
                         }
                         Spacer(minLength: 0)
                     }
+                    .padding(.top, 32)
                 }
-                Spacer(minLength: 0)
-                HStack(spacing: 10) {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 22, weight: .medium))
-                    Text("Written on this iPhone")
-                        .font(.system(size: 24, weight: .regular))
-                }
-                .foregroundStyle(inkSecondary)
             }
-            .padding(.horizontal, 64)
-            .padding(.top, 8)
-            .padding(.bottom, 56)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+            Spacer(minLength: 0)
+
+            HStack(spacing: 12) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 24, weight: .medium))
+                Text("Written on this iPhone · MorningVault")
+                    .font(.system(size: 26, weight: .medium))
+            }
+            .foregroundStyle(inkSecondary)
         }
-        .frame(width: Self.size.width, height: Self.size.height)
+        .padding(.horizontal, 60)
+        .padding(.top, 72)
+        .padding(.bottom, 64)
+        .frame(width: Self.size.width, height: Self.size.height, alignment: .topLeading)
         .background(canvas)
     }
 
@@ -149,15 +134,16 @@ struct ShareCardView: View {
 #Preview("Share card") {
     ShareCardView(
         hour: 7,
-        weather: WeatherSummary.parse("64°F (Partly Cloudy) in Murrieta. Feels like 62°F. Humidity 40%. Wind 8 mph W."),
+        weather: WeatherSummary.parse(BriefingViewModel.previewWeatherClear),
         greeting: "Good morning, Yezid.",
-        lede: "A mild, partly cloudy morning with three meetings, the first at nine.",
+        lede: "A mild morning with three meetings, the first at nine.",
         nextEvent: CalendarLine(time: "9:00 AM", title: "Standup"),
         quotes: [
             MorningSnapshotQuote(symbol: "SPY", priceText: "$735.29", change24h: -2.70, prevClose: 755.0, series: MarketPreviewData.spy),
             MorningSnapshotQuote(symbol: "BTC", priceText: "$75,699", change24h: 1.12, prevClose: 74_860, series: MarketPreviewData.btc)
         ],
-        dateText: "Saturday, November 8"
+        dateText: "Monday, November 10",
+        updatedText: "7:21 AM"
     )
     .scaleEffect(0.33)
     .frame(width: 360, height: 450)

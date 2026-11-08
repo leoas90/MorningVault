@@ -20,6 +20,8 @@ final class BriefingViewModel: ObservableObject {
     @Published var briefingSections: [BriefingSection] = []
     @Published var isLoading = false
     @Published var hasLoaded = false  // guard: only load once per session, not on every tab appear
+    /// Previews: injected sample data; refreshes and generation are no-ops.
+    var isPreview = false
     @Published var isGeneratingAI = false
     @Published var lastError: String?
     @Published var networkBadge: NetworkBadge = .local
@@ -345,6 +347,7 @@ final class BriefingViewModel: ObservableObject {
     /// Uses AIService (Foundation Models, iOS 26+) — no external AI endpoints.
     /// Shows loading state during AI generation.
     func generateBriefing() async {
+        if isPreview { return }
         isLoading = true
         defer { isLoading = false }
 
@@ -370,6 +373,7 @@ final class BriefingViewModel: ObservableObject {
     /// Silent refresh — loads from cache first (instant), then does a live refresh in background.
     /// Use on app launch / deep-link open for instant briefing display.
     func silentRefresh() async {
+        if isPreview { return }
         if let silentRefreshInFlight {
             await silentRefreshInFlight.value
             return

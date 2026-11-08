@@ -42,6 +42,11 @@ struct SummaryWidgetView: View {
     private var summary: String? { entry.briefing?.summary }
     private let empty = "Open MorningVault for today's summary."
 
+    // Composition per size (labels never below 12 pt):
+    // small  – temperature + condition, the next event;
+    // medium – adds the summary line;
+    // large  – adds the greeting and the headline lines.
+    // The snapshot carries no market quotes, so no market row is shown here.
     var body: some View {
         switch family {
         case .accessoryInline:
@@ -57,26 +62,59 @@ struct SummaryWidgetView: View {
                     .privacySensitive()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        case .systemSmall:
+            VStack(alignment: .leading, spacing: 6) {
+                weatherLine(size: 28)
+                Spacer(minLength: 0)
+                nextEvent(lines: 2)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         case .systemMedium:
-            VStack(alignment: .leading, spacing: 6) {
-                header
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .top) {
+                    greetingLine
+                    Spacer(minLength: 8)
+                    weatherLine(size: 20)
+                }
                 Text(summary ?? empty)
-                    .font(.subheadline)
-                    .lineLimit(4)
+                    .font(.system(size: 13))
+                    .lineSpacing(1)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxHeight: .infinity, alignment: .top)
                     .privacySensitive()
-                Spacer(minLength: 0)
-                footer
+                nextEvent(lines: 1)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         default:
-            VStack(alignment: .leading, spacing: 6) {
-                header
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top) {
+                    greetingLine
+                    Spacer(minLength: 8)
+                    weatherLine(size: 24)
+                }
                 Text(summary ?? empty)
-                    .font(.footnote)
-                    .lineLimit(6)
-                    .minimumScaleFactor(0.85)
+                    .font(.system(size: 15))
+                    .lineSpacing(3)
+                    .lineLimit(4)
+                    .fixedSize(horizontal: false, vertical: true)
                     .privacySensitive()
+                nextEvent(lines: 2)
+                if let headlines = entry.briefing?.headlines, !headlines.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("HEADLINES")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        ForEach(Array(headlines.prefix(2).enumerated()), id: \.offset) { _, h in
+                            Text(h.gist ?? h.title)
+                                .font(.system(size: 13))
+                                .lineLimit(1)
+                        }
+                    }
+                }
                 Spacer(minLength: 0)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 
@@ -86,37 +124,53 @@ struct SummaryWidgetView: View {
         return g.isEmpty ? "Today" : g
     }
 
-    private var header: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "sparkles")
-            Text(greeting)
-                .lineLimit(1)
-                .privacySensitive()
-            Spacer()
-            if let w = entry.briefing?.displayWeatherLine {
-                Text(w).foregroundStyle(.secondary)
+    private var greetingLine: some View {
+        Text(greeting)
+            .font(.system(size: 15, weight: .semibold, design: .serif))
+            .lineLimit(1)
+            .privacySensitive()
+    }
+
+    /// "64°" large with the condition under it, from the same snapshot the app shows.
+    @ViewBuilder
+    private func weatherLine(size: CGFloat) -> some View {
+        if let c = entry.briefing?.weatherTempC, let cond = entry.briefing?.weatherCondition {
+            VStack(alignment: .trailing, spacing: 0) {
+                Text(UnitsPreference.current.formatTemperatureShort(celsius: c))
+                    .font(.system(size: size, weight: .medium, design: .serif).monospacedDigit())
+                Text(cond)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
+        } else if let w = entry.briefing?.displayWeatherLine {
+            Text(w).font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary)
         }
-        .font(.caption.weight(.semibold))
     }
 
     @ViewBuilder
-    private var footer: some View {
+    private func nextEvent(lines: Int) -> some View {
         if let title = entry.briefing?.firstEventTitle, let start = entry.briefing?.firstEventStart, start > entry.date {
-            HStack(spacing: 4) {
-                Image(systemName: "calendar")
-                Text(start, style: .time)
-                Text(title).lineLimit(1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("NEXT")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(start, style: .time)
+                        .font(.system(size: 13, weight: .medium).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                    Text(title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .lineLimit(lines)
+                }
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
             .privacySensitive()
         } else if let h = entry.briefing?.headlines.first {
             HStack(spacing: 4) {
                 Image(systemName: "newspaper")
-                Text(h.gist ?? h.title).lineLimit(1)
+                Text(h.gist ?? h.title).lineLimit(lines)
             }
-            .font(.caption)
+            .font(.system(size: 13))
             .foregroundStyle(.secondary)
         }
     }
@@ -131,7 +185,7 @@ struct MorningVaultSummaryWidget: Widget {
         }
         .configurationDisplayName("Morning Summary")
         .description("Today's summary from MorningVault, written on your iPhone.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryInline])
     }
 }
 
@@ -145,15 +199,36 @@ struct MorningVaultWidgetBundle: WidgetBundle {
 }
 
 extension SharedBriefing {
+    /// Same day as the app's previews: 64°F clear, standup at nine, the same summary.
     static let sample = SharedBriefing(
         day: SharedBriefing.today(),
-        summary: "Light morning: one meeting at 10, mild and dry. Markets opened flat.",
-        firstEventTitle: "Team sync",
-        firstEventStart: Date().addingTimeInterval(3600),
-        weatherLine: "18° Clear",
+        summary: "A mild morning with three meetings, the first at nine. Markets opened lower, so the standup is the only thing that needs your attention early.",
+        firstEventTitle: "Standup",
+        firstEventStart: Calendar.current.nextDate(after: Date(), matching: DateComponents(hour: 9, minute: 0), matchingPolicy: .nextTime) ?? Date().addingTimeInterval(3600),
+        weatherLine: "64°F, Clear",
         weatherTempC: 18,
         weatherCondition: "Clear",
-        headlines: [.init(title: "Sample headline", gist: "What happened and why it matters.", source: nil)],
-        updatedAt: Date()
+        headlines: [.init(title: "Fed holds rates steady as inflation cools", gist: nil, source: nil),
+                    .init(title: "Apple previews on-device models for iOS 27", gist: nil, source: nil)],
+        updatedAt: Date(),
+        greeting: "Good morning, Yezid"
     )
+}
+
+#Preview("Widget · small", as: .systemSmall) {
+    MorningVaultSummaryWidget()
+} timeline: {
+    SummaryEntry(date: Date(), briefing: .sample)
+}
+
+#Preview("Widget · medium", as: .systemMedium) {
+    MorningVaultSummaryWidget()
+} timeline: {
+    SummaryEntry(date: Date(), briefing: .sample)
+}
+
+#Preview("Widget · large", as: .systemLarge) {
+    MorningVaultSummaryWidget()
+} timeline: {
+    SummaryEntry(date: Date(), briefing: .sample)
 }

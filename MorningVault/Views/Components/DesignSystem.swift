@@ -8,33 +8,66 @@ import SwiftUI
 
 // MARK: Type
 
-// Type scale (SF Pro unless noted): display 40/44 serif, lede 21/27 serif, body 17/22,
-// secondary 15/20, meta 13/17, eyebrow 11 uppercase tracking 1.3. Weights regular / medium /
-// semibold only. Serif is reserved for the greeting, the lede, the temperature numeral and the
-// Markets / Settings page titles.
+// Type scale. Serif (New York) is reserved for three things: the temperature numeral, the
+// greeting (34/40 semibold) and the Markets / Settings page titles (34 semibold). Everything
+// else is SF Pro: lede 20/26, body 17/25, secondary 15/21, agenda title 16/22 semibold,
+// metric value 15/20 medium, market quote 30/34 medium tabular, delta 13/16 semibold,
+// section label 11/14 semibold uppercase tracking 0.8. Nothing meaningful below 12 pt.
 extension Font {
     /// Display serif (New York): greeting, temperature numeral, page titles.
     static func display(_ size: CGFloat, weight: Font.Weight = .medium) -> Font {
         .system(size: size, weight: weight, design: .serif)
     }
 
-    /// The one synthesis sentence under the greeting.
-    static var lede: Font { .system(size: 21, weight: .regular, design: .serif) }
+    /// "Good morning, Yezid." — 34/40 serif semibold, two lines at most.
+    static var greeting: Font { .system(size: 34, weight: .semibold, design: .serif) }
+    /// Page titles on Markets / Settings.
+    static var pageTitle: Font { .system(size: 34, weight: .semibold, design: .serif) }
+    /// The one synthesis sentence under the greeting (SF, not serif).
+    static var lede: Font { .system(size: 20, weight: .regular) }
     static var bodyText: Font { .system(size: 17, weight: .regular) }
     static var secondaryText: Font { .system(size: 15, weight: .regular) }
     static var metaText: Font { .system(size: 13, weight: .regular) }
+    static var agendaTitle: Font { .system(size: 16, weight: .semibold) }
+    static var metricValue: Font { .system(size: 15, weight: .medium).monospacedDigit() }
+    static var marketQuote: Font { .system(size: 30, weight: .medium).monospacedDigit() }
+    static var delta: Font { .system(size: 13, weight: .semibold).monospacedDigit() }
+    static var sectionLabel: Font { .system(size: 11, weight: .semibold) }
+    /// 15 pt medium: toolbar text buttons, "Change entry price", disclosure rows.
+    static var control: Font { .system(size: 15, weight: .medium) }
 }
 
-/// Small-caps style label: "MARKETS", "NEXT", "SATURDAY, NOVEMBER 8".
+/// Line spacing to reach the scale's line heights (SwiftUI's `lineSpacing` is extra leading).
+enum Leading {
+    static let greeting: CGFloat = 2    // 34 → 40
+    static let lede: CGFloat = 3        // 20 → 26
+    static let body: CGFloat = 4        // 17 → 25
+    static let secondary: CGFloat = 3   // 15 → 21
+}
+
+/// 4-pt grid. Horizontal margin 20; card-to-card 16; section-to-section 28; label-to-content
+/// 8–12; greeting-to-lede 8; lede-to-agenda 28; agenda row 52–56; field / button height 52.
+enum Grid4 {
+    static let margin: CGFloat = 20
+    static let card: CGFloat = 16
+    static let section: CGFloat = 28
+    static let label: CGFloat = 10
+    static let greetingToLede: CGFloat = 8
+    static let agendaRow: CGFloat = 52
+    static let timeColumn: CGFloat = 72
+    static let control: CGFloat = 52
+}
+
+/// Section label: "MARKETS", "NEXT", "SATURDAY, NOVEMBER 8". 11/14 semibold uppercase, tracking 0.8.
 struct Eyebrow: View {
     let text: String
     var color: Color? = nil
 
     var body: some View {
         Text(text)
-            .font(.system(size: 11, weight: .semibold))
+            .font(.sectionLabel)
             .textCase(.uppercase)
-            .tracking(1.3)
+            .tracking(0.8)
             .foregroundStyle(color ?? Color.inkSecondary)
     }
 }
@@ -99,40 +132,80 @@ extension EnvironmentValues {
 
 // MARK: Card
 
-/// The one card treatment: surface + hairline, no shadow. Surfaces are separated from the
-/// canvas by spacing and the hairline only; in dark mode the surface carries the sky tint.
+/// Depth model, three levels: L0 the canvas; L1 the hero card; L2 one functional surface
+/// (radius 20, padding 16, black 5 % shadow r12 y4 in light; hairline border, no shadow, in
+/// dark). Nothing else gets a card. `editorialCard()` is the L2 treatment.
 struct EditorialCardModifier: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.skyTint) private var skyTint
-    var padding: CGFloat = 18
+    var padding: CGFloat = 16
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
         content
             .padding(padding)
-            .background {
-                shape.fill(Color.surfaceColor)
-                if colorScheme == .dark, let skyTint {
-                    shape.fill(skyTint.opacity(0.04))
-                }
-            }
-            .overlay(shape.strokeBorder(Color.hairline, lineWidth: 1))
+            .background(shape.fill(Color.surfaceColor))
+            .overlay(shape.strokeBorder(Color.surfaceBorder, lineWidth: 1))
+            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0 : 0.05), radius: 12, x: 0, y: 4)
     }
 }
 
 extension View {
-    func editorialCard(padding: CGFloat = 18) -> some View {
+    func editorialCard(padding: CGFloat = 16) -> some View {
         modifier(EditorialCardModifier(padding: padding))
     }
 }
 
-/// 1px rule in the ink hairline color (10 % ink).
+/// 1 pt rule in the separator token.
 struct Hairline: View {
     var color: Color? = nil
     var body: some View {
         Rectangle()
             .fill(color ?? Color.hairline)
             .frame(height: 1)
+    }
+}
+
+/// Filled accent control, 52 pt tall, radius 12; disabled at 40 % opacity.
+struct PrimaryButton: View {
+    let title: String
+    var systemImage: String? = nil
+    var isEnabled: Bool = true
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                if let systemImage {
+                    Image(systemName: systemImage).font(.system(size: 16, weight: .medium))
+                }
+                Text(title).font(.system(size: 17, weight: .semibold))
+            }
+            .foregroundStyle(Color.onAccent)
+            .frame(maxWidth: .infinity)
+            .frame(height: Grid4.control)
+            .background(Color.appAccentColor, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.pressable)
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.4)
+    }
+}
+
+/// 52 pt text field, radius 12, hairline at rest and a 2 pt accent ring when focused.
+struct FormField<Content: View>: View {
+    var isFocused: Bool
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        content()
+            .font(.bodyText)
+            .foregroundStyle(Color.inkPrimary)
+            .padding(.horizontal, 14)
+            .frame(height: Grid4.control)
+            .background(shape.fill(Color.surfaceColor))
+            .overlay(shape.strokeBorder(isFocused ? Color.appAccentColor : Color.hairline, lineWidth: isFocused ? 2 : 1))
+            .animation(.easeOut(duration: 0.15), value: isFocused)
     }
 }
 
@@ -167,7 +240,7 @@ struct PillButton: View {
     }
 }
 
-/// Neutral 20 pt-symbol icon button (Share, Edit…) for toolbars; never accent-coloured.
+/// Neutral 17 pt-medium symbol in a 44×44 target (Share, Edit, Add…); never accent-coloured.
 struct IconButton: View {
     let systemImage: String
     let label: String
@@ -177,7 +250,7 @@ struct IconButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 20, weight: .medium))
+                .font(.system(size: 17, weight: .medium))
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(tint ?? Color.inkPrimary)
                 .frame(width: 44, height: 44)

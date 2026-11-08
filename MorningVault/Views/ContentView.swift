@@ -18,12 +18,28 @@ struct ContentView: View {
     @State private var meetingsContainer: ModelContainer?
     @State private var meetingsStoreError: String?
 
+    /// Previews only: pinned clock / greeting for the Brief and injected Markets rows.
+    private var previewNow: Date? = nil
+    private var previewGreeting: String? = nil
+    private var previewMarkets: MarketsPreviewRows? = nil
+
     init() {
         do {
             _meetingsContainer = State(initialValue: try MeetingNotesStore.sharedContainer())
         } catch {
             _meetingsStoreError = State(initialValue: error.localizedDescription)
         }
+    }
+
+    /// Preview hook: the real tab bar + navigation bars around an injected view model.
+    init(previewViewModel: BriefingViewModel, previewNow: Date, previewGreeting: String,
+         initialTab: Tab = .brief, previewMarkets: MarketsPreviewRows? = nil) {
+        self.init()
+        _viewModel = StateObject(wrappedValue: previewViewModel)
+        _selectedTab = State(initialValue: initialTab)
+        self.previewNow = previewNow
+        self.previewGreeting = previewGreeting
+        self.previewMarkets = previewMarkets
     }
 
     enum Tab: String, CaseIterable {
@@ -46,7 +62,7 @@ struct ContentView: View {
             case .brief: return "sun.max.fill"
             case .markets: return "chart.line.uptrend.xyaxis"
             case .meetings: return "waveform"
-            case .settings: return "gearshape.fill"
+            case .settings: return "gearshape"
             }
         }
     }
@@ -60,7 +76,9 @@ struct ContentView: View {
                 localOnly: localOnly,
                 isVoicePlaying: $isVoicePlaying,
                 showShareSheet: $showShareSheet,
-                onOpenMarkets: { selectedTab = .markets }
+                onOpenMarkets: { selectedTab = .markets },
+                previewNow: previewNow,
+                previewGreeting: previewGreeting
             )
             .tabItem {
                 TabIcon(
@@ -72,7 +90,13 @@ struct ContentView: View {
             .tag(Tab.brief)
 
             // MARK: - Markets Tab (has its own NavigationStack)
-            MarketsView()
+            Group {
+                if let previewMarkets {
+                    MarketsView(previewSymbols: previewMarkets.symbols, quotes: previewMarkets.quotes, updatedAt: previewMarkets.updatedAt)
+                } else {
+                    MarketsView()
+                }
+            }
             .tabItem {
                 TabIcon(
                     tab: Tab.markets,
@@ -177,6 +201,13 @@ struct ContentView: View {
     }
 }
 
+/// Rows and quotes for the Markets tab inside an app-level preview.
+struct MarketsPreviewRows {
+    var symbols: [TrackedSymbol]
+    var quotes: [String: MarketQuote]
+    var updatedAt: Date?
+}
+
 // MARK: - Tab Icon with Animation
 
 struct TabIcon: View {
@@ -189,6 +220,7 @@ struct TabIcon: View {
             Image(systemName: isSelected ? tab.filledIcon : tab.icon)
                 .font(.title3)
                 .scaleEffect(scales[tab] ?? 1.0)
+            Text(tab.rawValue)
         }
         .onChange(of: isSelected) { _, newValue in
             if newValue {
@@ -207,8 +239,9 @@ struct TabIcon: View {
 
 // MARK: - Brief Tab
 
-/// The Brief: a full-bleed sky scene with the temperature, then answer first (greeting, one
-/// lede sentence, Listen), evidence second (Next, changes, Markets rows, health, headlines).
+/// The Brief: the weather hero card (L1), then answer first (greeting, one lede sentence),
+/// evidence second (the Next card as the one functional surface (L2), a compact changes strip,
+/// the Markets hairline list, health, headlines). Share and Listen live in the navigation bar.
 struct BriefTabView: View {
     @ObservedObject var viewModel: BriefingViewModel
     let userName: String
@@ -236,6 +269,7 @@ struct BriefTabView: View {
     /// Bumps on every completed refresh: crossfades the content and fires the haptic.
     @State private var refreshCount = 0
     @State private var showEarlier = false
+    @State private var showLater = false
     @State private var shareItems: [Any] = []
 
     // MARK: Derived
@@ -256,13 +290,6 @@ struct BriefTabView: View {
         guard weatherEnabled, let text = section("weather")?.content else { return nil }
         return WeatherSummary.parse(text)
     }
-
-    private var skyStyle: SkyStyle {
-        SkyStyle.resolve(hour: hour, condition: weather?.condition, colorScheme: colorScheme)
-    }
-
-    private var sceneInk: Color { skyStyle.usesLightText ? Color.white : Color.inkPrimary }
-    private var sceneInkSecondary: Color { skyStyle.usesLightText ? Color.white.opacity(0.78) : Color.inkPrimary.opacity(0.68) }
 
     private var schedule: BriefSchedule? {
         guard let cal = section("calendar"), cal.errorMessage == nil else { return nil }
@@ -293,36 +320,52 @@ struct BriefTabView: View {
 
     var body: some View {
         NavigationStack {
-            GeometryReader { geo in
             ScrollView {
-                VStack(spacing: 0) {
-                    sceneHero(safeTop: geo.safeAreaInsets.top)
+                VStack(alignment: .leading, spacing: Grid4.section) {
+                    heroCard
+                        .padding(.top, 4)
 
-                    VStack(alignment: .leading, spacing: 30) {
-                        answerBlock
+                    answerBlock
 
-                        if viewModel.isLoading && viewModel.briefingSections.isEmpty {
-                            LoadingStateView()
-                        } else if viewModel.briefingSections.isEmpty && viewModel.meetingPrep == nil {
-                            let state = emptyState
-                            EmptyStateView(title: state.title, message: state.message, systemImage: state.icon)
-                        } else {
-                            evidence
-                        }
-
-                        privacyFooter
+                    if viewModel.isLoading && viewModel.briefingSections.isEmpty {
+                        LoadingStateView()
+                    } else if viewModel.briefingSections.isEmpty && viewModel.meetingPrep == nil {
+                        let state = emptyState
+                        EmptyStateView(title: state.title, message: state.message, systemImage: state.icon)
+                    } else {
+                        evidence
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 14)
-                    .padding(.bottom, 24)
-                    .id(refreshCount)
-                    .transition(.opacity)
+
+                    privacyFooter
+                }
+                .padding(.horizontal, Grid4.margin)
+                .padding(.bottom, 24)
+                .id(refreshCount)
+                .transition(.opacity)
+            }
+            .background(Color.backgroundColor.ignoresSafeArea())
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: share) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .accessibilityLabel("Share briefing")
+                }
+                if voiceBriefingEnabled {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(action: toggleListen) {
+                            Label(isVoicePlaying ? "Stop" : "Listen", systemImage: isVoicePlaying ? "stop.fill" : "waveform")
+                                .labelStyle(.titleAndIcon)
+                                .font(.system(size: 15, weight: .semibold))
+                        }
+                        .tint(Color.appAccentColor)
+                        .accessibilityLabel(isVoicePlaying ? "Stop voice briefing" : "Listen to briefing")
+                    }
                 }
             }
-            .ignoresSafeArea(edges: .top)
-            .background(Color.backgroundColor.ignoresSafeArea())
-            .environment(\.skyTint, skyStyle.tint)
-            .toolbar(.hidden, for: .navigationBar)
+            .contentMargins(.bottom, 24, for: .scrollContent)
             .refreshable {
                 await viewModel.generateBriefing()
                 withAnimation(.easeInOut(duration: 0.32)) { refreshCount += 1 }
@@ -353,7 +396,6 @@ struct BriefTabView: View {
                     .presentationDetents([.medium, .large])
             }
             .onAppear(perform: runEntrance)
-            }
         }
     }
 
@@ -369,11 +411,20 @@ struct BriefTabView: View {
         return .init(firstEventTitle: b?.firstEventTitle, firstEventStart: b?.firstEventStart, weatherLine: b?.weatherLine)
     }
 
+    private func toggleListen() {
+        if isVoicePlaying {
+            viewModel.stopVoiceBriefing()
+            isVoicePlaying = false
+        } else {
+            viewModel.speakBriefingAloud()
+            isVoicePlaying = true
+        }
+    }
+
     // MARK: Motion
 
-    /// First appear: scene 1.02 → 1.0 over 450 ms; temperature rises 8 pt over 350 ms;
-    /// greeting + lede 120 ms later; Next rows 80 ms after that (40 ms stagger in the rows).
-    /// Reduce Motion: plain fades ≤ 200 ms, no drift.
+    /// First appear: hero 1.02 → 1.0 over 450 ms; greeting + lede 120 ms later; Next rows
+    /// 80 ms after that (40 ms stagger). Reduce Motion: plain fades ≤ 200 ms, no drift.
     private func runEntrance() {
         guard !sceneIn else { return }
         if reduceMotion {
@@ -394,6 +445,7 @@ struct BriefTabView: View {
             nextEvent: schedule?.upcoming.first,
             quotes: marketQuotesForShare,
             dateText: EditorialFormat.dateEyebrow(now),
+            updatedText: viewModel.morningSnapshot.updatedAt.map(EditorialFormat.time),
             colorScheme: colorScheme
         )
         var items: [Any] = []
@@ -420,135 +472,31 @@ struct BriefTabView: View {
         return lines.joined(separator: "\n")
     }
 
-    // MARK: Scene hero
+    // MARK: Hero (L1)
 
-    /// The scene runs under the status bar; `safeTop` keeps the top row below it.
-    private func sceneHero(safeTop: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            sceneTopRow
-            Spacer(minLength: 24)
-            if let weather {
-                weatherBlock(weather)
-            } else {
-                greetingInScene
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 20)
-        .padding(.top, safeTop + 6)
-        .padding(.bottom, 30)
-        .containerRelativeFrame(.vertical, alignment: .bottom) { length, _ in max(320, length * 0.38) + safeTop }
-        .background {
-            ZStack(alignment: .bottom) {
-                SkyScene(hour: hour, condition: weather?.condition)
-                // Fade into the canvas over 80 pt: no card seam.
-                LinearGradient(colors: [Color.backgroundColor.opacity(0), Color.backgroundColor], startPoint: .top, endPoint: .bottom)
-                    .frame(height: 80)
-            }
-        }
+    private var heroCard: some View {
+        WeatherHeroCard(
+            hour: hour,
+            weather: weather,
+            dateText: EditorialFormat.dateEyebrow(now),
+            updatedText: viewModel.morningSnapshot.updatedAt.map(EditorialFormat.time),
+            isUpdating: viewModel.isLoading,
+            greeting: greetingLine,
+            notice: weatherNotice
+        )
         .opacity(sceneIn ? 1 : 0)
         .scaleEffect(sceneIn || reduceMotion ? 1 : 1.02)
-    }
-
-    private var sceneTopRow: some View {
-        HStack(alignment: .center, spacing: 10) {
-            Eyebrow(text: EditorialFormat.dateEyebrow(now), color: sceneInkSecondary)
-            Spacer(minLength: 8)
-            updatedStatus
-            IconButton(systemImage: "square.and.arrow.up", label: "Share briefing", tint: sceneInk, action: share)
-                .padding(.trailing, -10)
-        }
-    }
-
-    @ViewBuilder
-    private var updatedStatus: some View {
-        if let updated = viewModel.morningSnapshot.updatedAt {
-            HStack(spacing: 6) {
-                BreathingDot(color: sceneInk)
-                Text("Updated \(EditorialFormat.time(updated))")
-                    .font(.system(size: 13, weight: .medium).monospacedDigit())
-            }
-            .foregroundStyle(sceneInkSecondary)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Updated \(EditorialFormat.time(updated)). \(viewModel.networkBadge == .local ? "Local only" : "Live data")")
-        } else if viewModel.isLoading {
-            Text("Updating…")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(sceneInkSecondary)
-        }
-    }
-
-    private func weatherBlock(_ w: WeatherSummary) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(w.temperature)
-                .font(.display(92, weight: .medium))
-                .monospacedDigit()
-                .foregroundStyle(sceneInk)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-                .accessibilityLabel("\(w.temperature) \(w.unit)")
-                .padding(.bottom, -10)
-                .entrance(delay: 0, rise: 8)
-            Text("\(w.condition) · \(w.location)")
-                .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(sceneInk)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-            Hairline(color: sceneInk.opacity(0.22))
-                .padding(.top, 4)
-            HStack(alignment: .top, spacing: 0) {
-                sceneStat("Feels like", w.feelsLike)
-                sceneStat("Humidity", w.humidity)
-                sceneStat("Wind", w.wind)
-            }
-            if let note = w.note, !note.isEmpty {
-                Text(note)
-                    .font(.system(size: 13))
-                    .foregroundStyle(sceneInkSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    private func sceneStat(_ label: String, _ value: String?) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Eyebrow(text: label, color: sceneInkSecondary)
-            Text(value ?? "—")
-                .font(.system(size: 15, weight: .medium).monospacedDigit())
-                .foregroundStyle(sceneInk)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
-    }
-
-    /// Weather unavailable: the time-of-day sky alone, with the greeting in that slot.
-    private var greetingInScene: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(greetingLine)
-                .font(.display(40, weight: .medium))
-                .foregroundStyle(sceneInk)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityAddTraits(.isHeader)
-                .entrance(delay: 0, rise: 8)
-            if let notice = weatherNotice {
-                Text(notice)
-                    .font(.system(size: 13))
-                    .foregroundStyle(sceneInkSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: 300, alignment: .leading)
     }
 
     private var weatherNotice: String? {
         let s = viewModel.morningSnapshot
         if !weatherEnabled || !s.weatherEnabled { return nil }
-        if s.weatherNeedsLocation { return "Allow Location for MorningVault to see the weather here, then pull to refresh." }
+        if s.weatherNeedsLocation { return "Allow Location in Settings to see the weather here." }
         if let detail = s.weatherErrorDetail, !detail.isEmpty {
             if detail.localizedCaseInsensitiveContains("Location") {
-                return "Weather needs your location. Allow it in Settings, then pull to refresh."
+                return "Allow Location in Settings to see the weather here."
             }
-            return "Weather is unavailable right now. Pull to refresh to try again."
+            return "Weather is unavailable right now. Pull to refresh."
         }
         if viewModel.hasLoaded, !viewModel.isLoading, section("weather") != nil { return "Weather is unavailable right now." }
         return nil
@@ -558,38 +506,18 @@ struct BriefTabView: View {
 
     @ViewBuilder
     private var answerBlock: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: Grid4.greetingToLede) {
             if weather != nil {
                 Text(greetingLine)
-                    .font(.display(40, weight: .medium))
-                    .lineSpacing(2)
+                    .font(.greeting)
+                    .lineSpacing(Leading.greeting)
                     .foregroundStyle(Color.inkPrimary)
                     .lineLimit(2)
-                    .minimumScaleFactor(0.88)
+                    .minimumScaleFactor(0.9)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
             }
-
             lede
-
-            if voiceBriefingEnabled {
-                PillButton(
-                    title: isVoicePlaying ? "Stop" : "Listen",
-                    systemImage: isVoicePlaying ? "stop.fill" : "waveform",
-                    prominent: true,
-                    isActive: isVoicePlaying
-                ) {
-                    if isVoicePlaying {
-                        viewModel.stopVoiceBriefing()
-                        isVoicePlaying = false
-                    } else {
-                        viewModel.speakBriefingAloud()
-                        isVoicePlaying = true
-                    }
-                }
-                .accessibilityLabel(isVoicePlaying ? "Stop voice briefing" : "Listen to briefing")
-                .padding(.top, 4)
-            }
         }
         .entrance(delay: 0.12)
     }
@@ -597,19 +525,20 @@ struct BriefTabView: View {
     @ViewBuilder
     private var lede: some View {
         if let parts = ledeParts {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(parts.lede)
                     .font(.lede)
-                    .lineSpacing(6)
+                    .lineSpacing(Leading.lede)
                     .foregroundStyle(Color.inkPrimary)
                     .fixedSize(horizontal: false, vertical: true)
-                    .lineLimit(3)
+                    .lineLimit(2)
                 if let rest = parts.rest {
                     Text(rest)
                         .font(.secondaryText)
-                        .lineSpacing(5)
+                        .lineSpacing(Leading.secondary)
                         .foregroundStyle(Color.inkSecondary)
                         .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(2)
                 }
             }
         } else if viewModel.isGeneratingAI {
@@ -621,9 +550,10 @@ struct BriefTabView: View {
         } else if let opener = greeting.opener {
             Text(opener)
                 .font(.lede)
-                .lineSpacing(6)
+                .lineSpacing(Leading.lede)
                 .foregroundStyle(Color.inkPrimary)
                 .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(2)
         } else if let reason = viewModel.aiUnavailableReason {
             Text(reason)
                 .font(.secondaryText)
@@ -637,13 +567,13 @@ struct BriefTabView: View {
     @ViewBuilder
     private var evidence: some View {
         if let schedule {
-            nextBlock(schedule)
+            nextCard(schedule)
         } else if let cal = section("calendar"), cal.errorMessage != nil {
             BriefingSectionCard(section: cal)
         }
 
         if !viewModel.sinceYesterday.isEmpty {
-            changesBlock
+            changesStrip
         }
 
         if section("markets") != nil || !viewModel.morningSnapshot.marketQuotes.isEmpty {
@@ -662,100 +592,127 @@ struct BriefTabView: View {
         }
     }
 
-    // MARK: Next
+    // MARK: Next (L2)
 
-    private func nextBlock(_ schedule: BriefSchedule) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+    /// The one functional surface: the next two events, an "N later" row for the rest, and
+    /// an "Earlier today" disclosure.
+    private func nextCard(_ schedule: BriefSchedule) -> some View {
+        let upcoming = schedule.upcoming
+        let shown = Array(upcoming.prefix(2))
+        let later = Array(upcoming.dropFirst(2))
+        return VStack(alignment: .leading, spacing: 0) {
             Eyebrow(text: "Next")
-            if schedule.upcoming.isEmpty {
-                Text("Nothing else today.")
+                .padding(.bottom, 2)
+            if upcoming.isEmpty {
+                Text("No events remain today.")
                     .font(.bodyText)
                     .foregroundStyle(Color.inkSecondary)
-                    .padding(.vertical, 6)
+                    .frame(height: Grid4.agendaRow)
             } else {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(schedule.upcoming.prefix(3).enumerated()), id: \.element.id) { index, event in
+                    ForEach(Array(shown.enumerated()), id: \.element.id) { index, event in
                         eventRow(event, emphasis: true, index: index)
-                        if index < min(schedule.upcoming.count, 3) - 1 { Hairline() }
+                        if index < shown.count - 1 || !later.isEmpty { Hairline() }
+                    }
+                    if !later.isEmpty {
+                        disclosureRow(title: later.count == 1 ? "1 more event" : "\(later.count) more events", isOpen: $showLater,
+                                      label: showLater ? "Hide later events" : "Show \(later.count) later events")
+                        if showLater {
+                            ForEach(Array(later.enumerated()), id: \.element.id) { index, event in
+                                Hairline()
+                                eventRow(event, emphasis: false, index: 0)
+                            }
+                            .transition(.opacity)
+                        }
                     }
                 }
             }
             if !schedule.earlier.isEmpty {
-                earlierDisclosure(schedule.earlier)
+                Hairline()
+                disclosureRow(title: "Earlier today (\(schedule.earlier.count))", isOpen: $showEarlier,
+                              label: showEarlier ? "Hide earlier events" : "Show \(schedule.earlier.count) earlier events")
+                if showEarlier {
+                    ForEach(Array(schedule.earlier.enumerated()), id: \.element.id) { index, event in
+                        Hairline()
+                        eventRow(event, emphasis: false, index: 0)
+                    }
+                    .transition(.opacity)
+                }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .editorialCard()
         .accessibilityElement(children: .contain)
     }
 
     private func eventRow(_ event: CalendarLine, emphasis: Bool, index: Int) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(BriefSchedule.shortTime(event.time))
-                .font(.system(size: 13, weight: .medium).monospacedDigit())
+                .font(.system(size: 15, weight: .medium).monospacedDigit())
                 .foregroundStyle(Color.inkSecondary)
-                .frame(width: 56, alignment: .leading)
+                .frame(width: Grid4.timeColumn, alignment: .leading)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
             Text(event.title)
-                .font(.system(size: 17, weight: emphasis ? .semibold : .regular))
+                .font(emphasis ? .agendaTitle : .system(size: 16, weight: .regular))
+                .lineSpacing(3)
                 .foregroundStyle(emphasis ? Color.inkPrimary : Color.inkSecondary)
+                .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 11)
+        .padding(.vertical, 12)
+        .frame(minHeight: Grid4.agendaRow)
         .entrance(delay: 0.20 + Double(index) * 0.04)
         .accessibilityElement(children: .combine)
     }
 
-    private func earlierDisclosure(_ earlier: [CalendarLine]) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button {
-                withAnimation(reduceMotion ? .easeOut(duration: 0.15) : .easeOut(duration: 0.25)) { showEarlier.toggle() }
-            } label: {
-                HStack(spacing: 6) {
-                    Text("Earlier today (\(earlier.count))")
-                        .font(.system(size: 13, weight: .medium))
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 11, weight: .medium))
-                        .rotationEffect(.degrees(showEarlier ? 180 : 0))
-                }
-                .foregroundStyle(Color.inkSecondary)
-                .padding(.vertical, 8)
-                .contentShape(Rectangle())
+    private func disclosureRow(title: String, isOpen: Binding<Bool>, label: String) -> some View {
+        Button {
+            withAnimation(reduceMotion ? .easeOut(duration: 0.15) : .easeOut(duration: 0.25)) { isOpen.wrappedValue.toggle() }
+        } label: {
+            HStack(spacing: 6) {
+                Text(title)
+                    .font(.control)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 13, weight: .medium))
+                    .rotationEffect(.degrees(isOpen.wrappedValue ? 180 : 0))
             }
-            .buttonStyle(.pressable)
-            .accessibilityLabel(showEarlier ? "Hide earlier events" : "Show \(earlier.count) earlier events")
-            if showEarlier {
-                ForEach(Array(earlier.enumerated()), id: \.element.id) { index, event in
-                    eventRow(event, emphasis: false, index: 0)
-                    if index < earlier.count - 1 { Hairline() }
-                }
-                .transition(.opacity)
-            }
+            .foregroundStyle(Color.inkSecondary)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.pressable)
+        .accessibilityLabel(label)
     }
 
     // MARK: Changes
 
-    private var changesBlock: some View {
-        let lines = viewModel.sinceYesterday
-        return VStack(alignment: .leading, spacing: 10) {
-            Eyebrow(text: lines.count == 1 ? "1 change since yesterday" : "\(lines.count) changes since yesterday")
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(lines, id: \.self) { line in
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Image(systemName: changeGlyph(line).name)
-                            .font(.system(size: 13, weight: .medium))
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(changeGlyph(line).color)
-                            .frame(width: 16)
-                        Text(line)
-                            .font(.secondaryText)
-                            .foregroundStyle(Color.inkPrimary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+    /// Compact tinted strip (accent at 6 %, radius 14, 12 pt padding), at most two rows.
+    private var changesStrip: some View {
+        let lines = Array(viewModel.sinceYesterday.prefix(2))
+        return VStack(alignment: .leading, spacing: 8) {
+            Eyebrow(text: viewModel.sinceYesterday.count == 1 ? "1 change since yesterday" : "\(viewModel.sinceYesterday.count) changes since yesterday",
+                    color: Color.appAccentColor)
+            ForEach(lines, id: \.self) { line in
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Image(systemName: changeGlyph(line).name)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(changeGlyph(line).color)
+                        .frame(width: 20)
+                    Text(line)
+                        .font(.secondaryText)
+                        .lineSpacing(Leading.secondary)
+                        .foregroundStyle(Color.inkPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(2)
                 }
             }
         }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.appAccentColor.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityElement(children: .combine)
     }
 
@@ -786,11 +743,12 @@ struct BriefTabView: View {
     private var marketsStatusText: String? {
         switch viewModel.morningSnapshot.marketsStatus {
         case .cached: return "Cached"
-        case .live: return "Delayed up to 5 min"
+        case .live: return "Today · delayed up to 5 min"
         default: return nil
         }
     }
 
+    /// One hairline list, no card.
     private var marketsBlock: some View {
         let rows = marketRows
         return VStack(alignment: .leading, spacing: 4) {
@@ -799,7 +757,7 @@ struct BriefTabView: View {
                 Spacer()
                 if let marketsStatusText {
                     Text(marketsStatusText)
-                        .font(.metaText)
+                        .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Color.inkSecondary)
                 }
             }
@@ -834,13 +792,12 @@ struct BriefTabView: View {
     private var privacyFooter: some View {
         HStack(spacing: 6) {
             Image(systemName: "lock.fill")
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .symbolRenderingMode(.hierarchical)
             Text(viewModel.aiDaySummary == nil ? "All data stays on your device" : "Written on this iPhone · All data stays on your device")
                 .font(.system(size: 12))
         }
         .foregroundStyle(Color.inkSecondary)
-        .padding(.top, 8)
         .accessibilityElement(children: .combine)
     }
 }
@@ -863,31 +820,45 @@ struct ShareSheet: UIViewControllerRepresentable {
 // MARK: - Previews
 
 extension BriefingViewModel {
-    /// Preview clock: Saturday 8 Nov 2025, 7:40 AM local.
+    /// Preview clock: Monday 10 Nov 2025, 7:40 AM local (a trading day, so "markets opened" holds).
     static var previewNow: Date {
-        Calendar.current.date(from: DateComponents(year: 2025, month: 11, day: 8, hour: 7, minute: 40)) ?? Date()
+        Calendar.current.date(from: DateComponents(year: 2025, month: 11, day: 10, hour: 7, minute: 40)) ?? Date()
     }
 
-    /// Preview clock in the evening (partly cloudy dusk; two events already past).
+    /// Preview clock in the evening (partly cloudy dusk; all three events already past).
     static var previewEvening: Date {
-        Calendar.current.date(from: DateComponents(year: 2025, month: 11, day: 8, hour: 18, minute: 21)) ?? Date()
+        Calendar.current.date(from: DateComponents(year: 2025, month: 11, day: 10, hour: 18, minute: 21)) ?? Date()
     }
+
+    static let previewWeatherClear: String = "64°F (Clear) in Murrieta. Feels like 62°F. Humidity 40%. Wind 8 mph W."
+    static let previewWeatherRain: String = "52°F (Rain) in Murrieta. Feels like 48°F. Humidity 91%. Wind 14 mph S."
+    static let previewWeatherEvening: String = "61°F (Partly Cloudy) in Murrieta. Feels like 59°F. Humidity 48%. Wind 6 mph W."
+    static let previewSummaryMorning: String = "A mild morning with three meetings, the first at nine. Markets opened lower, so the standup is the only thing that needs your attention early."
+    static let previewSummaryRain: String = "A wet, cool morning with three meetings, the first at nine. Markets opened lower, so the standup is the only thing that needs your attention early."
+    static let previewSummaryEvening: String = "All three meetings are behind you and nothing else is on the calendar today. SPY closed lower while BTC held its gain."
+    static let previewChangesMorning: [String] = ["SPY is down 2.7% since yesterday's brief", "One new meeting: Dentist at 3:00 PM"]
+    static let previewChangesEvening: [String] = ["SPY is down 2.7% since yesterday's brief", "BTC is up 1.1% since yesterday's brief"]
 
     /// A filled-in model for previews: every section, a two-sentence summary, no loading.
-    /// The market series are preview data (see `MarketPreviewData`), not quotes.
+    /// The market series are preview data (see `MarketPreviewData`), not quotes. The weather,
+    /// summary and changes passed in must agree with each other (rain is never "mild").
     @MainActor static func previewSample(
         now: Date = BriefingViewModel.previewNow,
-        weather: String = "64°F (Partly Cloudy) in Murrieta. Feels like 62°F. Humidity 40%. Wind 8 mph W.",
-        summary: String = "A mild morning with three meetings, the first at nine. Markets opened lower, so the standup is the only thing that needs your attention early."
+        weather: String = BriefingViewModel.previewWeatherClear,
+        summary: String = BriefingViewModel.previewSummaryMorning,
+        changes: [String] = BriefingViewModel.previewChangesMorning
     ) -> BriefingViewModel {
         let vm = BriefingViewModel()
+        vm.isPreview = true
         vm.hasLoaded = true
         vm.isLoading = false
         vm.networkBadge = .online
         vm.aiDaySummary = summary
-        vm.sinceYesterday = ["SPY is down 2.7% since yesterday's brief", "One new meeting: Dentist at 3:00 PM"]
+        vm.sinceYesterday = changes
+        let condition = WeatherSummary.parse(weather)?.condition ?? "Clear"
+        let shortWeather = WeatherSummary.parse(weather).map { "\($0.temperature)\($0.unit), \($0.condition)" } ?? weather
         vm.briefingSections = [
-            BriefingSection(id: "weather", title: "Weather", icon: "🌤️",
+            BriefingSection(id: "weather", title: "Weather", icon: condition.lowercased().contains("rain") ? "🌧️" : "🌤️",
                             content: weather,
                             sentiment: "positive"),
             BriefingSection(id: "calendar", title: "Calendar", icon: "📅",
@@ -908,7 +879,7 @@ extension BriefingViewModel {
             "BTC": MarketSeries(prevClose: 74_860, points: MarketPreviewData.btc)
         ]
         vm.morningSnapshot = MorningSnapshot(
-            weatherIcon: "🌤️", weatherLine: "64°F, Partly Cloudy", location: "Murrieta",
+            weatherIcon: "🌤️", weatherLine: shortWeather, location: "Murrieta",
             calendarLine: "3 events, first at 9:00 AM",
             marketQuotes: [
                 MorningSnapshotQuote(symbol: "SPY", priceText: "$735.29", change24h: -2.70, prevClose: 755.0, series: MarketPreviewData.spy),
@@ -918,12 +889,63 @@ extension BriefingViewModel {
             weatherErrorDetail: nil, updatedAt: now.addingTimeInterval(-19 * 60))
         return vm
     }
+
+    /// Markets tab rows that match the Brief's sample (AAPL has no quote yet).
+    @MainActor static var previewMarketRows: MarketsPreviewRows {
+        MarketsPreviewRows(
+            symbols: [TrackedSymbol(symbol: "SPY", entryPrice: 702.10), TrackedSymbol(symbol: "BTC", entryPrice: nil), TrackedSymbol(symbol: "AAPL", entryPrice: nil)],
+            quotes: ["SPY": MarketQuote(price: 735.29, change: -2.70, prevClose: 755.0, series: MarketPreviewData.spy),
+                     "BTC": MarketQuote(price: 75699.0, change: 1.12, prevClose: 74_860, series: MarketPreviewData.btc)],
+            updatedAt: BriefingViewModel.previewNow.addingTimeInterval(-19 * 60))
+    }
 }
 
-#Preview("Brief · light") {
+/// App-level preview: the real tab bar and navigation bars around sample data.
+@MainActor private func appPreview(theme: AppTheme, viewModel: BriefingViewModel, now: Date, greeting: String, tab: ContentView.Tab = .brief) -> some View {
+    UserDefaults.standard.set(true, forKey: "has_completed_onboarding")
+    UserDefaults.standard.set(true, forKey: "weather_enabled")
+    ThemeStore.shared.themeRaw = theme.rawValue
+    return ContentView(previewViewModel: viewModel, previewNow: now, previewGreeting: greeting,
+                       initialTab: tab, previewMarkets: BriefingViewModel.previewMarketRows)
+        .preferredColorScheme(theme == .dark ? .dark : .light)
+}
+
+#Preview("App · Brief light") {
+    appPreview(theme: .light, viewModel: BriefingViewModel.previewSample(), now: BriefingViewModel.previewNow, greeting: "Good morning, Yezid")
+}
+
+#Preview("App · Brief dark") {
+    appPreview(theme: .dark,
+               viewModel: BriefingViewModel.previewSample(now: BriefingViewModel.previewEvening,
+                                                          weather: BriefingViewModel.previewWeatherEvening,
+                                                          summary: BriefingViewModel.previewSummaryEvening,
+                                                          changes: BriefingViewModel.previewChangesEvening),
+               now: BriefingViewModel.previewEvening, greeting: "Good evening, Yezid")
+}
+
+#Preview("App · Brief rain") {
+    UserDefaults.standard.set(true, forKey: "voice_briefing_enabled")
+    return appPreview(theme: .light,
+                      viewModel: BriefingViewModel.previewSample(weather: BriefingViewModel.previewWeatherRain,
+                                                                 summary: BriefingViewModel.previewSummaryRain),
+                      now: BriefingViewModel.previewNow, greeting: "Good morning, Yezid")
+}
+
+#Preview("App · Markets light") {
+    appPreview(theme: .light, viewModel: BriefingViewModel.previewSample(), now: BriefingViewModel.previewNow, greeting: "Good morning, Yezid", tab: .markets)
+}
+
+#Preview("App · Markets dark") {
+    appPreview(theme: .dark, viewModel: BriefingViewModel.previewSample(), now: BriefingViewModel.previewNow, greeting: "Good morning, Yezid", tab: .markets)
+}
+
+#Preview("Brief · no weather") {
     ThemeStore.shared.themeRaw = AppTheme.light.rawValue
+    let vm = BriefingViewModel.previewSample()
+    vm.briefingSections.removeAll { $0.id == "weather" }
+    vm.morningSnapshot.weatherNeedsLocation = true
     return BriefTabView(
-        viewModel: BriefingViewModel.previewSample(weather: "64°F (Clear) in Murrieta. Feels like 62°F. Humidity 40%. Wind 8 mph W."),
+        viewModel: vm,
         userName: "Yezid",
         localOnly: false,
         isVoicePlaying: .constant(false),
@@ -932,38 +954,4 @@ extension BriefingViewModel {
         previewGreeting: "Good morning, Yezid"
     )
     .preferredColorScheme(.light)
-}
-
-#Preview("Brief · dark") {
-    ThemeStore.shared.themeRaw = AppTheme.dark.rawValue
-    return BriefTabView(
-        viewModel: BriefingViewModel.previewSample(
-            now: BriefingViewModel.previewEvening,
-            summary: "Three meetings done and the dentist behind you; nothing else on the calendar tonight. SPY closed lower while BTC held its gain."),
-        userName: "Yezid",
-        localOnly: false,
-        isVoicePlaying: .constant(false),
-        showShareSheet: .constant(false),
-        previewNow: BriefingViewModel.previewEvening,
-        previewGreeting: "Good evening, Yezid"
-    )
-    .preferredColorScheme(.dark)
-}
-
-#Preview("Brief · rain") {
-    ThemeStore.shared.themeRaw = AppTheme.light.rawValue
-    return BriefTabView(
-        viewModel: BriefingViewModel.previewSample(weather: "52°F (Rain) in Murrieta. Feels like 48°F. Humidity 91%. Wind 14 mph S."),
-        userName: "Yezid",
-        localOnly: false,
-        isVoicePlaying: .constant(true),
-        showShareSheet: .constant(false),
-        previewNow: BriefingViewModel.previewNow,
-        previewGreeting: "Good morning, Yezid"
-    )
-    .preferredColorScheme(.light)
-}
-
-#Preview("App") {
-    ContentView()
 }

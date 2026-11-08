@@ -1,16 +1,15 @@
 import SwiftUI
 
-/// Markets as an instrument: a serif page title, then one hairline-separated list of
-/// tracked symbols (price 32 pt, delta, 120×40 sparkline from the worker's real series),
-/// entry price / P&L under each row, Edit mode for removal, and the Track-a-symbol form.
+/// Markets as an instrument: a serif page title in the content, Edit / Done and Add in the
+/// navigation bar, then one hairline-separated list of tracked symbols (quote 30 pt, delta,
+/// 104×40 sparkline from the worker's real series, ~104 pt rows), entry price / P&L under
+/// each row, and the Track-a-symbol form as a sheet.
 struct MarketsView: View {
     @StateObject private var viewModel: MarketsViewModel
-    @State private var newSymbol: String = ""
-    @State private var newEntryPrice: String = ""
     @State private var hasAppeared = false
     @State private var pricesLoadTaskStarted = false
     @State private var isEditing = false
-    @FocusState private var isFieldFocused: Bool
+    @State private var showTrackSheet = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init() {
@@ -18,77 +17,97 @@ struct MarketsView: View {
     }
 
     /// Previews: inject rows and quotes; the view skips loading and fetching.
-    init(previewSymbols: [TrackedSymbol], quotes: [String: MarketQuote], updatedAt: Date? = Date()) {
+    init(previewSymbols: [TrackedSymbol], quotes: [String: MarketQuote], updatedAt: Date? = Date(), showTrackSheet: Bool = false) {
         let vm = MarketsViewModel()
         vm.isPreview = true
         vm.trackedSymbols = previewSymbols
         vm.prices = quotes
         vm.setPreviewFetchDate(updatedAt)
         _viewModel = StateObject(wrappedValue: vm)
+        _showTrackSheet = State(initialValue: showTrackSheet)
     }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: Grid4.section) {
                     header
-                        .padding(.top, 8)
 
                     if viewModel.trackedSymbols.isEmpty {
-                        EmptyStateView(
-                            title: "Nothing tracked yet",
-                            message: "Add a stock or crypto symbol below. Up to \(MarketsViewModel.maxSymbols); prices come through MorningVault's own proxy.",
-                            systemImage: "chart.line.uptrend.xyaxis"
-                        )
+                        VStack(alignment: .leading, spacing: 16) {
+                            EmptyStateView(
+                                title: "Nothing tracked yet",
+                                message: "Track a stock or crypto symbol to see its price and today's line here. Up to \(MarketsViewModel.maxSymbols); prices come through MorningVault's own proxy.",
+                                systemImage: "chart.line.uptrend.xyaxis"
+                            )
+                            PrimaryButton(title: "Track a symbol", systemImage: "plus.circle") { showTrackSheet = true }
+                        }
                     } else {
-                        VStack(spacing: 0) {
-                            Hairline()
-                            ForEach(Array(viewModel.trackedSymbols.enumerated()), id: \.element.symbol) { index, item in
-                                SymbolRow(
-                                    item: item,
-                                    quote: viewModel.quote(for: item.symbol),
-                                    isEditing: isEditing,
-                                    onDelete: { withAnimation(.easeOut(duration: 0.2)) { viewModel.remove(item.symbol) } },
-                                    onPriceChange: { price in viewModel.updatePrice(for: item.symbol, price: price) }
-                                )
-                                .cardEntrance(delay: Double(index) * AppAnimation.cardStaggerDelay)
-                                Hairline()
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(alignment: .firstTextBaseline) {
+                                Eyebrow(text: "Watchlist")
+                                Spacer()
+                                Text("Today's line")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(Color.inkSecondary)
+                            }
+                            VStack(spacing: 0) {
+                                ForEach(Array(viewModel.trackedSymbols.enumerated()), id: \.element.symbol) { index, item in
+                                    SymbolRow(
+                                        item: item,
+                                        quote: viewModel.quote(for: item.symbol),
+                                        isEditing: isEditing,
+                                        onDelete: { withAnimation(.easeOut(duration: 0.2)) { viewModel.remove(item.symbol) } },
+                                        onPriceChange: { price in viewModel.updatePrice(for: item.symbol, price: price) }
+                                    )
+                                    .cardEntrance(delay: Double(index) * AppAnimation.cardStaggerDelay)
+                                    if index < viewModel.trackedSymbols.count - 1 { Hairline() }
+                                }
                             }
                         }
                     }
 
-                    addSymbolForm
-
-                    Text("Track up to \(MarketsViewModel.maxSymbols) symbols. Prices come through MorningVault's own proxy and are stored only on your device.")
-                        .font(.metaText)
+                    Text("Track up to \(MarketsViewModel.maxSymbols) symbols. The dotted line is the previous close. Quotes come through MorningVault's own proxy; your list and entry prices stay on this device.")
+                        .font(.secondaryText)
+                        .lineSpacing(Leading.secondary)
                         .foregroundStyle(Color.inkSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, Grid4.margin)
                 .padding(.bottom, 24)
             }
             .background(Color.backgroundColor.ignoresSafeArea())
-            .toolbar(.hidden, for: .navigationBar)
-            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if !viewModel.trackedSymbols.isEmpty {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(isEditing ? "Done" : "Edit") {
+                            withAnimation(.easeInOut(duration: 0.2)) { isEditing.toggle() }
+                        }
+                        .font(.system(size: 17, weight: isEditing ? .semibold : .regular))
+                        .frame(minWidth: 44, minHeight: 44)
+                        .accessibilityLabel(isEditing ? "Finish editing" : "Edit symbols")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showTrackSheet = true } label: {
+                        Image(systemName: "plus.circle")
+                    }
+                    .frame(minWidth: 44, minHeight: 44)
+                    .disabled(viewModel.isAtLimit)
+                    .accessibilityLabel("Track a symbol")
+                }
+            }
+            .sheet(isPresented: $showTrackSheet) {
+                TrackSymbolSheet(viewModel: viewModel)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            }
             .refreshable {
                 guard !viewModel.isPreview else { return }
                 await viewModel.fetchLivePrices()
             }
-            .safeAreaInset(edge: .bottom) {
-                if isFieldFocused {
-                    HStack {
-                        Spacer()
-                        Button("Done") {
-                            isFieldFocused = false
-                        }
-                        .font(.system(size: 17, weight: .semibold))
-                        .padding()
-                    }
-                    .background(.bar)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-            }
-            .animation(.easeInOut(duration: 0.15), value: isFieldFocused)
             .task {
                 guard !pricesLoadTaskStarted else { return }
                 pricesLoadTaskStarted = true
@@ -110,110 +129,128 @@ struct MarketsView: View {
     private var subtitle: String {
         if viewModel.isLoadingPrices { return "Fetching prices…" }
         if let date = viewModel.lastPriceFetch {
-            return "Updated \(EditorialFormat.time(date)) · Delayed up to 5 min"
+            return "Updated \(EditorialFormat.time(date)) · Quotes delayed up to 5 min"
         }
-        return "Delayed up to 5 min · Pull to refresh"
+        return "Quotes delayed up to 5 min · Pull to refresh"
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .center) {
-                Text("Markets")
-                    .font(.display(34))
-                    .foregroundStyle(Color.inkPrimary)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer()
-                if !viewModel.trackedSymbols.isEmpty {
-                    Button(isEditing ? "Done" : "Edit") {
-                        withAnimation(.easeInOut(duration: 0.2)) { isEditing.toggle() }
-                    }
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color.inkPrimary)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .buttonStyle(.pressable)
-                    .accessibilityLabel(isEditing ? "Finish editing" : "Edit symbols")
-                }
-            }
+            Text("Markets")
+                .font(.pageTitle)
+                .foregroundStyle(Color.inkPrimary)
+                .accessibilityAddTraits(.isHeader)
             HStack(spacing: 6) {
                 if viewModel.isLoadingPrices {
                     ProgressView().controlSize(.mini).tint(Color.inkSecondary)
                 }
                 Text(subtitle)
-                    .font(.metaText)
+                    .font(.secondaryText)
                     .foregroundStyle(Color.inkSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
+}
 
-    // MARK: Add symbol
+// MARK: - Track-a-symbol sheet
 
-    private var canAdd: Bool {
-        !newSymbol.trimmingCharacters(in: .whitespaces).isEmpty && !viewModel.isAtLimit
+/// Half-sheet form: 52 pt fields (radius 12, accent focus ring), a filled 52 pt "Track symbol"
+/// button with a real disabled state, and inline validation under the symbol field.
+struct TrackSymbolSheet: View {
+    @ObservedObject var viewModel: MarketsViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var symbol: String = ""
+    @State private var entryPrice: String = ""
+    @FocusState private var focus: Field?
+
+    enum Field { case symbol, price }
+
+    private var cleaned: String { symbol.uppercased().trimmingCharacters(in: .whitespaces) }
+
+    /// nil when the form can be submitted.
+    private var validation: String? {
+        if viewModel.isAtLimit { return "You're tracking \(MarketsViewModel.maxSymbols) symbols, the maximum. Remove one to add another." }
+        if cleaned.isEmpty { return nil }
+        if cleaned.count > 10 || cleaned.rangeOfCharacter(from: CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-").inverted) != nil {
+            return "Use letters and numbers only, like AAPL or BTC."
+        }
+        if viewModel.trackedSymbols.contains(where: { $0.symbol == cleaned }) { return "\(cleaned) is already on your list." }
+        if !entryPrice.trimmingCharacters(in: .whitespaces).isEmpty, Double(entryPrice) == nil || (Double(entryPrice) ?? 0) <= 0 {
+            return "Entry price should be a number, like 702.10."
+        }
+        return nil
     }
 
-    private func addSymbol() {
+    private var canAdd: Bool { !cleaned.isEmpty && validation == nil }
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Track a symbol")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(Color.inkPrimary)
+                    Text("A stock ticker or a crypto symbol. The entry price is optional and turns on since-entry P&L.")
+                        .font(.secondaryText)
+                        .lineSpacing(Leading.secondary)
+                        .foregroundStyle(Color.inkSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    FormField(isFocused: focus == .symbol) {
+                        TextField("Symbol", text: $symbol, prompt: Text("Symbol, e.g. AAPL or BTC").foregroundStyle(Color.inkSecondary))
+                            .textInputAutocapitalization(.characters)
+                            .autocorrectionDisabled()
+                            .submitLabel(.next)
+                            .focused($focus, equals: .symbol)
+                            .onSubmit { focus = .price }
+                    }
+                    FormField(isFocused: focus == .price) {
+                        TextField("Entry price", text: $entryPrice, prompt: Text("Entry price (optional)").foregroundStyle(Color.inkSecondary))
+                            .keyboardType(.decimalPad)
+                            .focused($focus, equals: .price)
+                    }
+                    if let validation {
+                        Text(validation)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(viewModel.isAtLimit ? Color.inkSecondary : Color.negativeColor)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .transition(.opacity)
+                    }
+                }
+                .animation(.easeOut(duration: 0.15), value: validation)
+
+                PrimaryButton(title: "Track symbol", isEnabled: canAdd, action: add)
+                    .accessibilityHint(canAdd ? "" : (viewModel.isAtLimit ? "At the symbol limit" : "Enter a symbol first"))
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, Grid4.margin)
+            .padding(.top, 8)
+            .background(Color.backgroundColor.ignoresSafeArea())
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .keyboard) {
+                    HStack { Spacer(); Button("Done") { focus = nil } }
+                }
+            }
+            .onAppear { focus = .symbol }
+        }
+    }
+
+    private func add() {
         guard canAdd else { return }
-        let sym = newSymbol.uppercased().trimmingCharacters(in: .whitespaces)
-        guard !sym.isEmpty else { return }
-        viewModel.add(symbol: sym, entryPrice: Double(newEntryPrice))
-        newSymbol = ""
-        newEntryPrice = ""
-        isFieldFocused = false
+        viewModel.add(symbol: cleaned, entryPrice: Double(entryPrice))
+        focus = nil
+        dismiss()
         guard !viewModel.isPreview else { return }
         Task { await viewModel.fetchLivePrices() }
-    }
-
-    private var addSymbolForm: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Eyebrow(text: "Track a symbol")
-
-            fieldRow {
-                TextField("Symbol", text: $newSymbol, prompt: Text("Symbol, e.g. AAPL or BTC").foregroundStyle(Color.inkSecondary))
-                    .textInputAutocapitalization(.characters)
-                    .autocorrectionDisabled()
-                    .submitLabel(.next)
-                    .focused($isFieldFocused)
-            }
-
-            fieldRow {
-                TextField("Entry price", text: $newEntryPrice, prompt: Text("Entry price (optional)").foregroundStyle(Color.inkSecondary))
-                    .keyboardType(.decimalPad)
-                    .focused($isFieldFocused)
-            }
-
-            // The one accent-filled control on this screen.
-            Button(action: addSymbol) {
-                Text("Track symbol")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(canAdd ? Color.onAccent : Color.inkSecondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(canAdd ? Color.appAccentColor : Color.inkPrimary.opacity(0.08), in: RoundedRectangle(cornerRadius: AppRadius.button, style: .continuous))
-            }
-            .buttonStyle(.pressable)
-            .accessibilityLabel("Track symbol")
-            .accessibilityHint(canAdd ? "" : (viewModel.isAtLimit ? "At the symbol limit" : "Enter a symbol first"))
-
-            if viewModel.isAtLimit {
-                Text("You're tracking \(MarketsViewModel.maxSymbols) symbols, the maximum. Remove one to add another.")
-                    .font(.metaText)
-                    .foregroundStyle(Color.inkSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .editorialCard()
-    }
-
-    private func fieldRow<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        content()
-            .font(.bodyText)
-            .foregroundStyle(Color.inkPrimary)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(Color.inkPrimary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.hairline, lineWidth: 1))
     }
 }
 
@@ -349,66 +386,88 @@ private struct SymbolRow: View {
                 if isEditing {
                     Button(action: onDelete) {
                         Image(systemName: "minus.circle.fill")
-                            .font(.system(size: 20, weight: .medium))
+                            .font(.system(size: 22, weight: .medium))
                             .symbolRenderingMode(.hierarchical)
                             .foregroundStyle(Color.negativeColor)
-                            .frame(width: 32, height: 32)
+                            .frame(width: 44, height: 44)
                     }
                     .buttonStyle(.pressable)
                     .accessibilityLabel("Remove \(item.symbol)")
                     .transition(.scale.combined(with: .opacity))
                 }
 
-                // Live price + 24h change + series; a dash until the proxy has answered. No invented data.
+                // Live price + 24h change + series; "No quote yet" until the proxy has answered.
                 if let quote {
                     MarketRow(symbol: item.symbol,
                               priceText: EditorialFormat.price(symbol: item.symbol, quote.price),
                               change: quote.change,
                               series: quote.series,
                               prevClose: quote.prevClose,
-                              compact: false,
-                              footnote: entryFootnote,
-                              footnoteDetail: pnlText,
-                              footnoteDetailColor: pnlColor)
+                              compact: false)
                 } else {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Eyebrow(text: item.symbol)
-                        Text("—")
-                            .font(.system(size: 32, weight: .medium))
-                            .foregroundStyle(Color.inkSecondary)
-                            .accessibilityLabel("No quote yet")
-                        if let entryFootnote {
-                            Text(entryFootnote)
-                                .font(.metaText)
+                    HStack(alignment: .center, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Eyebrow(text: item.symbol)
+                            Text("No quote yet")
+                                .font(.secondaryText)
+                                .foregroundStyle(Color.inkSecondary)
+                            Text("Prices arrive on the next refresh")
+                                .font(.system(size: 13))
                                 .foregroundStyle(Color.inkSecondary)
                         }
+                        Spacer(minLength: 8)
+                        // Placeholder in the chart slot so the grid stays aligned.
+                        Path { p in
+                            p.move(to: CGPoint(x: 0, y: 20))
+                            p.addLine(to: CGPoint(x: 104, y: 20))
+                        }
+                        .stroke(Color.hairline, style: StrokeStyle(lineWidth: 1, lineCap: .round, dash: [1, 3]))
+                        .frame(width: 104, height: 40)
+                        .accessibilityHidden(true)
                     }
-                    .padding(.vertical, 14)
+                    .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityElement(children: .combine)
                 }
             }
             .animation(.default, value: quote?.price)
 
+            // Fixed meta slot: entry / P&L on the left, the one action on the right.
             if isEditingEntry {
                 entryEditor
-                    .padding(.bottom, 14)
+                    .padding(.bottom, 16)
             } else {
-                Button {
-                    beginEditingEntry()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: item.entryPrice == nil ? "plus" : "pencil")
-                            .font(.system(size: 13, weight: .medium))
-                            .symbolRenderingMode(.hierarchical)
-                        Text(item.entryPrice == nil ? "Add entry price" : "Change entry price")
-                            .font(.system(size: 13, weight: .semibold))
+                HStack(alignment: .center, spacing: 12) {
+                    HStack(spacing: 6) {
+                        Text(entryFootnote ?? "Entry not set")
+                            .foregroundStyle(Color.inkSecondary)
+                        if let pnlText {
+                            Text(pnlText)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(pnlColor ?? Color.inkSecondary)
+                        }
                     }
-                    .foregroundStyle(Color.inkPrimary)
-                    .padding(.vertical, 6)
-                    .contentShape(Rectangle())
+                    .font(.system(size: 13, weight: .medium).monospacedDigit())
+                    .lineLimit(1)
+                    Spacer(minLength: 8)
+                    Button {
+                        beginEditingEntry()
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 16, weight: .medium))
+                            Text(item.entryPrice == nil ? "Set entry" : "Edit entry")
+                                .font(.control)
+                        }
+                        .foregroundStyle(Color.appAccentColor)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.pressable)
+                    .accessibilityLabel("\(item.entryPrice == nil ? "Set" : "Edit") entry price for \(item.symbol)")
                 }
-                .buttonStyle(.pressable)
-                .accessibilityLabel("\(item.entryPrice == nil ? "Add" : "Change") entry price for \(item.symbol)")
-                .padding(.bottom, 8)
+                .padding(.top, -10)
+                .padding(.bottom, 2)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -435,36 +494,33 @@ private struct SymbolRow: View {
 
     private var entryEditor: some View {
         HStack(spacing: 10) {
-            TextField("Entry price", text: $priceText, prompt: Text("Entry price").foregroundStyle(Color.inkSecondary))
-                .keyboardType(.decimalPad)
-                .font(.bodyText.monospacedDigit())
-                .foregroundStyle(Color.inkPrimary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
-                .background(Color.inkPrimary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.hairline, lineWidth: 1))
-                .focused($isPriceFocused)
-                .onSubmit(commitEntry)
-                .toolbar {
-                    ToolbarItem(placement: .keyboard) {
-                        HStack {
-                            Spacer()
-                            Button("Done", action: commitEntry)
+            FormField(isFocused: isPriceFocused) {
+                TextField("Entry price", text: $priceText, prompt: Text("Entry price").foregroundStyle(Color.inkSecondary))
+                    .keyboardType(.decimalPad)
+                    .font(.bodyText.monospacedDigit())
+                    .focused($isPriceFocused)
+                    .onSubmit(commitEntry)
+                    .toolbar {
+                        ToolbarItem(placement: .keyboard) {
+                            HStack {
+                                Spacer()
+                                Button("Done", action: commitEntry)
+                            }
                         }
                     }
-                }
+            }
             Button("Save", action: commitEntry)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Color.inkPrimary)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 9)
-                .overlay(Capsule().strokeBorder(Color.inkPrimary.opacity(0.3), lineWidth: 1))
+                .foregroundStyle(Color.onAccent)
+                .frame(height: 44)
+                .padding(.horizontal, 16)
+                .background(Color.appAccentColor, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .buttonStyle(.pressable)
             Button("Cancel") {
                 isPriceFocused = false
                 withAnimation(.easeInOut(duration: 0.2)) { isEditingEntry = false }
             }
-            .font(.system(size: 15))
+            .font(.control)
             .foregroundStyle(Color.inkSecondary)
             .buttonStyle(.pressable)
         }
@@ -492,22 +548,27 @@ extension View {
 // Preview quotes use `MarketPreviewData` series (preview data, not market data).
 #Preview("Markets · light") {
     ThemeStore.shared.themeRaw = AppTheme.light.rawValue
-    return MarketsView(
-        previewSymbols: [TrackedSymbol(symbol: "SPY", entryPrice: 702.10), TrackedSymbol(symbol: "BTC", entryPrice: nil), TrackedSymbol(symbol: "AAPL", entryPrice: nil)],
-        quotes: ["SPY": MarketQuote(price: 735.29, change: -2.70, prevClose: 755.0, series: MarketPreviewData.spy),
-                 "BTC": MarketQuote(price: 75699.0, change: 1.12, prevClose: 74_860, series: MarketPreviewData.btc)],
-        updatedAt: BriefingViewModel.previewNow
-    )
-    .preferredColorScheme(.light)
+    let rows = BriefingViewModel.previewMarketRows
+    return MarketsView(previewSymbols: rows.symbols, quotes: rows.quotes, updatedAt: rows.updatedAt)
+        .preferredColorScheme(.light)
 }
 
 #Preview("Markets · dark") {
     ThemeStore.shared.themeRaw = AppTheme.dark.rawValue
-    return MarketsView(
-        previewSymbols: [TrackedSymbol(symbol: "SPY", entryPrice: 702.10), TrackedSymbol(symbol: "BTC", entryPrice: nil)],
-        quotes: ["SPY": MarketQuote(price: 735.29, change: -2.70, prevClose: 755.0, series: MarketPreviewData.spy),
-                 "BTC": MarketQuote(price: 75699.0, change: 1.12, prevClose: 74_860, series: MarketPreviewData.btc)],
-        updatedAt: BriefingViewModel.previewNow
-    )
-    .preferredColorScheme(.dark)
+    let rows = BriefingViewModel.previewMarketRows
+    return MarketsView(previewSymbols: rows.symbols, quotes: rows.quotes, updatedAt: rows.updatedAt)
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Track symbol sheet") {
+    ThemeStore.shared.themeRaw = AppTheme.light.rawValue
+    let rows = BriefingViewModel.previewMarketRows
+    return MarketsView(previewSymbols: rows.symbols, quotes: rows.quotes, updatedAt: rows.updatedAt, showTrackSheet: true)
+        .preferredColorScheme(.light)
+}
+
+#Preview("Markets · empty") {
+    ThemeStore.shared.themeRaw = AppTheme.light.rawValue
+    return MarketsView(previewSymbols: [], quotes: [:], updatedAt: nil)
+        .preferredColorScheme(.light)
 }
