@@ -40,7 +40,7 @@ struct OnboardingNameStep: View {
                 .frame(minHeight: 300, alignment: .bottom)
                 .background {
                     ZStack(alignment: .bottom) {
-                        SkyScene(hour: 7, condition: nil)
+                        SkyScene(hour: 7, condition: nil, artInset: CGSize(width: 24, height: 72))
                         LinearGradient(colors: [Color.backgroundColor.opacity(0), Color.backgroundColor], startPoint: .top, endPoint: .bottom)
                             .frame(height: 80)
                     }

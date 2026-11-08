@@ -261,38 +261,45 @@ struct AppPalette: Sendable {
     let inkDark: String
     let inkSecondaryLight: String
     let inkSecondaryDark: String
+    let separatorLight: String
+    let separatorDark: String
 
+    /// Contrast (WCAG, computed offline): every secondary ink is >= 5.1:1 on its surface and
+    /// canvas; positive/negative >= 5.4:1 light / 5.9:1 dark; white on the warm light accent
+    /// 4.5:1; dark canvas on the dark accents >= 8:1. Red/green are market semantics only
+    /// and always travel with an arrow and a percentage.
     static func palette(for appearance: ColorAppearance) -> AppPalette {
         switch appearance {
-        // Light surfaces are white at 70% over the canvas, pre-blended so every token stays
-        // an opaque hex. Light accents are checked at >= 4.5:1 on white (ember: 5.2:1).
         case .warm:
             return AppPalette(
-                backgroundLight: "F3F0E9", backgroundDark: "0B0C11",
-                surfaceLight: "FBFAF8", surfaceDark: "16181F",
-                accentLight: "BF4518", accentDark: "FF7846",
-                positiveLight: "157B65", positiveDark: "58C9A6",
-                negativeLight: "C44740", negativeDark: "FF746C",
-                inkLight: "121214", inkDark: "F5F2EC",
-                inkSecondaryLight: "6E6A63", inkSecondaryDark: "ABA8A2")
+                backgroundLight: "F6F2EC", backgroundDark: "17141B",
+                surfaceLight: "FFFCF7", surfaceDark: "211C23",
+                accentLight: "B85E24", accentDark: "E2A060",
+                positiveLight: "16735D", positiveDark: "58BFA6",
+                negativeLight: "B83A3A", negativeDark: "F07870",
+                inkLight: "171615", inkDark: "F7F2EA",
+                inkSecondaryLight: "66615B", inkSecondaryDark: "B8B0B7",
+                separatorLight: "DDD7CF", separatorDark: "3A333C")
         case .cool:
             return AppPalette(
-                backgroundLight: "EFF2F6", backgroundDark: "0A0D14",
-                surfaceLight: "FAFBFC", surfaceDark: "151A23",
-                accentLight: "35568A", accentDark: "7FA8E6",
-                positiveLight: "157B65", positiveDark: "58C9A6",
-                negativeLight: "C44740", negativeDark: "FF746C",
-                inkLight: "121418", inkDark: "EEF1F5",
-                inkSecondaryLight: "646B75", inkSecondaryDark: "9EA6B1")
+                backgroundLight: "EFF2F6", backgroundDark: "13161C",
+                surfaceLight: "FAFBFD", surfaceDark: "1B1F27",
+                accentLight: "35568A", accentDark: "8FB4EC",
+                positiveLight: "16735D", positiveDark: "58BFA6",
+                negativeLight: "B83A3A", negativeDark: "F07870",
+                inkLight: "141518", inkDark: "EEF1F5",
+                inkSecondaryLight: "5F6670", inkSecondaryDark: "AEB5BF",
+                separatorLight: "D5DAE1", separatorDark: "343A44")
         case .calm:
             return AppPalette(
-                backgroundLight: "F0F3EE", backgroundDark: "0A0F0C",
-                surfaceLight: "FAFBF9", surfaceDark: "151B17",
-                accentLight: "2F6E52", accentDark: "7CCDA4",
-                positiveLight: "157B65", positiveDark: "58C9A6",
-                negativeLight: "C44740", negativeDark: "FF746C",
-                inkLight: "111613", inkDark: "ECF1EC",
-                inkSecondaryLight: "636B65", inkSecondaryDark: "9BA79F")
+                backgroundLight: "F0F3EE", backgroundDark: "131A15",
+                surfaceLight: "FAFCF9", surfaceDark: "1B221D",
+                accentLight: "2F6E52", accentDark: "8AD3AC",
+                positiveLight: "16735D", positiveDark: "58BFA6",
+                negativeLight: "B83A3A", negativeDark: "F07870",
+                inkLight: "121613", inkDark: "ECF1EC",
+                inkSecondaryLight: "5E6660", inkSecondaryDark: "AAB6AD",
+                separatorLight: "D6DDD4", separatorDark: "333C35")
         }
     }
 }
@@ -367,10 +374,15 @@ extension Color {
         return themed(ThemeStore.shared.theme, light: p.inkSecondaryLight, dark: p.inkSecondaryDark)
     }
 
-    /// Hairline rules and card borders: ink at low opacity so it follows the theme.
+    /// Hairline rules and card borders: the opaque separator token (light #DDD7CF / dark #3A333C
+    /// for Warm), so rules never shift with what is behind them.
     @MainActor static var hairline: Color {
-        inkPrimary.opacity(0.10)
+        let p = currentPalette
+        return themed(ThemeStore.shared.theme, light: p.separatorLight, dark: p.separatorDark)
     }
+
+    /// L2 surface border. In dark the separator token (#3A333C) is ~8 % white over the surface.
+    @MainActor static var surfaceBorder: Color { hairline }
 
     /// Text on an accent-filled control: white on the light accent, ink on the lighter dark
     /// accent (white on it fails contrast).

@@ -82,7 +82,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Eyebrow(text: "MorningVault")
                         Text("Settings")
-                            .font(.display(34))
+                            .font(.pageTitle)
                             .foregroundStyle(Color.inkPrimary)
                             .accessibilityAddTraits(.isHeader)
                     }

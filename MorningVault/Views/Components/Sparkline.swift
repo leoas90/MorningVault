@@ -2,50 +2,63 @@ import SwiftUI
 
 // MARK: - Sparkline
 
-/// Line + faint area from a real series. Draws left-to-right over 500 ms on appear; complete
-/// at once under Reduce Motion. Never shown without data: callers pass `nil` for no series.
+/// Line + 12 % area from a real series, drawn in a `Canvas` (round caps and joins, a dotted
+/// 1 pt previous-close reference). App rows: 104×40 at 2 pt; the Brief: 84×28 at 1.5 pt.
+/// Draws left-to-right over 500 ms on appear; complete at once under Reduce Motion. Never
+/// shown without data: callers pass `nil` for no series.
 struct Sparkline: View {
     let points: [Double]
     var prevClose: Double? = nil
     var color: Color
-    var lineWidth: CGFloat = 1.5
+    var lineWidth: CGFloat = 2
     /// False for offscreen renders (share card): the line is complete immediately.
     var animated: Bool = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var progress: CGFloat = 0
+    @State private var progress: CGFloat = 1
+    @State private var didAnimate = false
 
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
-            let line = linePath(in: size)
             let shown: CGFloat = animated ? progress : 1
-            ZStack(alignment: .leading) {
-                areaPath(in: size)
-                    .fill(LinearGradient(colors: [color.opacity(0.22), color.opacity(0.02)], startPoint: .top, endPoint: .bottom))
-                    .mask(alignment: .leading) {
-                        Rectangle().frame(width: size.width * shown)
-                    }
+            let reference = Color.inkSecondary.opacity(0.85)
+            Canvas { context, _ in
+                let line = linePath(in: size)
+                var clip = Path()
+                clip.addRect(CGRect(x: 0, y: 0, width: size.width * shown, height: size.height))
+                context.clip(to: clip)
+                context.fill(areaPath(in: size),
+                             with: .linearGradient(Gradient(colors: [color.opacity(0.12), color.opacity(0.0)]),
+                                                   startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
                 if let y = prevCloseY(in: size) {
-                    Path { p in
-                        p.move(to: CGPoint(x: 0, y: y))
-                        p.addLine(to: CGPoint(x: size.width, y: y))
-                    }
-                    .stroke(Color.inkSecondary.opacity(0.8), style: StrokeStyle(lineWidth: 1, dash: [2, 3]))
+                    var dotted = Path()
+                    dotted.move(to: CGPoint(x: 0, y: y))
+                    dotted.addLine(to: CGPoint(x: size.width, y: y))
+                    context.stroke(dotted, with: .color(reference), style: StrokeStyle(lineWidth: 1, lineCap: .round, dash: [1, 3]))
                 }
-                line
-                    .trim(from: 0, to: shown)
-                    .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+                context.stroke(line, with: .color(color), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+                // Endpoint marker: the latest value.
+                if shown >= 1, let last = line.currentPoint {
+                    let r = lineWidth * 1.6
+                    context.fill(Path(ellipseIn: CGRect(x: last.x - r, y: last.y - r, width: r * 2, height: r * 2)), with: .color(color))
+                }
             }
         }
         .onAppear {
-            if reduceMotion || !animated {
-                progress = 1
-            } else {
+            // Static preview renders snapshot before `onAppear`, so the line starts complete
+            // and the draw-on only runs in the app: reset to 0, then animate to 1 next tick.
+            guard animated, !reduceMotion, !Self.isPreviewRender, !didAnimate else { return }
+            didAnimate = true
+            progress = 0
+            DispatchQueue.main.async {
                 withAnimation(.easeOut(duration: 0.5)) { progress = 1 }
             }
         }
         .accessibilityHidden(true)
     }
+
+    /// Static preview renders capture before the draw-on animation finishes.
+    private static let isPreviewRender = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
 
     private var bounds: (min: Double, max: Double)? {
         guard points.count > 1, let lo = points.min(), let hi = points.max() else { return nil }
@@ -55,7 +68,7 @@ struct Sparkline: View {
     }
 
     private func y(for value: Double, in size: CGSize, bounds b: (min: Double, max: Double)) -> CGFloat {
-        let inset: CGFloat = lineWidth
+        let inset: CGFloat = lineWidth * 2
         let t = (value - b.min) / (b.max - b.min)
         return size.height - inset - CGFloat(t) * (size.height - inset * 2)
     }
@@ -63,9 +76,10 @@ struct Sparkline: View {
     private func linePath(in size: CGSize) -> Path {
         var path = Path()
         guard let b = bounds else { return path }
-        let step = size.width / CGFloat(points.count - 1)
+        let edge = lineWidth * 1.6
+        let step = (size.width - edge * 2) / CGFloat(points.count - 1)
         for (i, v) in points.enumerated() {
-            let p = CGPoint(x: CGFloat(i) * step, y: y(for: v, in: size, bounds: b))
+            let p = CGPoint(x: edge + CGFloat(i) * step, y: y(for: v, in: size, bounds: b))
             if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
         }
         return path
@@ -73,9 +87,10 @@ struct Sparkline: View {
 
     private func areaPath(in size: CGSize) -> Path {
         var path = linePath(in: size)
-        guard !path.isEmpty else { return path }
-        path.addLine(to: CGPoint(x: size.width, y: size.height))
-        path.addLine(to: CGPoint(x: 0, y: size.height))
+        guard !path.isEmpty, let last = path.currentPoint else { return path }
+        let edge = lineWidth * 1.6
+        path.addLine(to: CGPoint(x: last.x, y: size.height))
+        path.addLine(to: CGPoint(x: edge, y: size.height))
         path.closeSubpath()
         return path
     }
@@ -88,8 +103,9 @@ struct Sparkline: View {
 
 // MARK: - Market row
 
-/// Hairline-list row: symbol eyebrow over a tabular price, signed delta with ▲/▼, sparkline
-/// right. `compact` is the Brief (26 pt price, 84×28 line); the Markets tab uses the larger set.
+/// Hairline-list row: symbol label over a tabular quote, signed delta with ▲/▼ and a
+/// percentage, sparkline right. `compact` is the Brief (24 pt quote, 84×28 line at 1.5 pt);
+/// the Markets tab uses 30/34 and a 104×40 line at 2 pt in a ~104 pt row.
 struct MarketRow: View {
     let symbol: String
     let priceText: String
@@ -116,26 +132,26 @@ struct MarketRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
         HStack(alignment: .center, spacing: 16) {
-            VStack(alignment: .leading, spacing: compact ? 3 : 4) {
+            VStack(alignment: .leading, spacing: compact ? 2 : 4) {
                 Eyebrow(text: symbol)
                 Text(priceText)
-                    .font(.system(size: compact ? 26 : 32, weight: .medium).monospacedDigit())
+                    .font(compact ? .system(size: 24, weight: .medium).monospacedDigit() : .marketQuote)
                     .foregroundStyle(Color.inkPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                     .contentTransition(.numericText())
                 Text(deltaText)
-                    .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                    .font(.delta)
                     .foregroundStyle(semantic)
             }
             Spacer(minLength: 8)
             if series.count > 1 {
-                Sparkline(points: series, prevClose: prevClose, color: semantic, lineWidth: 1.5)
-                    .frame(width: compact ? 84 : 120, height: compact ? 28 : 40)
+                Sparkline(points: series, prevClose: prevClose, color: semantic, lineWidth: compact ? 1.5 : 2)
+                    .frame(width: compact ? 84 : 104, height: compact ? 28 : 40)
             }
         }
-        .padding(.top, compact ? 12 : 14)
-        .padding(.bottom, footnote == nil ? (compact ? 12 : 14) : 6)
+        .padding(.top, compact ? 12 : 16)
+        .padding(.bottom, footnote == nil ? (compact ? 12 : 16) : 6)
         if let footnote {
             HStack(spacing: 6) {
                 Text(footnote)
@@ -146,9 +162,9 @@ struct MarketRow: View {
                         .foregroundStyle(footnoteDetailColor ?? Color.inkSecondary)
                 }
             }
-            .font(.system(size: 13).monospacedDigit())
+            .font(.system(size: 13, weight: .medium).monospacedDigit())
             .lineLimit(1)
-            .padding(.bottom, compact ? 12 : 10)
+            .padding(.bottom, compact ? 12 : 12)
         }
         }
         .accessibilityElement(children: .ignore)
@@ -159,11 +175,11 @@ struct MarketRow: View {
 #Preview("Rows") {
     ThemeStore.shared.themeRaw = AppTheme.light.rawValue
     return VStack(spacing: 0) {
-        MarketRow(symbol: "SPY", priceText: "$735.29", change: -2.70, series: MarketPreviewData.spy, prevClose: 755.0)
+        MarketRow(symbol: "SPY", priceText: "$735.29", change: -2.70, series: MarketPreviewData.spy, prevClose: 755.0, compact: false)
         Hairline()
-        MarketRow(symbol: "BTC", priceText: "$75,699", change: 1.12, series: MarketPreviewData.btc, prevClose: 74_860)
+        MarketRow(symbol: "BTC", priceText: "$75,699", change: 1.12, series: MarketPreviewData.btc, prevClose: 74_860, compact: false)
         Hairline()
-        MarketRow(symbol: "AAPL", priceText: "$231.10", change: 0.00)
+        MarketRow(symbol: "AAPL", priceText: "$231.10", change: 0.00, compact: false)
     }
     .padding(20)
     .background(Color.backgroundColor)

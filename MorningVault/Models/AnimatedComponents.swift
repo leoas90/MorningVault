@@ -9,7 +9,7 @@ import SwiftUI
 /// Consistent corner radii used throughout the app.
 /// Update here to propagate a radius change everywhere.
 enum AppRadius {
-    static let card: CGFloat = 22
+    static let card: CGFloat = 20
     static let button: CGFloat = 14
     static let banner: CGFloat = 10
     static let badge: CGFloat = 6
