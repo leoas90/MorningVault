@@ -8,44 +8,115 @@ import SwiftUI
 
 // MARK: Type
 
+// Type scale (SF Pro unless noted): display 40/44 serif, lede 21/27 serif, body 17/22,
+// secondary 15/20, meta 13/17, eyebrow 11 uppercase tracking 1.3. Weights regular / medium /
+// semibold only. Serif is reserved for the greeting, the lede, the temperature numeral and the
+// Markets / Settings page titles.
 extension Font {
-    /// Display serif (New York) for greetings, titles and big numerals.
-    static func display(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
+    /// Display serif (New York): greeting, temperature numeral, page titles.
+    static func display(_ size: CGFloat, weight: Font.Weight = .medium) -> Font {
         .system(size: size, weight: weight, design: .serif)
     }
 
-    /// Lede paragraph under the greeting.
-    static var lede: Font { .system(size: 17, weight: .regular, design: .serif) }
+    /// The one synthesis sentence under the greeting.
+    static var lede: Font { .system(size: 21, weight: .regular, design: .serif) }
+    static var bodyText: Font { .system(size: 17, weight: .regular) }
+    static var secondaryText: Font { .system(size: 15, weight: .regular) }
+    static var metaText: Font { .system(size: 13, weight: .regular) }
 }
 
-/// Small-caps style label: "WEATHER", "TODAY", "SATURDAY, NOVEMBER 8".
+/// Small-caps style label: "MARKETS", "NEXT", "SATURDAY, NOVEMBER 8".
 struct Eyebrow: View {
     let text: String
     var color: Color? = nil
 
     var body: some View {
         Text(text)
-            .font(.caption.weight(.semibold))
+            .font(.system(size: 11, weight: .semibold))
             .textCase(.uppercase)
-            .tracking(1.2)
+            .tracking(1.3)
             .foregroundStyle(color ?? Color.inkSecondary)
+    }
+}
+
+/// Pressed controls scale to 0.98; a plain fade under Reduce Motion.
+struct PressableButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1)
+            .opacity(configuration.isPressed ? 0.85 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+extension ButtonStyle where Self == PressableButtonStyle {
+    static var pressable: PressableButtonStyle { PressableButtonStyle() }
+}
+
+/// One-shot entrance: fade + 6 pt rise after `delay`, driven by `withAnimation` only (never
+/// `.animation(value:)`, which would also animate the first layout pass). Reduce Motion: a
+/// 200 ms fade with no drift.
+struct EntranceModifier: ViewModifier {
+    var delay: Double
+    var rise: CGFloat = 6
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var shown = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(shown ? 1 : 0)
+            .offset(y: shown || reduceMotion ? 0 : rise)
+            .onAppear {
+                guard !shown else { return }
+                if reduceMotion {
+                    withAnimation(.easeOut(duration: 0.2)) { shown = true }
+                } else {
+                    withAnimation(.easeOut(duration: 0.35).delay(delay)) { shown = true }
+                }
+            }
+    }
+}
+
+extension View {
+    func entrance(delay: Double, rise: CGFloat = 6) -> some View {
+        modifier(EntranceModifier(delay: delay, rise: rise))
+    }
+}
+
+/// Dark-mode surfaces take a 4 % tint of the current sky so the page reads as one environment.
+private struct SkyTintKey: EnvironmentKey {
+    static let defaultValue: Color? = nil
+}
+
+extension EnvironmentValues {
+    var skyTint: Color? {
+        get { self[SkyTintKey.self] }
+        set { self[SkyTintKey.self] = newValue }
     }
 }
 
 // MARK: Card
 
-/// The one card treatment: surface, hairline border, soft shadow in light mode only.
+/// The one card treatment: surface + hairline, no shadow. Surfaces are separated from the
+/// canvas by spacing and the hairline only; in dark mode the surface carries the sky tint.
 struct EditorialCardModifier: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.skyTint) private var skyTint
     var padding: CGFloat = 18
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
         content
             .padding(padding)
-            .background(Color.surfaceColor, in: shape)
+            .background {
+                shape.fill(Color.surfaceColor)
+                if colorScheme == .dark, let skyTint {
+                    shape.fill(skyTint.opacity(0.04))
+                }
+            }
             .overlay(shape.strokeBorder(Color.hairline, lineWidth: 1))
-            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0 : 0.06), radius: 12, x: 0, y: 4)
     }
 }
 
@@ -55,68 +126,19 @@ extension View {
     }
 }
 
-/// 1px rule in the ink hairline color.
+/// 1px rule in the ink hairline color (10 % ink).
 struct Hairline: View {
+    var color: Color? = nil
     var body: some View {
         Rectangle()
-            .fill(Color.inkPrimary.opacity(0.12))
+            .fill(color ?? Color.hairline)
             .frame(height: 1)
     }
 }
 
 // MARK: Pills
 
-/// Percentage change with a tinted background, not just colored text.
-struct ChangePill: View {
-    let change: Double
-
-    private var color: Color {
-        if change > 0 { return Color.positiveColor }
-        if change < 0 { return Color.negativeColor }
-        return Color.inkSecondary
-    }
-
-    private var text: String {
-        let sign = change > 0 ? "+" : (change < 0 ? "−" : "")
-        return "\(sign)\(String(format: "%.2f", abs(change)))%"
-    }
-
-    var body: some View {
-        Text(text)
-            .font(.caption.weight(.semibold).monospacedDigit())
-            .foregroundStyle(color)
-            .lineLimit(1)
-            .fixedSize()
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(color.opacity(0.16), in: Capsule())
-            .accessibilityLabel(change >= 0 ? "up \(text)" : "down \(text)")
-    }
-}
-
-/// Quiet sentiment pill for card headers.
-struct SentimentPill: View {
-    let sentiment: String
-
-    private var color: Color {
-        switch sentiment.lowercased() {
-        case "bullish", "positive": return Color.positiveColor
-        case "bearish", "negative": return Color.negativeColor
-        default: return Color.inkSecondary
-        }
-    }
-
-    var body: some View {
-        Text(sentiment.capitalized)
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(color)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(color.opacity(0.12), in: Capsule())
-    }
-}
-
-/// Pill action button used in the hero ("Listen", "Share").
+/// Pill action button ("Listen" is the one accent-coloured control on the Brief).
 struct PillButton: View {
     let title: String
     let systemImage: String
@@ -126,17 +148,43 @@ struct PillButton: View {
 
     var body: some View {
         Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.subheadline.weight(.semibold))
-                .symbolEffect(.variableColor.iterative, isActive: isActive)
-                .lineLimit(1)
-                .padding(.horizontal, 16)
-                .frame(minHeight: 44)
-                .foregroundStyle(prominent ? Color.onAccent : Color.inkPrimary)
-                .background(prominent ? Color.appAccentColor : Color.surfaceColor, in: Capsule())
-                .overlay(Capsule().strokeBorder(prominent ? Color.clear : Color.inkPrimary.opacity(0.16), lineWidth: 1))
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 15, weight: .medium))
+                    .symbolRenderingMode(.hierarchical)
+                    .symbolEffect(.variableColor.iterative, isActive: isActive)
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+            }
+            .lineLimit(1)
+            .padding(.horizontal, 16)
+            .frame(minHeight: 40)
+            .foregroundStyle(prominent ? Color.onAccent : Color.inkPrimary)
+            .background(prominent ? Color.appAccentColor : Color.surfaceColor, in: Capsule())
+            .overlay(Capsule().strokeBorder(prominent ? Color.clear : Color.hairline, lineWidth: 1))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
+    }
+}
+
+/// Neutral 20 pt-symbol icon button (Share, Edit…) for toolbars; never accent-coloured.
+struct IconButton: View {
+    let systemImage: String
+    let label: String
+    var tint: Color? = nil
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 20, weight: .medium))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(tint ?? Color.inkPrimary)
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.pressable)
+        .accessibilityLabel(label)
     }
 }
 
@@ -167,14 +215,10 @@ struct TimeOfDayGradient: View {
         return colorScheme == .dark ? dark : light
     }
 
-    /// Pre-dawn and dusk use light text; the day/sunrise washes use ink.
-    static func usesLightText(hour: Int, colorScheme: ColorScheme) -> Bool {
-        if colorScheme == .dark { return true }
-        switch hour {
-        case 0..<6: return true
-        case 6..<17: return false
-        default: return true
-        }
+    /// Pre-dawn and dusk use light text; the day/sunrise washes use ink. The sky scene
+    /// resolves the same question with the weather folded in.
+    static func usesLightText(hour: Int, colorScheme: ColorScheme, condition: String? = nil) -> Bool {
+        SkyStyle.resolve(hour: hour, condition: condition, colorScheme: colorScheme).usesLightText
     }
 
     var body: some View {
@@ -308,6 +352,56 @@ enum EditorialFormat {
 
     static func time(_ date: Date) -> String {
         date.formatted(date: .omitted, time: .shortened)
+    }
+
+    /// First sentence (the lede) and the remainder, split on sentence punctuation.
+    static func splitLede(_ text: String) -> (lede: String, rest: String?) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let m = try? #/^(.+?[.!?])\s+(\S.*)$/#.dotMatchesNewlines().firstMatch(in: trimmed) else {
+            return (trimmed, nil)
+        }
+        let rest = String(m.2).trimmingCharacters(in: .whitespacesAndNewlines)
+        return (String(m.1), rest.isEmpty ? nil : rest)
+    }
+}
+
+// MARK: Schedule (Next block)
+
+/// Upcoming vs. earlier events relative to a clock, from the "9:00 AM — Standup" lines.
+/// Previews pass a fixed `now`; the app passes `Date()`.
+struct BriefSchedule {
+    let upcoming: [CalendarLine]
+    let earlier: [CalendarLine]
+
+    static func make(from events: [CalendarLine], now: Date, calendar: Calendar = .current) -> BriefSchedule {
+        var upcoming: [CalendarLine] = []
+        var earlier: [CalendarLine] = []
+        for event in events {
+            if let start = startDate(of: event.time, on: now, calendar: calendar), start < now {
+                earlier.append(event)
+            } else {
+                upcoming.append(event)
+            }
+        }
+        return BriefSchedule(upcoming: upcoming, earlier: earlier)
+    }
+
+    /// "9:00 AM" / "09:00" / "9 AM" → today at that time. Anything unparseable counts as upcoming.
+    static func startDate(of time: String, on day: Date, calendar: Calendar = .current) -> Date? {
+        let t = time.uppercased().replacingOccurrences(of: "\u{202F}", with: " ").trimmingCharacters(in: .whitespaces)
+        guard let m = try? #/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/#.firstMatch(in: t) else { return nil }
+        var hour = Int(m.1) ?? 0
+        let minute = m.2.flatMap { Int($0) } ?? 0
+        if let meridiem = m.3 {
+            if meridiem == "PM", hour < 12 { hour += 12 }
+            if meridiem == "AM", hour == 12 { hour = 0 }
+        }
+        return calendar.date(bySettingHour: hour, minute: minute, second: 0, of: day)
+    }
+
+    /// Time column text: "9:00" with the AM/PM dropped when the hour is unambiguous in context.
+    static func shortTime(_ time: String) -> String {
+        time.replacingOccurrences(of: "\u{202F}", with: " ")
     }
 }
 

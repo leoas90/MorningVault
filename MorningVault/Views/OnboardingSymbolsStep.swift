@@ -51,7 +51,7 @@ struct OnboardingSymbolsStep: View {
             // Header
             VStack(spacing: 8) {
                 Text("Track markets")
-                    .font(.display(32))
+                    .font(.system(size: 28, weight: .semibold))
                     .foregroundStyle(Color.inkPrimary)
                 Text("Select symbols to watch. You can edit these anytime in the Markets tab.")
                     .font(.subheadline)

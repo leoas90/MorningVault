@@ -7,31 +7,41 @@ struct OnboardingNameStep: View {
     private let suggestedNames: [String] = ["Alex", "Jordan", "Morgan", "Taylor", "Casey", "Riley"]
 
     @State private var hasAppeared = false
+    @Environment(\.colorScheme) private var colorScheme
+
+    /// Ink on the light dawn sky, white on the dark one.
+    private var sceneInk: Color {
+        SkyStyle.resolve(hour: 7, condition: nil, colorScheme: colorScheme).usesLightText ? Color.white : Color.inkPrimary
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                // Masthead on the time-of-day wash (same as the Brief hero).
+                // The sky scene (time of day only, a clear morning) with the greeting over it —
+                // the same object the Brief opens with.
                 VStack(alignment: .leading, spacing: 12) {
-                    Eyebrow(text: "Welcome", color: Color.inkSecondary)
+                    Eyebrow(text: "Welcome", color: sceneInk.opacity(0.7))
+                    Spacer(minLength: 24)
                     Text("Good morning.")
-                        .font(.display(40))
-                        .foregroundStyle(Color.inkPrimary)
+                        .font(.display(40, weight: .medium))
+                        .foregroundStyle(sceneInk)
                         .accessibilityAddTraits(.isHeader)
                     Text("Your briefing, written each morning from your calendar, weather, health and markets. What should we call you?")
                         .font(.lede)
-                        .lineSpacing(4)
-                        .foregroundStyle(Color.inkSecondary)
+                        .lineSpacing(5)
+                        .foregroundStyle(sceneInk.opacity(0.82))
                         .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: 300, alignment: .leading)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 24)
-                .padding(.top, 24)
-                .padding(.bottom, 28)
+                .padding(.top, 12)
+                .padding(.bottom, 32)
+                .frame(minHeight: 300, alignment: .bottom)
                 .background {
                     ZStack(alignment: .bottom) {
-                        TimeOfDayGradient(hour: 7)
-                        LinearGradient(colors: [.clear, Color.backgroundColor], startPoint: .center, endPoint: .bottom)
+                        SkyScene(hour: 7, condition: nil)
+                        LinearGradient(colors: [Color.backgroundColor.opacity(0), Color.backgroundColor], startPoint: .top, endPoint: .bottom)
                             .frame(height: 80)
                     }
                     .ignoresSafeArea(edges: .top)
@@ -43,7 +53,7 @@ struct OnboardingNameStep: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Eyebrow(text: "Your name")
                         TextField("First name", text: $userName, prompt: Text("First name").foregroundStyle(Color.inkSecondary))
-                            .font(.display(24, weight: .regular))
+                            .font(.system(size: 22, weight: .regular))
                             .foregroundStyle(Color.inkPrimary)
                             .textInputAutocapitalization(.words)
                             .textContentType(.givenName)
@@ -65,15 +75,15 @@ struct OnboardingNameStep: View {
                                         userName = name
                                     } label: {
                                         Text(name)
-                                            .font(.subheadline.weight(.semibold))
-                                            .foregroundStyle(Color.appAccentColor)
+                                            .font(.system(size: 15, weight: .semibold))
+                                            .foregroundStyle(Color.inkPrimary)
                                             .padding(.horizontal, 16)
                                             .padding(.vertical, 11)
-                                            .background(Color.appAccentColor.opacity(0.12), in: Capsule())
-                                            .overlay(Capsule().strokeBorder(Color.appAccentColor.opacity(0.25), lineWidth: 1))
+                                            .background(Color.surfaceColor, in: Capsule())
+                                            .overlay(Capsule().strokeBorder(Color.inkPrimary.opacity(0.18), lineWidth: 1))
                                             .fixedSize()
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(.pressable)
                                     .accessibilityLabel("Use the name \(name)")
                                 }
                             }

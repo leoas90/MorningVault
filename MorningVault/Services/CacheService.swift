@@ -106,6 +106,9 @@ actor TTLCache {
         let price: Double
         let change24h: Double
         let timestamp: Date
+        /// Sparkline inputs; optional so entries written before they existed still decode.
+        var prevClose: Double? = nil
+        var series: [Double]? = nil
     }
 
     private func cacheFile(_ key: String) -> URL {

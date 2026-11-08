@@ -2,9 +2,11 @@ import SwiftUI
 
 // MARK: - BriefingSectionCard
 //
-// One card per briefing section, laid out by section id: weather (big numeral), calendar
-// (timeline), markets (rows with change pills), headlines (numbered list), health (stat
-// tiles). Anything that fails to parse falls back to the section text.
+// One block per briefing section (eyebrow + content, hairlines, no card background), laid
+// out by section id: calendar (time column rows), markets (hairline rows with sparklines),
+// headlines (numbered list), health (stat row). Weather is the sky scene and the calendar's
+// upcoming events are the Next block in the Brief; this view is their fallback and the
+// health / headlines sections. Anything that fails to parse falls back to the section text.
 
 struct BriefingSectionCard: View {
     let section: BriefingSection
@@ -12,12 +14,16 @@ struct BriefingSectionCard: View {
     /// Optional: tap on the Markets card goes to the Markets tab.
     var onOpenMarkets: (() -> Void)? = nil
 
+    /// Sparkline inputs per symbol for the markets rows (none = no sparkline).
+    var marketSeries: [String: MarketSeries] = [:]
+
     @ObservedObject private var readState = NewsReadStateTracker.shared
 
-    init(section: BriefingSection, delay: Double = 0, onOpenMarkets: (() -> Void)? = nil) {
+    init(section: BriefingSection, delay: Double = 0, onOpenMarkets: (() -> Void)? = nil, marketSeries: [String: MarketSeries] = [:]) {
         self.section = section
         self.delay = delay
         self.onOpenMarkets = onOpenMarkets
+        self.marketSeries = marketSeries
     }
 
     private var hasArticles: Bool {
@@ -27,17 +33,17 @@ struct BriefingSectionCard: View {
     private var eyebrowTitle: String {
         switch section.id {
         case "calendar": return "Today"
+        case "headlines": return "Headlines"
         default: return section.title
         }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
             header
 
             Group {
                 switch section.id {
-                case "weather": weatherBody
                 case "calendar": calendarBody
                 case "markets": marketsBody
                 case "headlines": headlinesBody
@@ -51,103 +57,24 @@ struct BriefingSectionCard: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .editorialCard()
         .cardEntrance(delay: delay)
     }
 
     // MARK: Header
 
     private var header: some View {
-        HStack(alignment: .center) {
+        HStack(alignment: .firstTextBaseline) {
             Eyebrow(text: eyebrowTitle)
             Spacer()
             if section.id == "headlines", let feed = section.rssFeed {
                 let unread = readState.unreadCount(in: [feed])
                 if unread > 0 {
                     Text("\(unread) unread")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(Color.appAccentColor)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Color.appAccentColor.opacity(0.12), in: Capsule())
-                }
-            } else if let sentiment = section.sentiment, section.id != "weather" {
-                SentimentPill(sentiment: sentiment)
-            }
-        }
-    }
-
-    // MARK: Weather
-
-    @ViewBuilder
-    private var weatherBody: some View {
-        if let w = WeatherSummary.parse(section.content) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top, spacing: 14) {
-                    Text(w.temperature)
-                        .font(.display(56, weight: .medium))
-                        .monospacedDigit()
-                        .foregroundStyle(Color.inkPrimary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                        .accessibilityLabel("\(w.temperature) \(w.unit)")
-
-                    Spacer(minLength: 8)
-
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Image(systemName: WeatherSummary.symbol(for: w.condition))
-                            .font(.system(size: 28, weight: .regular))
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(Color.appAccentColor)
-                        Text(w.condition)
-                            .font(.headline)
-                            .foregroundStyle(Color.inkPrimary)
-                            .multilineTextAlignment(.trailing)
-                        Text(w.location)
-                            .font(.subheadline)
-                            .foregroundStyle(Color.inkSecondary)
-                            .multilineTextAlignment(.trailing)
-                    }
-                    .padding(.top, 6)
-                }
-
-                Hairline()
-
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .top, spacing: 0) {
-                        weatherStat("Feels like", w.feelsLike)
-                        weatherStat("Humidity", w.humidity)
-                        weatherStat("Wind", w.wind)
-                    }
-                    VStack(alignment: .leading, spacing: 8) {
-                        weatherStat("Feels like", w.feelsLike)
-                        weatherStat("Humidity", w.humidity)
-                        weatherStat("Wind", w.wind)
-                    }
-                }
-
-                if let note = w.note {
-                    Text(note)
-                        .font(.footnote)
+                        .font(.metaText)
                         .foregroundStyle(Color.inkSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
-        } else {
-            plainBody
         }
-    }
-
-    private func weatherStat(_ label: String, _ value: String?) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(Color.inkSecondary)
-            Text(value ?? "—")
-                .font(.subheadline.weight(.semibold).monospacedDigit())
-                .foregroundStyle(Color.inkPrimary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: Calendar
@@ -158,11 +85,11 @@ struct BriefingSectionCard: View {
         if events.isEmpty {
             if section.errorMessage == nil {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Clear day")
-                        .font(.display(22))
+                    Text("Nothing else today.")
+                        .font(.bodyText)
                         .foregroundStyle(Color.inkPrimary)
                     Text(section.content.isEmpty ? "Nothing on the calendar. Good time for deep work." : section.content)
-                        .font(.subheadline)
+                        .font(.secondaryText)
                         .foregroundStyle(Color.inkSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -172,39 +99,23 @@ struct BriefingSectionCard: View {
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(events.enumerated()), id: \.element.id) { index, event in
-                    HStack(alignment: .top, spacing: 12) {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
                         Text(event.time)
-                            .font(.subheadline.weight(.medium).monospacedDigit())
+                            .font(.system(size: 13, weight: .medium).monospacedDigit())
                             .foregroundStyle(Color.inkSecondary)
-                            .frame(width: 72, alignment: .trailing)
+                            .frame(width: 56, alignment: .leading)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
-
-                        ZStack(alignment: .top) {
-                            Rectangle()
-                                .fill(Color.inkPrimary.opacity(0.14))
-                                .frame(width: 1)
-                                .padding(.top, index == 0 ? 8 : 0)
-                                .padding(.bottom, index == events.count - 1 ? 12 : 0)
-                            Circle()
-                                .fill(index == 0 ? Color.appAccentColor : Color.inkSecondary)
-                                .frame(width: 8, height: 8)
-                                .padding(.top, 5)
-                        }
-                        .frame(width: 8)
-
                         Text(event.title)
-                            .font(index == 0 ? .body.weight(.semibold) : .body)
+                            .font(.system(size: 17, weight: index == 0 ? .semibold : .regular))
                             .foregroundStyle(Color.inkPrimary)
                             .fixedSize(horizontal: false, vertical: true)
-                            .padding(.bottom, index == events.count - 1 ? 0 : 14)
-
                         Spacer(minLength: 0)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 11)
+                    if index < events.count - 1 { Hairline() }
                 }
             }
-            .padding(.top, 2)
             .accessibilityElement(children: .combine)
         }
     }
@@ -219,25 +130,19 @@ struct BriefingSectionCard: View {
         } else {
             VStack(spacing: 0) {
                 ForEach(Array(lines.enumerated()), id: \.element.id) { index, line in
-                    HStack(spacing: 12) {
-                        Text(line.symbol)
-                            .font(.subheadline.weight(.bold))
-                            .foregroundStyle(Color.inkPrimary)
-                            .frame(minWidth: 52, alignment: .leading)
-                        Spacer(minLength: 0)
-                        Text(line.price)
-                            .font(.body.weight(.medium).monospacedDigit())
-                            .foregroundStyle(Color.inkPrimary)
-                        ChangePill(change: line.change)
-                            .frame(minWidth: 76, alignment: .trailing)
+                    let series = marketSeries[line.symbol]
+                    Button {
+                        onOpenMarkets?()
+                    } label: {
+                        MarketRow(symbol: line.symbol, priceText: line.price, change: line.change,
+                                  series: series?.points ?? [], prevClose: series?.prevClose, compact: true)
+                            .contentShape(Rectangle())
                     }
-                    .padding(.vertical, 10)
+                    .buttonStyle(.pressable)
+                    .accessibilityHint(onOpenMarkets == nil ? "" : "Opens the Markets tab")
                     if index < lines.count - 1 { Hairline() }
                 }
             }
-            .contentShape(Rectangle())
-            .onTapGesture { onOpenMarkets?() }
-            .accessibilityHint(onOpenMarkets == nil ? "" : "Opens the Markets tab")
         }
     }
 
@@ -258,7 +163,7 @@ struct BriefingSectionCard: View {
                     ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
                         numberedRow(index: index, isLast: index == lines.count - 1) {
                             Text(line)
-                                .font(.body)
+                                .font(.bodyText)
                                 .foregroundStyle(Color.inkPrimary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -274,9 +179,8 @@ struct BriefingSectionCard: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(String(format: "%02d", index + 1))
-                    .font(.display(15, weight: .medium))
-                    .monospacedDigit()
-                    .foregroundStyle(Color.appAccentColor)
+                    .font(.system(size: 13, weight: .medium).monospacedDigit())
+                    .foregroundStyle(Color.inkSecondary)
                     .frame(width: 24, alignment: .leading)
                 content()
                 Spacer(minLength: 0)
@@ -309,17 +213,19 @@ struct BriefingSectionCard: View {
                         readState.markRead(article.id)
                     }
                 }
-                .font(.caption.weight(.semibold))
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Color.inkSecondary)
+                .buttonStyle(.pressable)
                 .padding(.top, 10)
             } else {
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark.circle")
-                        .foregroundStyle(Color.positiveColor)
+                        .font(.system(size: 13, weight: .medium))
+                        .symbolRenderingMode(.hierarchical)
                     Text("All caught up")
-                        .foregroundStyle(Color.inkSecondary)
                 }
-                .font(.caption)
+                .font(.metaText)
+                .foregroundStyle(Color.inkSecondary)
                 .padding(.top, 10)
             }
         }
@@ -333,32 +239,30 @@ struct BriefingSectionCard: View {
         if stats.isEmpty {
             plainBody
         } else {
-            let columns: [GridItem] = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
-            LazyVGrid(columns: columns, spacing: 12) {
+            // Two columns of stats, label over value, like the weather stats in the scene.
+            let columns: [GridItem] = [GridItem(.flexible(), spacing: 12, alignment: .leading), GridItem(.flexible(), spacing: 12, alignment: .leading)]
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
                 ForEach(stats) { stat in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(stat.label)
-                            .font(.caption)
-                            .foregroundStyle(Color.inkSecondary)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Eyebrow(text: stat.label)
                         HStack(alignment: .firstTextBaseline, spacing: 3) {
                             Text(stat.value)
-                                .font(.display(24, weight: .medium))
-                                .monospacedDigit()
+                                .font(.system(size: 22, weight: .medium).monospacedDigit())
                                 .foregroundStyle(Color.inkPrimary)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.7)
                             if let unit = stat.unit {
                                 Text(unit)
-                                    .font(.caption)
+                                    .font(.metaText)
                                     .foregroundStyle(Color.inkSecondary)
                             }
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(12)
-                    .background(Color.inkPrimary.opacity(0.04), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .accessibilityElement(children: .combine)
                 }
             }
+            .padding(.vertical, 6)
         }
     }
 
@@ -366,28 +270,28 @@ struct BriefingSectionCard: View {
 
     private var plainBody: some View {
         Text(section.content)
-            .font(.body)
+            .font(.bodyText)
             .foregroundStyle(Color.inkPrimary)
             .lineSpacing(3)
             .fixedSize(horizontal: false, vertical: true)
     }
 
     private var permissionBanner: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.caption)
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 13, weight: .medium))
+                .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(Color.negativeColor)
             Text(section.errorMessage ?? "")
-                .font(.caption)
+                .font(.metaText)
                 .foregroundStyle(Color.inkPrimary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             Text("Settings › Permissions")
-                .font(.caption2.weight(.semibold))
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Color.inkSecondary)
         }
-        .padding(10)
-        .background(Color.negativeColor.opacity(0.08), in: RoundedRectangle(cornerRadius: AppRadius.banner, style: .continuous))
+        .padding(.vertical, 8)
     }
 }
 
@@ -572,10 +476,10 @@ struct EmptyStateView: View {
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(Color.appAccentColor)
             Text(title)
-                .font(.display(22))
+                .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(Color.inkPrimary)
             Text(message)
-                .font(.subheadline)
+                .font(.secondaryText)
                 .foregroundStyle(Color.inkSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -586,19 +490,18 @@ struct EmptyStateView: View {
 
 // MARK: - Loading State View
 
-/// Three card-shaped skeletons with a shimmer, in place of a spinner.
+/// Three block-shaped skeletons with a shimmer, in place of a spinner (no card frames).
 struct LoadingStateView: View {
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(alignment: .leading, spacing: 28) {
             ForEach(0..<3, id: \.self) { index in
                 VStack(alignment: .leading, spacing: 12) {
                     SkeletonLine(width: 72, height: 10)
-                    SkeletonLine(width: index == 0 ? 140 : nil, height: index == 0 ? 32 : 14)
+                    SkeletonLine(width: index == 0 ? 140 : nil, height: index == 0 ? 26 : 14)
                     SkeletonLine(height: 14)
                     SkeletonLine(width: 180, height: 14)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .editorialCard()
             }
         }
         .accessibilityLabel("Loading your briefing")
@@ -607,14 +510,10 @@ struct LoadingStateView: View {
 
 // MARK: - Preview
 
-#Preview("Cards") {
+#Preview("Sections") {
     ThemeStore.shared.themeRaw = AppTheme.light.rawValue
     return ScrollView {
-        VStack(spacing: 16) {
-            BriefingSectionCard(section: BriefingSection(
-                id: "weather", title: "Weather", icon: "🌤️",
-                content: "64°F (Partly Cloudy) in Murrieta. Feels like 62°F. Humidity 40%. Wind 8 mph W.",
-                sentiment: "positive"))
+        VStack(spacing: 28) {
             BriefingSectionCard(section: BriefingSection(
                 id: "calendar", title: "Calendar", icon: "📅",
                 content: "9:00 AM — Standup\n11:30 AM — Design review with Priya\n3:00 PM — Dentist",
@@ -622,7 +521,9 @@ struct LoadingStateView: View {
             BriefingSectionCard(section: BriefingSection(
                 id: "markets", title: "Markets", icon: "📈",
                 content: "SPY: $735.29 ↓2.70%\nBTC: $75,699 ↑1.12%",
-                sentiment: "bearish"))
+                sentiment: "bearish"),
+                marketSeries: ["SPY": MarketSeries(prevClose: 755.0, points: MarketPreviewData.spy),
+                               "BTC": MarketSeries(prevClose: 74_860, points: MarketPreviewData.btc)])
             BriefingSectionCard(section: BriefingSection(
                 id: "health", title: "Health", icon: "❤️‍🔥",
                 content: "Last night: 7h 12m asleep (of 7h 50m in bed). Today: 8432 steps. HRV: 45ms. Resting HR: 58 bpm. ",
@@ -645,7 +546,7 @@ struct LoadingStateView: View {
 #Preview("Headlines, empty, loading") {
     ThemeStore.shared.themeRaw = AppTheme.dark.rawValue
     return ScrollView {
-        VStack(spacing: 16) {
+        VStack(spacing: 28) {
             BriefingSectionCard(section: BriefingSection(
                 id: "headlines", title: "Headlines", icon: "📰",
                 content: "• Fed holds rates steady as inflation cools\n• Apple previews on-device models for iOS 27\n• Storm system to bring rain to Southern California",

@@ -264,33 +264,35 @@ struct AppPalette: Sendable {
 
     static func palette(for appearance: ColorAppearance) -> AppPalette {
         switch appearance {
+        // Light surfaces are white at 70% over the canvas, pre-blended so every token stays
+        // an opaque hex. Light accents are checked at >= 4.5:1 on white (ember: 5.2:1).
         case .warm:
             return AppPalette(
-                backgroundLight: "F7F2EA", backgroundDark: "0F0E0D",
-                surfaceLight: "FFFCF7", surfaceDark: "1A1816",
-                accentLight: "B5491E", accentDark: "E8824F",
-                positiveLight: "276A4E", positiveDark: "5FB88F",
-                negativeLight: "A63D30", negativeDark: "E8766A",
-                inkLight: "1C1917", inkDark: "F3EEE6",
-                inkSecondaryLight: "6B6560", inkSecondaryDark: "A69F96")
+                backgroundLight: "F3F0E9", backgroundDark: "0B0C11",
+                surfaceLight: "FBFAF8", surfaceDark: "16181F",
+                accentLight: "BF4518", accentDark: "FF7846",
+                positiveLight: "157B65", positiveDark: "58C9A6",
+                negativeLight: "C44740", negativeDark: "FF746C",
+                inkLight: "121214", inkDark: "F5F2EC",
+                inkSecondaryLight: "6E6A63", inkSecondaryDark: "ABA8A2")
         case .cool:
             return AppPalette(
-                backgroundLight: "F1F4F8", backgroundDark: "0E1116",
-                surfaceLight: "FFFFFF", surfaceDark: "181C23",
-                accentLight: "3B5B8C", accentDark: "7FA3D9",
-                positiveLight: "276A4E", positiveDark: "5FB88F",
-                negativeLight: "A63D30", negativeDark: "E8766A",
-                inkLight: "171A1F", inkDark: "EEF1F5",
-                inkSecondaryLight: "5F6670", inkSecondaryDark: "9AA3AF")
+                backgroundLight: "EFF2F6", backgroundDark: "0A0D14",
+                surfaceLight: "FAFBFC", surfaceDark: "151A23",
+                accentLight: "35568A", accentDark: "7FA8E6",
+                positiveLight: "157B65", positiveDark: "58C9A6",
+                negativeLight: "C44740", negativeDark: "FF746C",
+                inkLight: "121418", inkDark: "EEF1F5",
+                inkSecondaryLight: "646B75", inkSecondaryDark: "9EA6B1")
         case .calm:
             return AppPalette(
-                backgroundLight: "F2F5F1", backgroundDark: "0E120F",
-                surfaceLight: "FBFDFB", surfaceDark: "171C18",
-                accentLight: "3F7A5F", accentDark: "7CC4A0",
-                positiveLight: "276A4E", positiveDark: "5FB88F",
-                negativeLight: "A63D30", negativeDark: "E8766A",
-                inkLight: "161A17", inkDark: "ECF1EC",
-                inkSecondaryLight: "5F6A62", inkSecondaryDark: "98A59C")
+                backgroundLight: "F0F3EE", backgroundDark: "0A0F0C",
+                surfaceLight: "FAFBF9", surfaceDark: "151B17",
+                accentLight: "2F6E52", accentDark: "7CCDA4",
+                positiveLight: "157B65", positiveDark: "58C9A6",
+                negativeLight: "C44740", negativeDark: "FF746C",
+                inkLight: "111613", inkDark: "ECF1EC",
+                inkSecondaryLight: "636B65", inkSecondaryDark: "9BA79F")
         }
     }
 }
@@ -367,7 +369,7 @@ extension Color {
 
     /// Hairline rules and card borders: ink at low opacity so it follows the theme.
     @MainActor static var hairline: Color {
-        inkPrimary.opacity(0.08)
+        inkPrimary.opacity(0.10)
     }
 
     /// Text on an accent-filled control: white on the light accent, ink on the lighter dark
