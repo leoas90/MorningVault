@@ -100,9 +100,18 @@ Goal: the summary reads like a chief of staff wrote it.
 - Yahoo's unofficial chart endpoint: if it breaks, swap the Worker to another source without an app update.
 - Single tester: field bugs surface slowly. Add 2 to 3 TestFlight testers in M2 (Anna, one colleague).
 
-## 5. Open decisions for Yezid
+## 5. Decisions (2026-11-07, Yezid)
 
-1. App Store 1.0 target date: is 2026-12-12 right, or ship earlier with Meetings marked beta?
-2. Price alerts in M4: wire them or delete the feature?
-3. Add external testers in M2: who?
-4. Mac companion: wanted in 2027 Q1, or not at all?
+1. App Store 1.0 target: 2026-12-12.
+2. Price alerts: wire them (M4), on-device thresholds, no push server.
+3. External testers in M2: Anna and Omar.
+4. Mac companion: yes, planned for 2027 Q1 (M5 moves earlier for Mac only).
+
+## 6. Monetization (proposed, pending Yezid's pricing call)
+
+Recommendation: freemium with a subscription, no ads. Ads would require an ad SDK that tracks users, which breaks the "Data Not Collected" label, triggers the App Tracking Transparency prompt, and contradicts the product's whole promise. At this audience size ad revenue would be cents.
+
+- Free: full Brief (weather, calendar, AI summary, headlines, spoken brief), Markets up to 3 symbols, Meetings up to 3 recordings a month, small widget.
+- Pro (proposed $4.99/month or $39.99/year, 7-day free trial, Family Sharing on): unlimited Meetings with speaker labels and Reminders export, 10 symbols with price alerts, all widget sizes and the Live Activity, the Mac companion, Private Cloud Compute summaries when available.
+- Implementation: StoreKit 2 subscriptions verified on device (no server, no account), one paywall screen in the app's design language, restore purchases in Settings. Small Business Program keeps Apple's cut at 15%.
+- Timing: ship 1.0 free on 2026-12-12 to collect usage; turn on Pro with M3 (Meetings) in January, so the paid tier launches with the feature that justifies it.
