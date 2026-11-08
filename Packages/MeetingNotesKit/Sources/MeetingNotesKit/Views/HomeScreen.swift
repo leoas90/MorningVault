@@ -68,7 +68,6 @@ struct HomeScreen: View {
     @ObservedObject private var router = MeetingsRouter.shared
     @AppStorage(MarkdownCopiesSetting.key) private var saveMarkdownCopies = false
     @Namespace private var zoom
-    @State private var searchText = ""
     @State private var showVoiceEnrollment = false
     @State private var now = Date()
     @State private var path: [HomeDestination] = []
@@ -79,9 +78,6 @@ struct HomeScreen: View {
     var previewEvents: [CalendarEventInfo]?
     /// Previews only: a recording shown inline instead of the live session's.
     var previewRecording: LiveRecordingState?
-    /// Previews only: the preview canvas ignores safe-area insets, so a floating bar
-    /// would cover the last rows. The pill is drawn in the scroll instead.
-    var previewLayout = false
 
     private let minuteTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
@@ -89,9 +85,9 @@ struct HomeScreen: View {
         NavigationStack(path: $path) {
             List {
                 header
-                    .homeRow(top: 8, bottom: meetings.isEmpty ? 8 : 16)
+                    .homeRow(top: 8, bottom: meetings.isEmpty ? 8 : 12)
 
-                if meetings.isEmpty, !isSearching {
+                if meetings.isEmpty {
                     Text(upcomingEvents.isEmpty
                          ? "Nothing recorded yet. Notes, transcript and a summary stay on this device."
                          : "Nothing recorded yet. Record the next meeting, or start one now.")
@@ -100,9 +96,6 @@ struct HomeScreen: View {
                         .foregroundStyle(theme.inkSoft)
                         .homeRow(top: 0, bottom: 16)
                         .accessibilityHint("Use New meeting to start recording")
-                } else {
-                    searchField
-                        .homeRow(top: 0, bottom: 20)
                 }
 
                 if let saveError {
@@ -110,7 +103,7 @@ struct HomeScreen: View {
                         .homeRow(top: 0, bottom: 16)
                 }
 
-                if !isSearching {
+                if true {
                     liveBlock
                         .homeRow(top: 0, bottom: 0)
 
@@ -131,17 +124,7 @@ struct HomeScreen: View {
                     }
                 }
 
-                if meetings.isEmpty {
-                    if isSearching {
-                        EmptyStateView(symbol: "magnifyingglass", title: "No matches",
-                                       message: "Nothing in your titles, notes or transcripts matches “\(searchText)”.")
-                            .homeRow(top: 8, bottom: 0)
-                    }
-                } else if filteredMeetings.isEmpty {
-                    EmptyStateView(symbol: "magnifyingglass", title: "No matches",
-                                   message: "Nothing in your titles, notes or transcripts matches “\(searchText)”.")
-                        .homeRow(top: 8, bottom: 0)
-                } else {
+                if !meetings.isEmpty {
                     ForEach(groupedMeetings, id: \.group) { bucket in
                         Eyebrow(bucket.group.title)
                             .homeRow(top: MeetingsSpace.sectionGap, bottom: 4)
@@ -163,24 +146,16 @@ struct HomeScreen: View {
                     }
                 }
 
-                if previewLayout, !isLive {
-                    newMeetingPill
-                        .padding(.top, 12)
-                        .homeRow(top: 0, bottom: 8)
-                } else {
-                    Color.clear
-                        .frame(height: 24)
-                        .homeRow(top: 0, bottom: 0)
-                }
+                Color.clear
+                    .frame(height: 24)
+                    .homeRow(top: 0, bottom: 0)
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.immediately)
             .themedPageBackground()
             .hiddenNavigationBar()
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                if previewLayout { Color.clear.frame(height: 0) } else { newMeetingPill }
-            }
+            .safeAreaInset(edge: .bottom, spacing: 0) { newMeetingPill }
             .navigationDestination(for: HomeDestination.self) { destination in
                 switch destination {
                 case .meeting(let meetingID):
@@ -252,33 +227,6 @@ struct HomeScreen: View {
             }
             .accessibilityLabel("More actions")
         }
-    }
-
-    private var searchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(theme.inkSoft)
-            TextField("Search titles, notes and transcripts", text: $searchText)
-                .font(MeetingsType.secondary)
-                .foregroundStyle(theme.ink)
-                .autocorrectionDisabled()
-            if !searchText.isEmpty {
-                Button {
-                    searchText = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 15))
-                        .foregroundStyle(theme.inkSoft)
-                        .frame(width: 28, height: 28)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear search")
-            }
-        }
-        .padding(.horizontal, 12)
-        .frame(height: 40)
-        .background(theme.ink.opacity(0.05), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     // MARK: - Live recording
@@ -432,10 +380,6 @@ struct HomeScreen: View {
         }
     }
 
-    private var isSearching: Bool {
-        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
     /// Today's events that have not ended yet.
     private var upcomingEvents: [CalendarEventInfo] {
         (previewEvents ?? calendar.events).filter { $0.end > now }
@@ -445,14 +389,8 @@ struct HomeScreen: View {
         event.start <= now && event.end > now
     }
 
-    private var filteredMeetings: [Meeting] {
-        meetings.filter { meeting in
-            MeetingSearch.matches(query: searchText, fields: [meeting.title, meeting.scratchpad, meeting.transcript])
-        }
-    }
-
     private var groupedMeetings: [(group: MeetingDayGroup, items: [Meeting])] {
-        MeetingDayGroup.grouped(filteredMeetings, date: \.startedAt, now: now)
+        MeetingDayGroup.grouped(meetings, date: \.startedAt, now: now)
     }
 
     private func openCount(for meeting: Meeting) -> Int {
@@ -889,8 +827,7 @@ struct MeetingsHubPreview: View {
     var body: some View {
         HomeScreen(
             previewEvents: empty ? [] : MeetingPreviewData.sampleEvents(),
-            previewRecording: recording ? MeetingPreviewData.liveRecording : nil,
-            previewLayout: true
+            previewRecording: recording ? MeetingPreviewData.liveRecording : nil
         )
         .modelContainer(MeetingPreviewData.previewContainer(empty: empty))
         .meetingsTheme(MeetingPreviewData.warmTheme(scheme))

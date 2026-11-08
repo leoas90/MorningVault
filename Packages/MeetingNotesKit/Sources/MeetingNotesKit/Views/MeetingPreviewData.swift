@@ -39,14 +39,6 @@ public enum MeetingPreviewData {
                 "Sam is happy with the new on-call rotation. Wants to pick up the accessibility audit next sprint.",
                 "",
                 []
-            ),
-            (
-                "Vendor call",
-                -12 * 86_400 - 1_800,
-                [],
-                "",
-                "",
-                []
             )
         ]
 
