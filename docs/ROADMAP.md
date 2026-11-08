@@ -1,0 +1,108 @@
+# MorningVault — product roadmap and execution plan
+
+Written 2026-11-07. Owner: Yezid. Builder: Hermes (with delegated subagents). Source of truth for this plan is this file; update it in place.
+
+## 1. Where we are
+
+- iPhone app on TestFlight, build 57 building from `3e0ec7a`. iOS 26+. Swift 6, SwiftUI, no third-party SDKs.
+- Four tabs: Brief (weather, AI day summary, next events, changes since yesterday, markets, health, headlines, spoken brief), Markets (watchlist with real intraday sparklines, entry price and P&L), Meetings (record, live transcript, speaker separation, on-device summary and action items, widgets and Live Activity), Settings.
+- Everything personal stays on the phone. The only server is the price proxy at `api.morningvault.app` (Cloudflare Worker, no keys, 5-minute cache).
+- Design: "editorial morning paper". Serif display type, warm canvas, full-bleed sky that follows the real hour and weather, one continuous flow with hairlines, no card boxes. New app icon (dark dawn). Design rules live in `MorningVault/Views/Components/DesignSystem.swift`.
+- App Store Connect: app record exists, age rating 12+, privacy "Data Not Collected". Not submitted.
+
+What is unproven: everything above has been verified by builds, tests and simulator previews. Real-device verification of recording, transcription, the 6:55 background refresh, widgets and the Live Activity rests on Yezid's phone.
+
+## 2. Product thesis
+
+One app that answers "what do I need to know this morning, and what needs me today" for a traveling sales manager, without sending a byte of personal data anywhere. Three jobs:
+
+1. **Brief**: the morning read in 20 seconds (screen or voice).
+2. **Meetings**: capture the meeting in the car or the room, get notes and action items without typing.
+3. **Markets**: the few positions you care about, at a glance, no brokerage login.
+
+Non-goals: social features, accounts, cloud sync beyond iCloud key-value, Android, a Mac app (until Meetings on Mac is wanted for video calls).
+
+## 3. Roadmap
+
+### M1. Stable daily driver (now to 2026-11-21)
+
+Goal: Yezid uses it every morning for two weeks without a crash or a wrong fact.
+
+- Field-verify on device: morning background refresh at the briefing time (watch for the Swift 6 isolation crash class), Kokoro voice start time and fallback, widget timeline, Meetings record/pause/stop/Live Activity, zoom transition back to the live block.
+- Markets: confirm the daily-change fix (vs yesterday's close) against Robinhood numbers; add "market closed / pre-market" state to the Updated line.
+- Brief: regenerate the AI summary when the calendar changes after 6 a.m.; show "last refreshed" honestly; empty states per source (already) tested on device.
+- Bugs found in the field get fixed the same day; nothing new ships to the Brief until the two weeks are clean.
+- Exit criteria: 10 consecutive mornings with a correct brief, zero crash reports in App Store Connect.
+
+### M2. App Store 1.0 (2026-11-22 to 2026-12-12)
+
+Goal: public listing, free, no account.
+
+- Yezid: 3 to 5 screenshots on the 16 Pro Max (Brief, Meetings recording, Markets, widget), enroll in the Small Business Program, confirm the privacy questionnaire.
+- Hermes: upload screenshots via the API, App Store description and keywords in the app's voice, review notes explaining on-device processing and the price proxy, Privacy manifest check, Accessibility pass (Dynamic Type at AX sizes, VoiceOver labels on the Brief and Meetings), Reduce Motion pass.
+- Onboarding: one screen per permission with a reason, "Your voice" enrollment prompt, skip everywhere.
+- Settings: Sources editor reachable from the Headlines block (open item from the November review), "Saved" headlines or remove the action.
+- Exit criteria: approved by App Review; 1.0 on the store.
+
+### M3. Meetings that pay for themselves (2026-12-13 to 2027-01-16)
+
+Goal: the recorder becomes the reason to open the app during the day.
+
+- Partial saves every minute and on pause (no lost recordings on a crash).
+- Transcript timestamps with tap-to-seek playback.
+- Streaming enhanced notes while the summary is written.
+- Action items to Reminders in one tap with owner and due date; "yesterday's open items" on the Brief as tappable rows (data already flows).
+- Calendar-aware: meeting title, attendees and talking points prefilled from the event; Siri "Start a meeting" from the car.
+- Export: Markdown and share sheet; optional iCloud Drive folder so the Mac agents can read notes.
+- Exit criteria: Yezid records three real meetings a week and uses the action items.
+
+### M4. The brief gets smarter (2027-01-17 to 2027-02-27)
+
+Goal: the summary reads like a chief of staff wrote it.
+
+- Private Cloud Compute path (compiled out behind `PCC_ENABLED`) once Apple grants the entitlement, used only when the on-device model declines; still no third-party servers.
+- Headline gists from the on-device model (already partly there), source quality ranking, "why this matters to you" when a headline touches a tracked symbol or a calendar company.
+- Commute line: leave-by time for the first event using MapKit ETA, on device.
+- Health: trend lines (7-day sleep, HRV) instead of single numbers; honest labeling.
+- Price alerts: wire or delete the anomaly service (currently dead code). If wired: on-device threshold alerts from the proxy, no push server.
+
+### M5. Reach (2027-03 onward, decide after M2 data)
+
+- Mac companion for video-call capture (ScreenCaptureKit), sharing the Meetings package.
+- iPad layout.
+- Localization: Spanish first.
+- Paid tier only if there is a real cost to cover (PCC usage or a paid data feed). Default stays free.
+
+## 4. Execution plan
+
+### Cadence
+
+- One TestFlight build per working day at most, from `main`. Xcode Cloud builds on push; builds are numbered by CI.
+- Weekly: Sunday evening, Hermes posts a one-screen status to Telegram: what shipped, what Yezid should test on the phone, what's blocked.
+- Design changes go through the preview-and-review loop (render, strict reviewer, fix) before merge. Standing rules: no rounded containers, one flow with hairlines, serif only for display, SF Symbols only, accent for one control per screen.
+
+### Division of labor
+
+- Yezid: phone testing and feedback, screenshots, Apple account actions (Small Business Program, privacy questionnaire, PCC entitlement follow-up), taste calls on design.
+- Hermes: everything in the repo, the Worker, App Store Connect via API, crash triage from TestFlight feedback, this document.
+
+### Quality gates (every merge)
+
+- Release build of app and widget with zero errors; package tests green (the one EPERM test is environmental).
+- No raw `UIColor { }` providers; grep before merge (crash class from builds 37, 45, 46, 47).
+- Previews render for every changed screen, light and dark.
+- No new permission without an onboarding reason and a privacy-manifest entry.
+
+### Risks
+
+- Apple review on "Data Not Collected" with a network call: mitigated by review notes (only ticker symbols leave the phone).
+- Kokoro on iOS 27 (FluidAudio advisory): guard already trips to the system voice after two failures; keep it.
+- Yahoo's unofficial chart endpoint: if it breaks, swap the Worker to another source without an app update.
+- Single tester: field bugs surface slowly. Add 2 to 3 TestFlight testers in M2 (Anna, one colleague).
+
+## 5. Open decisions for Yezid
+
+1. App Store 1.0 target date: is 2026-12-12 right, or ship earlier with Meetings marked beta?
+2. Price alerts in M4: wire them or delete the feature?
+3. Add external testers in M2: who?
+4. Mac companion: wanted in 2027 Q1, or not at all?
