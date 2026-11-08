@@ -129,4 +129,4 @@ Pricing approved by Yezid: Free + Pro $4.99/mo or $39.99/yr. Assumptions: ~150 W
 
 Fixed: Apple Developer $99/yr, domain ~$15/yr. On-device AI, voice and transcription cost nothing to run. Private Cloud Compute pricing for developers is unpublished.
 
-Actions: (1) replace Yahoo with a licensed quote feed before 1.0 (Yahoo's endpoint is not licensed for commercial redistribution); get quotes for delayed data. (2) Cut WeatherKit calls ~60% by fetching only when older than 60 min. (3) Set Cloudflare and WeatherKit billing alerts.
+Actions: (1) replace Yahoo with a licensed quote feed before 1.0 (Yahoo's endpoint is not licensed for commercial redistribution); get quotes for delayed data. (2) Done 2026-11-07: weather is reused for 60 min (15 min on pull-to-refresh) and only current conditions are requested, roughly halving calls. (3) Set Cloudflare and WeatherKit billing alerts.

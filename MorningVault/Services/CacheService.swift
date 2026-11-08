@@ -35,6 +35,11 @@ actor TTLCache {
         return entry.value.decode(T.self)
     }
 
+    /// Seconds since `key` was written, without expiring it (nil when absent).
+    func age(_ key: String) -> TimeInterval? {
+        loadEntry(key).map { Date().timeIntervalSince($0.timestamp) }
+    }
+
     func set<T: Codable>(_ key: String, value: T, ttl: TimeInterval? = nil) {
         let entry = CacheEntry(timestamp: Date(), ttl: ttl, value: AnyCodable(encodable: value))
         saveEntry(key, entry)
@@ -62,7 +67,7 @@ actor TTLCache {
     // MARK: - Typed convenience accessors
 
     func getWeather() -> WeatherData? { get("weather") }
-    func setWeather(_ data: WeatherData, ttl: TimeInterval = 1800) { set("weather", value: data, ttl: ttl) }
+    func setWeather(_ data: WeatherData, ttl: TimeInterval = 3 * 3600) { set("weather", value: data, ttl: ttl) }
 
     func getHealth() -> HealthData? { get("health") }
     func setHealth(_ data: HealthData, ttl: TimeInterval = 3600) { set("health", value: data, ttl: ttl) }

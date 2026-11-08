@@ -585,7 +585,12 @@ final class BriefingViewModel: ObservableObject {
         if localOnly {
             return await cache.getWeather()
         }
-        if !forceLive, let cached: WeatherData = await cache.getWeather() {
+        // WeatherKit is billed per call. Conditions change slowly, so reuse a reading for
+        // an hour; pull-to-refresh and other forced reloads still reuse one under 15 min.
+        // The cached copy is kept for 3 h as the fallback when a fetch fails.
+        let maxAge: TimeInterval = forceLive ? 15 * 60 : 60 * 60
+        if let age = await cache.age("weather"), age < maxAge,
+           let cached: WeatherData = await cache.getWeather() {
             return cached
         }
         let data = await weatherService.fetchWeather()

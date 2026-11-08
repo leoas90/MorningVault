@@ -114,9 +114,11 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
 
     private func fetchWeatherByLocation(_ location: CLLocation) async -> WeatherData? {
         do {
-            let weather = try await WeatherKit.WeatherService.shared.weather(for: location)
+            // Only the current conditions are shown; asking for the full forecast set
+            // (minute, hourly, daily, alerts) downloads and bills for data we never read.
+            let current = try await WeatherKit.WeatherService.shared.weather(for: location, including: .current)
             lastError = nil
-            return parseWeatherKitResponse(weather)
+            return parseWeatherKitResponse(current)
         } catch {
             // No third-party fallback: the app only talks to Apple services and its own backend.
             lastError = "WeatherKit unavailable: \(error.localizedDescription)"
@@ -126,8 +128,7 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
 
     // MARK: - Parse WeatherKit response → WeatherData
 
-    private func parseWeatherKitResponse(_ weather: WeatherKit.Weather) -> WeatherData? {
-        let current = weather.currentWeather
+    private func parseWeatherKitResponse(_ current: CurrentWeather) -> WeatherData? {
 
         let tempC = Int(current.temperature.value)
         let condition = current.condition.description
