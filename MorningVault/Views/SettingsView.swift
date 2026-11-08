@@ -19,6 +19,7 @@ struct SettingsView: View {
     @AppStorage(UnitsPreference.storageKey) private var unitsRaw: String = UnitsPreference.automatic.rawValue
     @AppStorage("voice_briefing_enabled") private var voiceBriefingEnabled = false
     @AppStorage(NaturalVoiceGuard.enabledKey) private var naturalVoiceEnabled = true
+    @AppStorage(VoiceBriefingService.fullBriefingKey) private var fullVoiceBriefing = false
     @State private var hasAppeared = false
     @FocusState private var isNameFieldFocused: Bool
     // Meetings tab permissions (microphone, speech, reminders); refreshed on appear and after each tap.
@@ -324,7 +325,7 @@ struct SettingsView: View {
             return "The natural voice stopped unexpectedly on this iOS version, so the system voice is reading for now. Turn Natural voice off and on to try it again."
         }
         if naturalVoiceEnabled {
-            return "Tap the Listen button on the Brief to hear your morning update. Emma's voice is generated on this iPhone; nothing is sent anywhere."
+            return "Short reads the weather, your calendar and the day summary; Full reads every card. Emma's voice is generated on this iPhone; nothing is sent anywhere."
         }
         return "Tap the Listen button on the Brief to hear your morning update in the system voice."
     }
@@ -344,6 +345,12 @@ struct SettingsView: View {
                 .onChange(of: naturalVoiceEnabled) { _, on in
                     if on { NaturalVoiceGuard.reset() }
                 }
+
+                Picker("Length", selection: $fullVoiceBriefing) {
+                    Text("Short").tag(false)
+                    Text("Full").tag(true)
+                }
+                .pickerStyle(.segmented)
 
                 Text(naturalVoiceFooter)
                     .font(.caption)

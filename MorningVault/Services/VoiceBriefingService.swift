@@ -302,10 +302,76 @@ final class VoiceBriefingService: ObservableObject {
         isSpeaking = false
     }
 
-    /// Speaks briefing sections as a conversational briefing.
-    func speakBriefing(sections: [BriefingSection]) {
-        let text = compileBriefingText(from: sections)
+    /// Speaks the briefing. Short (default): greeting, weather, calendar headline and the
+    /// on-device day summary, about 20 seconds. Full: every section, as before.
+    func speakBriefing(sections: [BriefingSection], summary: String? = nil) {
+        let full = UserDefaults.standard.bool(forKey: Self.fullBriefingKey)
+        let text = full
+            ? compileBriefingText(from: sections)
+            : Self.compileShortBriefing(from: sections, summary: summary)
         speak(text: text)
+    }
+
+    static let fullBriefingKey = "voiceBriefingFull"
+
+    /// A short spoken brief: greeting, one weather line, the day's calendar in one line,
+    /// then the two-sentence AI summary. Without a summary, one markets line instead.
+    nonisolated static func compileShortBriefing(from sections: [BriefingSection], summary: String?, now: Date = Date()) -> String {
+        var parts: [String] = []
+        let hour = Calendar.current.component(.hour, from: now)
+        parts.append(hour < 12 ? "Good morning." : hour < 17 ? "Good afternoon." : "Good evening.")
+
+        func section(_ id: String) -> BriefingSection? {
+            sections.first { $0.id == id && $0.errorMessage == nil }
+        }
+
+        // Weather: "64°F (Clear) in Murrieta. Feels like…" -> "In Murrieta, 64°F and clear."
+        if let w = section("weather") {
+            let first = w.content.components(separatedBy: ". ").first ?? w.content
+            let pattern = #"^(.+?) \((.+?)\) in (.+?)\.?$"#
+            if let re = try? NSRegularExpression(pattern: pattern),
+               let m = re.firstMatch(in: first, range: NSRange(first.startIndex..., in: first)),
+               let t = Range(m.range(at: 1), in: first),
+               let c = Range(m.range(at: 2), in: first),
+               let l = Range(m.range(at: 3), in: first) {
+                parts.append("In \(first[l]), \(first[t]) and \(first[c].lowercased()).")
+            } else {
+                parts.append(first.hasSuffix(".") ? first : first + ".")
+            }
+        }
+
+        // Calendar: count plus the first event. Lines look like "9:00 AM — Standup".
+        if let cal = section("calendar") {
+            let lines = cal.content.split(separator: "\n").map(String.init)
+            let events = lines.filter { $0.contains(" — ") }
+            if let firstEvent = events.first {
+                let bits = firstEvent.components(separatedBy: " — ")
+                let time = bits[0], title = bits.dropFirst().joined(separator: " — ")
+                let count: String
+                switch events.count {
+                case 1: count = "One event today"
+                case 5...: count = "A full calendar today"
+                default: count = "\(events.count) events today"
+                }
+                parts.append("\(count), starting with \(title) at \(time).")
+            } else if cal.content.hasPrefix("No events") {
+                parts.append("Your calendar is clear.")
+            }
+        }
+
+        if let summary, !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            parts.append(summary.trimmingCharacters(in: .whitespacesAndNewlines))
+        } else if let m = section("markets"), let line = m.content.split(separator: "\n").first {
+            // Arrows would be read aloud as "downwards arrow".
+            let spoken = String(line)
+                .replacingOccurrences(of: ": ", with: " at ")
+                .replacingOccurrences(of: #"\s*[↓▼]\s*"#, with: ", down ", options: .regularExpression)
+                .replacingOccurrences(of: #"\s*[↑▲]\s*"#, with: ", up ", options: .regularExpression)
+            parts.append(spoken.hasSuffix(".") ? spoken : spoken + ".")
+        }
+
+        return parts.joined(separator: " ")
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
     }
 
     /// Stops any current speech.

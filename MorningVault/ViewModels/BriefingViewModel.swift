@@ -837,7 +837,7 @@ extension BriefingViewModel {
 
     /// Speaks the briefing aloud using the warm voice.
     func speakBriefingAloud() {
-        voiceBriefingService.speakBriefing(sections: briefingSections)
+        voiceBriefingService.speakBriefing(sections: briefingSections, summary: aiDaySummary)
     }
 
     /// Stops any current voice briefing playback.
