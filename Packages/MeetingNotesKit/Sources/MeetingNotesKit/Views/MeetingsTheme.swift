@@ -130,8 +130,9 @@ enum MeetingsSpace {
     static let label: CGFloat = 8
     static let control: CGFloat = 52
     static let target: CGFloat = 44
-    /// What the app's tab bar reserves below the home. Previews pin it themselves.
-    static let tabClearance: CGFloat = 56
+    /// Empty tail the home list keeps below its last row, so the floating New meeting
+    /// pill never covers a row. The app's tab bar covers the rest.
+    static let pillClearance: CGFloat = 132
 }
 
 /// Page background that follows the host theme.

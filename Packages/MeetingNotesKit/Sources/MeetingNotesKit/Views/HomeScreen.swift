@@ -79,6 +79,9 @@ struct HomeScreen: View {
     var previewEvents: [CalendarEventInfo]?
     /// Previews only: a recording shown inline instead of the live session's.
     var previewRecording: LiveRecordingState?
+    /// Previews only: the preview canvas ignores safe-area insets, so a floating bar
+    /// would cover the last rows. The pill is drawn in the scroll instead.
+    var previewLayout = false
 
     private let minuteTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
@@ -160,16 +163,24 @@ struct HomeScreen: View {
                     }
                 }
 
-                Color.clear
-                    .frame(height: 24)
-                    .homeRow(top: 0, bottom: 0)
+                if previewLayout, !isLive {
+                    newMeetingPill
+                        .padding(.top, 12)
+                        .homeRow(top: 0, bottom: 8)
+                } else {
+                    Color.clear
+                        .frame(height: 24)
+                        .homeRow(top: 0, bottom: 0)
+                }
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.immediately)
             .themedPageBackground()
             .hiddenNavigationBar()
-            .safeAreaInset(edge: .bottom) { newMeetingPill }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if previewLayout { Color.clear.frame(height: 0) } else { newMeetingPill }
+            }
             .navigationDestination(for: HomeDestination.self) { destination in
                 switch destination {
                 case .meeting(let meetingID):
@@ -306,9 +317,13 @@ struct HomeScreen: View {
 
     /// The persistent call to action: a 52 pt accent pill. While a recording runs the
     /// inline Pause and Stop take its place.
+    /// The persistent call to action, drawn as a bottom bar the list scrolls behind:
+    /// a hairline, then a centered 52 pt accent pill. While a recording runs the inline
+    /// Pause and Stop take its place and the bar leaves.
     private var newMeetingPill: some View {
-        ZStack {
+        VStack(spacing: 0) {
             if !isLive {
+                Hairline()
                 Button {
                     start(NewMeetingRequest())
                 } label: {
@@ -319,22 +334,21 @@ struct HomeScreen: View {
                             .font(MeetingsType.button)
                     }
                     .foregroundStyle(theme.onAccentColor)
-                    .padding(.horizontal, 24)
+                    .frame(maxWidth: .infinity)
                     .frame(height: MeetingsSpace.control)
-                    .background(theme.accentColor, in: Capsule())
-                    .shadow(color: theme.accentColor.opacity(0.28), radius: 14, y: 6)
-                    .contentShape(Capsule())
+                    .background(theme.accentColor, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
                 .buttonStyle(.pressable)
                 .zoomSource(id: HomeZoomSource.newMeeting, in: zoom)
                 .accessibilityLabel("New meeting")
                 .accessibilityHint("Starts recording right away")
+                .padding(.horizontal, MeetingsSpace.margin)
+                .padding(.vertical, 12)
                 .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .bottom)))
             }
         }
-        .padding(.top, 8)
-        .padding(.bottom, 8)
-        .frame(maxWidth: .infinity)
+        .background(theme.backgroundColor.opacity(isLive ? 0 : 0.96))
         .animation(.smooth(duration: 0.35), value: isLive)
     }
 
@@ -875,14 +889,12 @@ struct MeetingsHubPreview: View {
     var body: some View {
         HomeScreen(
             previewEvents: empty ? [] : MeetingPreviewData.sampleEvents(),
-            previewRecording: recording ? MeetingPreviewData.liveRecording : nil
+            previewRecording: recording ? MeetingPreviewData.liveRecording : nil,
+            previewLayout: true
         )
         .modelContainer(MeetingPreviewData.previewContainer(empty: empty))
         .meetingsTheme(MeetingPreviewData.warmTheme(scheme))
         .preferredColorScheme(scheme)
-        // The app draws the home above a tab bar, which reserves the bottom inset the
-        // New meeting pill sits in. Previews have no tab bar, so pin the same inset.
-        .safeAreaPadding(.bottom, MeetingsSpace.tabClearance)
     }
 }
 

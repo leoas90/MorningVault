@@ -42,7 +42,7 @@ public enum MeetingPreviewData {
             ),
             (
                 "Vendor call",
-                -4 * 86_400 - 1_800,
+                -12 * 86_400 - 1_800,
                 [],
                 "",
                 "",
