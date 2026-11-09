@@ -7,9 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		02DF3BA3F6C6E4E507990E25 /* ChecklistStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB14433B3B74ED214126E9F3 /* ChecklistStoreTests.swift */; };
 		04455B3BB2A93FDBDBF16DC2 /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 43846CD46D74B41CF7F5B426 /* HealthKit.framework */; };
+		09B45772B4DBBD41236EAEE2 /* ChecklistSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BCF81A89034D8BFF7C4C001 /* ChecklistSnapshot.swift */; };
 		0EEB81CEA1E301A373890122 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E249A63C0B140CBBF820E5C4 /* SettingsView.swift */; };
 		1256E46F47C0BA89D85744B5 /* Household.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D07EA105560EBC811B63F8E /* Household.swift */; };
+		12C5E1FBC646DB8712ADA900 /* ChecklistSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BCF81A89034D8BFF7C4C001 /* ChecklistSnapshot.swift */; };
 		13457E2D7C9D9F72B43D627F /* SafariView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4D4CC7A6722E21934433A6F /* SafariView.swift */; };
 		16CC24DB9272055283A74382 /* OnboardingSymbolsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBA9C338BBD6EFB8CD1B5D46 /* OnboardingSymbolsStep.swift */; };
 		1C8F2104FBEFA8DD1337EC1E /* SkyScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 795319B94ED6C583F34E5FDC /* SkyScene.swift */; };
@@ -29,6 +32,7 @@
 		3F8DB020365D28AF69EA085B /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D59A1276B0A66C4F36590B5C /* SwiftUI.framework */; };
 		4827249630311489CE197890 /* RecordingActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D95BFAC24870DCE7D888CD92 /* RecordingActivityAttributes.swift */; };
 		4E8D3AD7F3D51CDB09E3E078 /* VoiceBriefingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E8DEEC9A141B8A080C115ED /* VoiceBriefingService.swift */; };
+		4F68DEA18772F7125396E0D5 /* Household.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 055397DAC2A75DB07B73B3C1 /* Household.xcdatamodeld */; };
 		520ECFBA0E405C95975361C9 /* AnimatedComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F43942BE2B4BF54161D7B94 /* AnimatedComponents.swift */; };
 		549ADEB6E203FE50117BAB36 /* WeatherHero.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72C69217FB41C814F48DA970 /* WeatherHero.swift */; };
 		55631AA0EA78A2EDCB297348 /* BriefingTemplatePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 241BEA956BDB6CFFEC2B09E5 /* BriefingTemplatePickerView.swift */; };
@@ -44,12 +48,15 @@
 		764BFFE9AF023668F4BC94F8 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 744744A7C6ACBF0C75D72E34 /* PrivacyInfo.xcprivacy */; };
 		791163896D6AEC61A6564A70 /* MarketsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9103CFC9B5596A76F30F951E /* MarketsView.swift */; };
 		7AD5FEE4BB1E4B56F83FE10C /* MeetingsWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAA42C170687186B32811FBE /* MeetingsWidget.swift */; };
+		7F68A88EA9892CCC9000EC03 /* ChecklistStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FA8E97AC6C1EC33810AADF7 /* ChecklistStore.swift */; };
 		810F477EAD7AE4E4F37160F9 /* OnboardingNameStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96B21FB97A30B92C5A5FC0D7 /* OnboardingNameStep.swift */; };
 		832AD0715C3DF03018E2DCBA /* MorningVaultApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 998676E916EA24056AE60CA8 /* MorningVaultApp.swift */; };
 		83DCAF4E5BE7C2DF269D55EC /* RecordingLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DB4E3E43D27AB579D38A19F /* RecordingLiveActivityWidget.swift */; };
 		859DC93EAC22D3E1E724A26C /* MeetingsSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF4A646A414F2E800418BFA7 /* MeetingsSnapshot.swift */; };
 		864377C8DAB4A7A89C816177 /* Sparkline.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E7C36006FA4ADFCBB5BDB /* Sparkline.swift */; };
 		8CF1AE2A53F43BC60F58048A /* BriefSectionPrefs.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B06519DB31FFBC73F53C45 /* BriefSectionPrefs.swift */; };
+		8F656B423D1DED9974F95F7F /* Household.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D07EA105560EBC811B63F8E /* Household.swift */; };
+		93972F81748CF319BD4C676F /* Household.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 055397DAC2A75DB07B73B3C1 /* Household.xcdatamodeld */; };
 		96D3E937B4CB2AF95DFF2920 /* MeetingPrepCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0D4005055984F536F9A3C03 /* MeetingPrepCard.swift */; };
 		9994A34682A8B9FAE5024E49 /* MorningVaultWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7F326B33C09D42D7161B8064 /* MorningVaultWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		9A643DE807D78C3B5A270B31 /* SharedBriefingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA716AFE1B7CFF2B49C066F4 /* SharedBriefingStore.swift */; };
@@ -78,6 +85,7 @@
 		DF67CDE0CEF859228EA2EFE1 /* MeetingPrepService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4FAAAF213FBE84FF9276477 /* MeetingPrepService.swift */; };
 		DFED1E3FEBEC6D0F0F35EC04 /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83D59911EA5A72F47B900500 /* AIService.swift */; };
 		E0DC5D42A99B2BB9ACE12257 /* MeetingNotesKit in Frameworks */ = {isa = PBXBuildFile; productRef = 73AD641908E3D7D849FF1C9B /* MeetingNotesKit */; };
+		EB6566C8C2BE0D3E6383D27D /* ChecklistStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FA8E97AC6C1EC33810AADF7 /* ChecklistStore.swift */; };
 		EC1E4CA31B7C5C9B7F854E2C /* StopRecordingIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC662E3FFC1BD273F4A2D28A /* StopRecordingIntent.swift */; };
 		F3480E6D0027A5C1884D74E5 /* GreetingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6884035D786F837686C765A3 /* GreetingService.swift */; };
 		F7C67B03B804B670B426A0DD /* GreetingComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0CBE9B72F0FE052713D0A6A /* GreetingComposer.swift */; };
@@ -116,6 +124,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0FA8E97AC6C1EC33810AADF7 /* ChecklistStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistStore.swift; sourceTree = "<group>"; };
 		1824F9A32CADF7BCB6237C30 /* PublicNameGuardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicNameGuardTests.swift; sourceTree = "<group>"; };
 		1927CFE7F60D2F00E0BDF16B /* MarketBackendService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketBackendService.swift; sourceTree = "<group>"; };
 		19F0CE7677F525EDF60DDE61 /* OnboardingSourcesStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSourcesStep.swift; sourceTree = "<group>"; };
@@ -139,6 +148,7 @@
 		57398225F0C285023D3C56AC /* AlarmService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmService.swift; sourceTree = "<group>"; };
 		5D4F604E0DBCADA9DF649363 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5DCC6E36072110A0C9A13105 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
+		5F6E7E5FF727C6E1DEEAC61F /* Household.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = Household.xcdatamodel; sourceTree = "<group>"; };
 		6091C9B0146CAF03D736103D /* TrackedSymbol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackedSymbol.swift; sourceTree = "<group>"; };
 		6376F2CF2B5439BE403B053D /* CoreLocation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreLocation.framework; path = System/Library/Frameworks/CoreLocation.framework; sourceTree = SDKROOT; };
 		6619476E0FF29E35D1B6F96A /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
@@ -154,6 +164,7 @@
 		88242292BC38B613DCF5E115 /* EventKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = EventKit.framework; path = System/Library/Frameworks/EventKit.framework; sourceTree = SDKROOT; };
 		8A7E8D846A7789789D5D40ED /* MeetingNotesKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MeetingNotesKit; path = Packages/MeetingNotesKit; sourceTree = SOURCE_ROOT; };
 		8A8E749131381B74347623E1 /* ThemeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeStore.swift; sourceTree = "<group>"; };
+		8BCF81A89034D8BFF7C4C001 /* ChecklistSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistSnapshot.swift; sourceTree = "<group>"; };
 		9103CFC9B5596A76F30F951E /* MarketsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketsView.swift; sourceTree = "<group>"; };
 		96717330575D4D9806610694 /* WeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherService.swift; sourceTree = "<group>"; };
 		96B21FB97A30B92C5A5FC0D7 /* OnboardingNameStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingNameStep.swift; sourceTree = "<group>"; };
@@ -173,6 +184,7 @@
 		D59A1276B0A66C4F36590B5C /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		D95BFAC24870DCE7D888CD92 /* RecordingActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingActivityAttributes.swift; sourceTree = "<group>"; };
 		DAF1AB9ADD648A1E241B6F52 /* DataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataModels.swift; sourceTree = "<group>"; };
+		DB14433B3B74ED214126E9F3 /* ChecklistStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistStoreTests.swift; sourceTree = "<group>"; };
 		DBA9C338BBD6EFB8CD1B5D46 /* OnboardingSymbolsStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSymbolsStep.swift; sourceTree = "<group>"; };
 		DF4A646A414F2E800418BFA7 /* MeetingsSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingsSnapshot.swift; sourceTree = "<group>"; };
 		E0D4005055984F536F9A3C03 /* MeetingPrepCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingPrepCard.swift; sourceTree = "<group>"; };
@@ -219,7 +231,10 @@
 		03E855DB005FA049693C8C81 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				055397DAC2A75DB07B73B3C1 /* Household.xcdatamodeld */,
 				E3B06519DB31FFBC73F53C45 /* BriefSectionPrefs.swift */,
+				8BCF81A89034D8BFF7C4C001 /* ChecklistSnapshot.swift */,
+				0FA8E97AC6C1EC33810AADF7 /* ChecklistStore.swift */,
 				F0CBE9B72F0FE052713D0A6A /* GreetingComposer.swift */,
 				D2FD59B96D01494EBE1A9597 /* MeetingsDeepLink.swift */,
 				DF4A646A414F2E800418BFA7 /* MeetingsSnapshot.swift */,
@@ -345,6 +360,7 @@
 		4A7E843203AAD83DEC39F24E /* MorningVaultTests */ = {
 			isa = PBXGroup;
 			children = (
+				DB14433B3B74ED214126E9F3 /* ChecklistStoreTests.swift */,
 				AEE14A43C073ADAD5849355C /* HouseholdModelTests.swift */,
 				1824F9A32CADF7BCB6237C30 /* PublicNameGuardTests.swift */,
 			);
@@ -549,7 +565,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				8CF1AE2A53F43BC60F58048A /* BriefSectionPrefs.swift in Sources */,
+				09B45772B4DBBD41236EAEE2 /* ChecklistSnapshot.swift in Sources */,
+				7F68A88EA9892CCC9000EC03 /* ChecklistStore.swift in Sources */,
 				AC5A57FBA45F6ADE00BB7B64 /* GreetingComposer.swift in Sources */,
+				8F656B423D1DED9974F95F7F /* Household.swift in Sources */,
+				93972F81748CF319BD4C676F /* Household.xcdatamodeld in Sources */,
 				3AF3BCF7DA10AF91B9E6F653 /* MeetingsDeepLink.swift in Sources */,
 				859DC93EAC22D3E1E724A26C /* MeetingsSnapshot.swift in Sources */,
 				7AD5FEE4BB1E4B56F83FE10C /* MeetingsWidget.swift in Sources */,
@@ -578,6 +598,8 @@
 				DC19F6726F134CBD3E779546 /* BriefingViewModel.swift in Sources */,
 				399FF72C653B49862C1EB0F4 /* CacheService.swift in Sources */,
 				2E932C7B9F19E3955192EB5B /* CalendarService.swift in Sources */,
+				12C5E1FBC646DB8712ADA900 /* ChecklistSnapshot.swift in Sources */,
+				EB6566C8C2BE0D3E6383D27D /* ChecklistStore.swift in Sources */,
 				B281FE55E090E469DAF71AAD /* ContentView.swift in Sources */,
 				6930C99BB5D04D6E57C1E262 /* DataModels.swift in Sources */,
 				9DACD9BC231ED3565039C8FB /* DesignSystem.swift in Sources */,
@@ -585,6 +607,7 @@
 				F3480E6D0027A5C1884D74E5 /* GreetingService.swift in Sources */,
 				AECF485B2044FA53AB0A4C19 /* HealthKitService.swift in Sources */,
 				1256E46F47C0BA89D85744B5 /* Household.swift in Sources */,
+				4F68DEA18772F7125396E0D5 /* Household.xcdatamodeld in Sources */,
 				3C2C043C65B846CCF1A2FF59 /* MarketBackendService.swift in Sources */,
 				791163896D6AEC61A6564A70 /* MarketsView.swift in Sources */,
 				DC829F929772EF1FCA6B304A /* MeetingPrep.swift in Sources */,
@@ -625,6 +648,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				02DF3BA3F6C6E4E507990E25 /* ChecklistStoreTests.swift in Sources */,
 				C91D0C035EE6B32F4A91C6F7 /* HouseholdModelTests.swift in Sources */,
 				221CB4E45B59077F1559008A /* PublicNameGuardTests.swift in Sources */,
 			);
@@ -833,6 +857,19 @@
 			productName = MeetingNotesKit;
 		};
 /* End XCSwiftPackageProductDependency section */
+
+/* Begin XCVersionGroup section */
+		055397DAC2A75DB07B73B3C1 /* Household.xcdatamodeld */ = {
+			isa = XCVersionGroup;
+			children = (
+				5F6E7E5FF727C6E1DEEAC61F /* Household.xcdatamodel */,
+			);
+			currentVersion = 5F6E7E5FF727C6E1DEEAC61F /* Household.xcdatamodel */;
+			path = Household.xcdatamodeld;
+			sourceTree = "<group>";
+			versionGroupType = wrapper.xcdatamodel;
+		};
+/* End XCVersionGroup section */
 	};
 	rootObject = 1F215DF61AA9EFA7D1FF823C /* Project object */;
 }

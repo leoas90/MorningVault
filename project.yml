@@ -71,6 +71,8 @@ targets:
     sources:
       - path: MorningVaultWidget
       - path: MorningVault/Shared
+      # The checklist store in Shared needs the model types.
+      - path: MorningVault/Models/Household.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.yeziddr.morningvault.dev.widget
