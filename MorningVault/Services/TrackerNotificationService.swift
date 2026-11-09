@@ -192,8 +192,3 @@ enum TrackerNotificationService {
         try? await center.add(UNNotificationRequest(identifier: id, content: copy, trigger: trigger))
     }
 }
-
-extension Notification.Name {
-    /// A notification action or an intent wrote to the checklist store from outside the UI.
-    static let checklistChangedExternally = Notification.Name("checklistChangedExternally")
-}

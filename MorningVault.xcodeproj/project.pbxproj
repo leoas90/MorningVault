@@ -60,9 +60,11 @@
 		810F477EAD7AE4E4F37160F9 /* OnboardingNameStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96B21FB97A30B92C5A5FC0D7 /* OnboardingNameStep.swift */; };
 		832AD0715C3DF03018E2DCBA /* MorningVaultApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 998676E916EA24056AE60CA8 /* MorningVaultApp.swift */; };
 		83DCAF4E5BE7C2DF269D55EC /* RecordingLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DB4E3E43D27AB579D38A19F /* RecordingLiveActivityWidget.swift */; };
+		848F252C031C5E5C3F4D738D /* ChecklistIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04DB84A29E403A0583A0A5A0 /* ChecklistIntents.swift */; };
 		859DC93EAC22D3E1E724A26C /* MeetingsSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF4A646A414F2E800418BFA7 /* MeetingsSnapshot.swift */; };
 		864377C8DAB4A7A89C816177 /* Sparkline.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E7C36006FA4ADFCBB5BDB /* Sparkline.swift */; };
 		8CF1AE2A53F43BC60F58048A /* BriefSectionPrefs.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B06519DB31FFBC73F53C45 /* BriefSectionPrefs.swift */; };
+		8EC9F42CA2D8C167CBD3C9C8 /* ChecklistIntentsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D46F8E4629B15F9027CCDC85 /* ChecklistIntentsTests.swift */; };
 		8F656B423D1DED9974F95F7F /* Household.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D07EA105560EBC811B63F8E /* Household.swift */; };
 		93972F81748CF319BD4C676F /* Household.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 055397DAC2A75DB07B73B3C1 /* Household.xcdatamodeld */; };
 		96D3E937B4CB2AF95DFF2920 /* MeetingPrepCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0D4005055984F536F9A3C03 /* MeetingPrepCard.swift */; };
@@ -93,6 +95,7 @@
 		D31AE5982032296E4EBDDE78 /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3867BC47FB872F6A4CD54B76 /* PrivacyPolicyView.swift */; };
 		D63A801D25C95FAE5CEEB838 /* BriefingTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C018F09283F3785795D9B90 /* BriefingTemplate.swift */; };
 		D93C869170575E191C20AFAE /* TodaySectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E40B3A6A2552FFBD43452DE /* TodaySectionView.swift */; };
+		DB93282AD861716B2245FA9C /* ChecklistIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04DB84A29E403A0583A0A5A0 /* ChecklistIntents.swift */; };
 		DC19F6726F134CBD3E779546 /* BriefingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A27C5D739FF263892E7845 /* BriefingViewModel.swift */; };
 		DC829F929772EF1FCA6B304A /* MeetingPrep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28410E5F2F24FBA6A84F1A8D /* MeetingPrep.swift */; };
 		DE71F93B2D1D0296877657EE /* HouseholdMembersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF8DAFEBABB8728DD3296429 /* HouseholdMembersView.swift */; };
@@ -140,6 +143,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		04DB84A29E403A0583A0A5A0 /* ChecklistIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistIntents.swift; sourceTree = "<group>"; };
 		0C38EB481AD5C705092A7B6D /* ReminderSchedulerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderSchedulerTests.swift; sourceTree = "<group>"; };
 		0FA8E97AC6C1EC33810AADF7 /* ChecklistStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistStore.swift; sourceTree = "<group>"; };
 		15DEAF212618486F40DEDCF0 /* ChecklistViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistViewModel.swift; sourceTree = "<group>"; };
@@ -210,6 +214,7 @@
 		CC662E3FFC1BD273F4A2D28A /* StopRecordingIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StopRecordingIntent.swift; sourceTree = "<group>"; };
 		D2A9C53AC93866B046540ED0 /* WeatherKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WeatherKit.framework; path = System/Library/Frameworks/WeatherKit.framework; sourceTree = SDKROOT; };
 		D2FD59B96D01494EBE1A9597 /* MeetingsDeepLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingsDeepLink.swift; sourceTree = "<group>"; };
+		D46F8E4629B15F9027CCDC85 /* ChecklistIntentsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistIntentsTests.swift; sourceTree = "<group>"; };
 		D59A1276B0A66C4F36590B5C /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		D95BFAC24870DCE7D888CD92 /* RecordingActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingActivityAttributes.swift; sourceTree = "<group>"; };
 		DAF1AB9ADD648A1E241B6F52 /* DataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataModels.swift; sourceTree = "<group>"; };
@@ -264,6 +269,7 @@
 			children = (
 				055397DAC2A75DB07B73B3C1 /* Household.xcdatamodeld */,
 				E3B06519DB31FFBC73F53C45 /* BriefSectionPrefs.swift */,
+				04DB84A29E403A0583A0A5A0 /* ChecklistIntents.swift */,
 				8BCF81A89034D8BFF7C4C001 /* ChecklistSnapshot.swift */,
 				0FA8E97AC6C1EC33810AADF7 /* ChecklistStore.swift */,
 				F0CBE9B72F0FE052713D0A6A /* GreetingComposer.swift */,
@@ -408,6 +414,7 @@
 		4A7E843203AAD83DEC39F24E /* MorningVaultTests */ = {
 			isa = PBXGroup;
 			children = (
+				D46F8E4629B15F9027CCDC85 /* ChecklistIntentsTests.swift */,
 				DB14433B3B74ED214126E9F3 /* ChecklistStoreTests.swift */,
 				AEE14A43C073ADAD5849355C /* HouseholdModelTests.swift */,
 				1824F9A32CADF7BCB6237C30 /* PublicNameGuardTests.swift */,
@@ -619,6 +626,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8CF1AE2A53F43BC60F58048A /* BriefSectionPrefs.swift in Sources */,
+				848F252C031C5E5C3F4D738D /* ChecklistIntents.swift in Sources */,
 				09B45772B4DBBD41236EAEE2 /* ChecklistSnapshot.swift in Sources */,
 				7F68A88EA9892CCC9000EC03 /* ChecklistStore.swift in Sources */,
 				AC5A57FBA45F6ADE00BB7B64 /* GreetingComposer.swift in Sources */,
@@ -655,6 +663,7 @@
 				0919EDACA523845233895CD9 /* CalendarPickerView.swift in Sources */,
 				2E932C7B9F19E3955192EB5B /* CalendarService.swift in Sources */,
 				636797E40B4F20908CB0BC4B /* ChecklistEditorView.swift in Sources */,
+				DB93282AD861716B2245FA9C /* ChecklistIntents.swift in Sources */,
 				45CFE2CF9DA4013A765AB61D /* ChecklistItemEditor.swift in Sources */,
 				12C5E1FBC646DB8712ADA900 /* ChecklistSnapshot.swift in Sources */,
 				EB6566C8C2BE0D3E6383D27D /* ChecklistStore.swift in Sources */,
@@ -715,6 +724,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8EC9F42CA2D8C167CBD3C9C8 /* ChecklistIntentsTests.swift in Sources */,
 				02DF3BA3F6C6E4E507990E25 /* ChecklistStoreTests.swift in Sources */,
 				C91D0C035EE6B32F4A91C6F7 /* HouseholdModelTests.swift in Sources */,
 				221CB4E45B59077F1559008A /* PublicNameGuardTests.swift in Sources */,

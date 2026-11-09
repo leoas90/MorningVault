@@ -146,5 +146,25 @@ struct MorningVaultShortcuts: AppShortcutsProvider {
             shortTitle: "Action Items",
             systemImageName: "checklist"
         )
+        // Household checklist (Shared/ChecklistIntents.swift).
+        AppShortcut(
+            intent: MarkDoneIntent(),
+            phrases: [
+                "Mark \(\.$item) done in \(.applicationName)",
+                "Check off \(\.$item) in \(.applicationName)",
+            ],
+            shortTitle: "Mark Done",
+            systemImageName: "checkmark.circle"
+        )
+        AppShortcut(
+            intent: GetTodayProgressIntent(),
+            phrases: [
+                "What is left today in \(.applicationName)",
+                "What's left today in \(.applicationName)",
+                "How is my \(.applicationName) checklist",
+            ],
+            shortTitle: "Today Progress",
+            systemImageName: "checklist.checked"
+        )
     }
 }

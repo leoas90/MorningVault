@@ -75,6 +75,13 @@ final class ChecklistViewModel: ObservableObject {
         await TrackerNotificationService.rescheduleReminders()
     }
 
+    /// A notification action, Siri or the widget wrote to the store: reload and refresh reminders.
+    func reloadAfterExternalChange() async {
+        await load()
+        guard store != nil else { return }
+        await TrackerNotificationService.rescheduleReminders()
+    }
+
     /// The Brief is on screen: remember it (Gentle reminders due in the next ten minutes are
     /// dropped) and refresh the pending reminders.
     func briefOpened() async {
