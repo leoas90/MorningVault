@@ -531,6 +531,7 @@ final class BriefingViewModel: ObservableObject {
         guard BriefSectionPrefs.isEnabled("markets") else {
             snapshot.marketsStatus = .unavailable
             morningSnapshot = snapshot
+            SharedBriefingStore.update { $0.markets = nil }
             return
         }
         snapshot.marketsStatus = .loading
@@ -551,6 +552,13 @@ final class BriefingViewModel: ObservableObject {
         snapshot.marketQuotes = quotes
         snapshot.marketsStatus = status
         morningSnapshot = snapshot
+
+        // The rotating widget's Markets page shows the same rows as text.
+        SharedBriefingStore.update { b in
+            b.markets = quotes.isEmpty ? nil : quotes.prefix(3).map {
+                SharedBriefing.MarketLine(symbol: $0.symbol, priceText: $0.priceText, changeText: $0.changeText, isPositive: $0.isPositive)
+            }
+        }
     }
 
     private func fetchSnapshotQuotesLive() async -> ([MorningSnapshotQuote], MorningSnapshot.MarketsStatus) {

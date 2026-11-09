@@ -496,6 +496,7 @@ actor ChecklistStore {
         guard let snapshot = try? await makeSnapshot(now: now) else { return }
         ChecklistSnapshotStore.save(snapshot)
         ChecklistWidgetReloader.reload()
+        RotatingBriefWidgetReloader.reload()
     }
 
     /// The derived snapshot (also what the tests check).

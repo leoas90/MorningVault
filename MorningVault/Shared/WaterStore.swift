@@ -224,6 +224,9 @@ actor WaterStore {
         snapshot.loggedML = snapshot.entries.reduce(0) { $0 + $1.ml }
         snapshot.updatedAt = now
         WaterSnapshotStore.save(snapshot, to: snapshotDefaults)
-        if reloadsWidget { WaterWidgetReloader.reload() }
+        if reloadsWidget {
+            WaterWidgetReloader.reload()
+            RotatingBriefWidgetReloader.reload()
+        }
     }
 }

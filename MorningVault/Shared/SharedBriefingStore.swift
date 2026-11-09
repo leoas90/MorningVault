@@ -106,6 +106,9 @@ enum BriefingWidgetReloader {
 #if canImport(WidgetKit)
 import WidgetKit
 enum WidgetKitBridge {
-    static func reloadAll() { WidgetCenter.shared.reloadTimelines(ofKind: "MorningVaultSummary") }
+    static func reloadAll() {
+        WidgetCenter.shared.reloadTimelines(ofKind: "MorningVaultSummary")
+        WidgetCenter.shared.reloadTimelines(ofKind: RotatingBriefWidgetReloader.widgetKind)
+    }
 }
 #endif
