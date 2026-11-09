@@ -144,6 +144,12 @@ final class SuggestionEngineTests: XCTestCase {
         XCTAssertFalse(SuggestionsCache.previewActive(now: date(2026, 11, 9), defaults: defaults, calendar: la))
     }
 
+    func testSuggestionIDsAreDistinctPerEventAndRule() {
+        let ids = Suggestion.sample.map(\.id)
+        XCTAssertEqual(Set(ids).count, ids.count)
+        XCTAssertTrue(ids[0].hasPrefix(Suggestion.sample[0].eventID + "|"))
+    }
+
     func testCacheRoundTrip() {
         let defaults = UserDefaults(suiteName: "SuggestionEngineTests.cache")!
         defaults.removePersistentDomain(forName: "SuggestionEngineTests.cache")

@@ -29,6 +29,8 @@ enum SuggestionEngine {
         var decisions: [SuggestionDecision] = []
         /// Titles of items already on the list for the day, so nothing is suggested twice.
         var existingTitles: [String] = []
+        /// "eventID|ruleID" for items already added from a suggestion.
+        var addedFromEvents: Set<String> = []
         var now: Date
         var calendar: Calendar = .current
     }
@@ -58,6 +60,7 @@ enum SuggestionEngine {
 
             let title = rule.resolvedTitle(for: text)
             if existing.contains(title.lowercased()) { continue }
+            if input.addedFromEvents.contains("\(event.id)|\(rule.id)") { continue }
 
             result.append(Suggestion(
                 eventID: event.id,
@@ -155,13 +158,16 @@ extension SuggestionEngine {
         let ledger = (try? await store.ledger(asOf: day)) ?? ChecklistLedger()
         let members = (try? await store.members()) ?? []
         let decisions = (try? await store.suggestionDecisions()) ?? []
-        let existing = ledger.scheduled(on: day, calendar: cal).map(\.title)
+        // Hand-typed items only: items made from a suggestion are matched by event below.
+        let existing = ledger.scheduled(on: day, calendar: cal).filter { $0.sourceEventID == nil }.map(\.title)
+        let addedFromEvents = Set(ledger.items.filter { !$0.isArchived }.compactMap { item in
+            item.sourceEventID.map { "\($0)|\(item.sourceRuleID ?? "")" } })
 
         let suggestions = rules(Input(
             events: events, members: members,
             calendarMembers: CalendarSelectionStore.memberMapping(prefs),
             selectedCalendars: selected,
-            decisions: decisions, existingTitles: existing, now: now, calendar: cal))
+            decisions: decisions, existingTitles: existing, addedFromEvents: addedFromEvents, now: now, calendar: cal))
 
         let dayKey = ChecklistDay.key(for: day, calendar: cal)
         let previous = SuggestionsCache.load()

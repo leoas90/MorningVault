@@ -7,6 +7,8 @@ struct ContentView: View {
     @AppStorage("user_name") private var userName: String = ""
     @AppStorage("local_only") private var localOnly = false
     @AppStorage("has_completed_onboarding") private var hasCompletedOnboarding = false
+    /// Settings > Brief sections > Markets also hides the Markets tab.
+    @AppStorage(BriefSectionPrefs.Key.markets) private var marketsTabEnabled = true
 
     @StateObject private var viewModel = BriefingViewModel()
     @ObservedObject private var meetingsRouter = MeetingsRouter.shared
@@ -76,7 +78,7 @@ struct ContentView: View {
                 localOnly: localOnly,
                 isVoicePlaying: $isVoicePlaying,
                 showShareSheet: $showShareSheet,
-                onOpenMarkets: { selectedTab = .markets },
+                onOpenMarkets: { if marketsTabEnabled { selectedTab = .markets } },
                 previewNow: previewNow,
                 previewGreeting: previewGreeting
             )
@@ -90,6 +92,7 @@ struct ContentView: View {
             .tag(Tab.brief)
 
             // MARK: - Markets Tab (has its own NavigationStack)
+            if marketsTabEnabled {
             Group {
                 if let previewMarkets {
                     MarketsView(previewSymbols: previewMarkets.symbols, quotes: previewMarkets.quotes, updatedAt: previewMarkets.updatedAt)
@@ -105,6 +108,7 @@ struct ContentView: View {
                 )
             }
             .tag(Tab.markets)
+            }
 
             // MARK: - Meetings Tab (MeetingNotesKit)
             Group {
@@ -153,6 +157,9 @@ struct ContentView: View {
             .tag(Tab.settings)
         }
         .tint(Color.warmPrimaryAccent)
+        .onChange(of: marketsTabEnabled) { _, on in
+            if !on, selectedTab == .markets { selectedTab = .brief }
+        }
         .task {
             // Once per launch: drop recording folders that have no meeting row.
             if let meetingsContainer {
@@ -409,7 +416,9 @@ struct BriefTabView: View {
                     BriefSectionPrefs.mirrorToAppGroup()
                     Task {
                         await viewModel.loadData(force: true)
-                        if viewModel.aiDaySummary == nil { await viewModel.generateAISummary() }
+                        // Always rebuild: today's saved summary may still talk about a section
+                        // that was just turned off (markets kept showing up in it).
+                        await viewModel.generateAISummary()
                     }
                 }
                 .task(id: voiceBriefingEnabled) {

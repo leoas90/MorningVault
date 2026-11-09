@@ -76,7 +76,7 @@ struct SuggestionDecision: Codable, Equatable, Hashable, Sendable {
 
 /// One proposal in the "Suggested from today's calendar" row.
 struct Suggestion: Codable, Identifiable, Equatable, Hashable, Sendable {
-    var id: String { eventID }
+    var id: String { "\(eventID)|\(Int(eventStart.timeIntervalSince1970))|\(ruleID)" }
     var eventID: String
     var eventTitle: String
     var eventStart: Date

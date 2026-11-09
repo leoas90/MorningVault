@@ -84,7 +84,7 @@ public enum MeetingNotesStore {
     /// - Parameter inMemory: keep everything in RAM, used by previews and tests.
     public static func modelContainer(inMemory: Bool = false) throws -> ModelContainer {
         if inMemory {
-            let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
             return try ModelContainer(
                 for: schema,
                 migrationPlan: MeetingNotesMigrationPlan.self,
@@ -97,7 +97,9 @@ public enum MeetingNotesStore {
 
     /// Opens (or creates) the store file at `url` with the kit's migration plan.
     static func modelContainer(at url: URL) throws -> ModelContainer {
-        let configuration = ModelConfiguration(schema: schema, url: url)
+        // .none: the app now has a CloudKit entitlement, and SwiftData would otherwise try to
+        // mirror this store to iCloud, which fails on the unique id (SwiftDataError 1).
+        let configuration = ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none)
         return try ModelContainer(
             for: schema,
             migrationPlan: MeetingNotesMigrationPlan.self,

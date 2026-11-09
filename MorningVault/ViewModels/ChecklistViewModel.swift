@@ -174,8 +174,16 @@ final class ChecklistViewModel: ObservableObject {
         let tomorrowKey = ChecklistDay.key(for: cal.date(byAdding: .day, value: 1, to: now) ?? now, calendar: cal)
         let evening = cal.component(.hour, from: now) >= 19
         guard cache.day == todayKey || (evening && cache.day == tomorrowKey) else { suggestions = []; suggestionsLocked = false; return }
-        let titles = Set(ledger.items.filter { !$0.isArchived }.map { $0.title.lowercased() })
-        let open = cache.suggestions.filter { !cache.dismissed.contains($0.eventID) && !titles.contains($0.title.lowercased()) }
+        // Only items typed in by hand hide a suggestion by title; an item added from one
+        // suggestion must not hide a different event's suggestion that shares its title.
+        let active = ledger.items.filter { !$0.isArchived }
+        let titles = Set(active.filter { $0.sourceEventID == nil }.map { $0.title.lowercased() })
+        let added = Set(active.compactMap { item in item.sourceEventID.map { "\($0)|\(item.sourceRuleID ?? "")" } })
+        let open = cache.suggestions.filter {
+            !cache.dismissed.contains($0.id)
+                && !titles.contains($0.title.lowercased())
+                && !added.contains("\($0.eventID)|\($0.ruleID)")
+        }
         guard !open.isEmpty else { suggestions = []; suggestionsLocked = false; return }
         if ProGate.isUnlocked || SuggestionsCache.previewActive(now: now, calendar: cal) {
             suggestions = open
@@ -219,7 +227,7 @@ final class ChecklistViewModel: ObservableObject {
 
     private func dismiss(_ suggestion: Suggestion) {
         if var cache = SuggestionsCache.load() {
-            if !cache.dismissed.contains(suggestion.eventID) { cache.dismissed.append(suggestion.eventID) }
+            if !cache.dismissed.contains(suggestion.id) { cache.dismissed.append(suggestion.id) }
             cache.save()
         }
         suggestions.removeAll { $0.id == suggestion.id }
