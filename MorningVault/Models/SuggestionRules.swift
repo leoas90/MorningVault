@@ -27,7 +27,7 @@ struct SuggestionRule: Identifiable, Equatable, Sendable {
         SuggestionRule(id: "fieldtrip", keywords: ["field trip"],
                        title: "Permission slip, packed lunch", icon: "signature", allowsAllDay: true),
         SuggestionRule(id: "doctor", keywords: ["doctor", "dentist", "pediatric", "checkup", "check-up"],
-                       title: "Insurance card, questions list", icon: "cross.case"),
+                       title: "Insurance card, questions", icon: "cross.case"),
         SuggestionRule(id: "flight", keywords: ["flight", "airport"],
                        title: "Passports or IDs, chargers", icon: "airplane"),
         SuggestionRule(id: "birthday", keywords: ["birthday", "party"],
@@ -101,7 +101,7 @@ extension Suggestion {
         Suggestion(eventID: "evt-1", eventTitle: "Soccer practice", eventStart: Date(timeIntervalSince1970: 1_762_560_000),
                    isAllDay: false, ruleID: "practice", title: "Pack soccer bag", icon: "duffle.bag", forMember: HouseholdMember.sampleChild1.id),
         Suggestion(eventID: "evt-2", eventTitle: "Dentist", eventStart: Date(timeIntervalSince1970: 1_762_545_600),
-                   isAllDay: false, ruleID: "doctor", title: "Insurance card, questions list", icon: "cross.case", forMember: nil),
+                   isAllDay: false, ruleID: "doctor", title: "Insurance card, questions", icon: "cross.case", forMember: nil),
     ]
 }
 

@@ -46,11 +46,10 @@ struct TodaySectionView: View {
             }
             if grouped {
                 ForEach(groups(items), id: \.key) { group in
-                    Text(group.label)
-                        .font(.metaText)
-                        .foregroundStyle(Color.inkSecondary)
-                        .padding(.top, 10)
+                    Eyebrow(text: group.label)
+                        .padding(.top, 12)
                         .padding(.bottom, 2)
+                        .accessibilityAddTraits(.isHeader)
                     ForEach(group.items) { item in
                         row(item)
                         Hairline()
@@ -145,24 +144,25 @@ struct TodaySectionView: View {
     }
 
     private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 4) {
             Text("Add the things you do every morning")
                 .font(.bodyText)
                 .foregroundStyle(Color.inkPrimary)
-            PillButton(title: "Add", systemImage: "plus") { addingNew = true }
+            quickAdd
         }
     }
 
+    /// "+ Add an item" text row; the accent glyph is the one call to action in the block.
     private var quickAdd: some View {
         Button { addingNew = true } label: {
             HStack(spacing: 12) {
                 Image(systemName: "plus")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.inkSecondary)
+                    .foregroundStyle(Color.appAccentColor)
                     .frame(width: 16)
                 Text("Add an item")
                     .font(.secondaryText)
-                    .foregroundStyle(Color.inkSecondary)
+                    .foregroundStyle(Color.inkPrimary)
                 Spacer(minLength: 0)
             }
             .frame(minHeight: 40)
@@ -215,32 +215,39 @@ struct SuggestionRow: View {
     let onNever: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             Image(systemName: "plus")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Color.inkSecondary)
                 .frame(width: 16)
+                .padding(.top, 4)
             VStack(alignment: .leading, spacing: 2) {
                 Text(suggestion.title)
                     .font(.bodyText)
                     .foregroundStyle(Color.inkPrimary)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(suggestion.caption(memberName: memberName))
                     .font(.metaText)
                     .foregroundStyle(Color.inkSecondary)
                     .lineLimit(1)
             }
-            Spacer(minLength: 8)
-            Button("Add", action: onAdd)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Color.appAccentColor)
-                .buttonStyle(.plain)
-            Text("·").font(.metaText).foregroundStyle(Color.inkSecondary).accessibilityHidden(true)
-            Button("Not today", action: onNotToday)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Color.inkSecondary)
-                .buttonStyle(.plain)
+            Spacer(minLength: 12)
+            // Actions sit on the title line, so the stack is top-aligned with a fixed 16 pt gap.
+            HStack(alignment: .firstTextBaseline, spacing: 16) {
+                Button("Add", action: onAdd)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.appAccentColor)
+                    .buttonStyle(.plain)
+                Button("Not today", action: onNotToday)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Color.inkSecondary)
+                    .buttonStyle(.plain)
+            }
+            .fixedSize()
+            .padding(.top, 2)
         }
+        .padding(.vertical, 8)
         .frame(minHeight: 48)
         .contentShape(Rectangle())
         .contextMenu {
@@ -285,41 +292,10 @@ struct TodayRow: View {
                 circle
                 Text(item.title)
                     .font(.bodyText)
-                    .foregroundStyle(isSkipped ? Color.inkSecondary : Color.inkPrimary)
+                    .foregroundStyle(isDone || isSkipped ? Color.inkSecondary : Color.inkPrimary)
                     .lineLimit(1)
                 Spacer(minLength: 8)
-                if let memberInitial {
-                    MemberInitialChip(initial: memberInitial)
-                }
-                if isSkipped {
-                    Text("Skipped").font(.metaText).foregroundStyle(Color.inkSecondary)
-                } else if let hourly {
-                    Text(hourlyText(hourly))
-                        .font(.system(size: 13, weight: .medium).monospacedDigit())
-                        .foregroundStyle(Color.inkSecondary)
-                        .lineLimit(1)
-                } else if let timerEndsAt, !isDone {
-                    countdown(until: timerEndsAt)
-                } else if case .timer(let minutes) = item.kind {
-                    HStack(spacing: 8) {
-                        Text("\(minutes) min")
-                            .font(.system(size: 13, weight: .medium).monospacedDigit())
-                            .foregroundStyle(Color.inkSecondary)
-                        if !isDone, let onStartTimer {
-                            Button(action: onStartTimer) {
-                                Image(systemName: "play.fill")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(Color.appAccentColor)
-                                    .frame(width: 28, height: 28)
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Start \(minutes) minute timer")
-                        }
-                    }
-                } else {
-                    streakDots
-                }
+                trailing
             }
             .frame(minHeight: 44)
             .contentShape(Rectangle())
@@ -347,22 +323,96 @@ struct TodayRow: View {
         }
     }
 
+    // MARK: Trailing columns
+
+    /// Fixed slots, right to left: streak dots, member chip, status text, play glyph. Every row
+    /// reserves every slot so the columns line up down the list.
+    private enum Slot {
+        static let play: CGFloat = 20
+        static let status: CGFloat = 64
+        static let chip: CGFloat = 20
+        static let dots: CGFloat = 7 * 4 + 6 * 3
+        static let gap: CGFloat = 8
+    }
+
+    private var trailing: some View {
+        HStack(spacing: Slot.gap) {
+            playSlot
+                .frame(width: Slot.play, height: 28)
+            statusSlot
+                .frame(width: Slot.status, alignment: .trailing)
+            Group {
+                if let memberInitial {
+                    MemberInitialChip(initial: memberInitial, size: Slot.chip)
+                } else {
+                    Color.clear
+                }
+            }
+            .frame(width: Slot.chip, height: Slot.chip)
+            streakDots
+                .frame(width: Slot.dots, alignment: .trailing)
+        }
+    }
+
+    @ViewBuilder
+    private var playSlot: some View {
+        if case .timer(let minutes) = item.kind, !isDone, !isSkipped, timerEndsAt == nil, let onStartTimer {
+            Button(action: onStartTimer) {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.appAccentColor)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Start \(minutes) minute timer")
+        } else {
+            Color.clear
+        }
+    }
+
+    @ViewBuilder
+    private var statusSlot: some View {
+        if isSkipped {
+            statusText("Skipped")
+        } else if let hourly {
+            statusText(hourlyText(hourly))
+        } else if let timerEndsAt, !isDone {
+            countdown(until: timerEndsAt)
+        } else if case .timer(let minutes) = item.kind {
+            statusText("\(minutes) min")
+        } else {
+            Color.clear
+        }
+    }
+
+    private func statusText(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 13, weight: .medium).monospacedDigit())
+            .foregroundStyle(Color.inkSecondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+    }
+
     /// Live "12:34" countdown, one tick a second. Tapping the row while it runs checks the item.
     private func countdown(until end: Date) -> some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let remaining = max(0, Int(end.timeIntervalSince(context.date).rounded(.up)))
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 Image(systemName: "timer")
                     .font(.system(size: 11, weight: .semibold))
                 Text(String(format: "%d:%02d", remaining / 60, remaining % 60))
                     .font(.system(size: 13, weight: .medium).monospacedDigit())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             .foregroundStyle(Color.appAccentColor)
             .accessibilityLabel("\(remaining / 60) minutes \(remaining % 60) seconds left")
         }
     }
 
-    /// 16 pt circle: hairline ring when undone, accent fill when done, hollow dash when skipped.
+    /// 16 pt circle: hairline ring when undone, accent fill with a white check when done, hollow
+    /// dash when skipped.
     private var circle: some View {
         ZStack {
             Circle()
@@ -370,6 +420,10 @@ struct TodayRow: View {
             Circle()
                 .fill(Color.appAccentColor)
                 .scaleEffect(isDone ? 1 : (reduceMotion ? 1 : 0.4))
+                .opacity(isDone ? 1 : 0)
+            Image(systemName: "checkmark")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.white)
                 .opacity(isDone ? 1 : 0)
             if isSkipped, !isDone {
                 Rectangle().fill(Color.inkSecondary).frame(width: 6, height: 1.5)
@@ -379,25 +433,33 @@ struct TodayRow: View {
         .animation(.easeOut(duration: 0.2), value: isDone)
     }
 
-    /// Last seven scheduled days, 4 pt dots: done = ink, missed = hairline, skipped = hollow.
+    /// Last seven scheduled days, oldest left, 4 pt dots: done = ink fill, missed = hairline
+    /// ring, skipped = secondary ring.
     private var streakDots: some View {
         HStack(spacing: 3) {
             ForEach(Array(marks.enumerated()), id: \.offset) { _, mark in
                 switch mark {
                 case .done: Circle().fill(Color.inkPrimary).frame(width: 4, height: 4)
-                case .missed: Circle().fill(Color.hairline).frame(width: 4, height: 4)
+                case .missed: Circle().strokeBorder(Color.hairline, lineWidth: 1).frame(width: 4, height: 4)
                 case .skipped: Circle().strokeBorder(Color.inkSecondary, lineWidth: 1).frame(width: 4, height: 4)
                 }
             }
         }
-        .accessibilityHidden(true)
+        .accessibilityLabel(streakLabel)
     }
 
+    private var streakLabel: String {
+        let done = marks.filter { $0 == .done }.count
+        return "\(done) of \(marks.count) days done"
+    }
+
+    /// "2/6 · 12:00": compact so it never reads like the header's "2 of 6".
     private func hourlyText(_ s: HourlyStatus) -> String {
         if let next = s.next, s.done < s.total {
-            return "\(s.done) of \(s.total) · next \(EditorialFormat.time(next))"
+            let time = next.formatted(Date.FormatStyle().hour(.defaultDigits(amPM: .omitted)).minute())
+            return "\(s.done)/\(s.total) · \(time)"
         }
-        return "\(s.done) of \(s.total)"
+        return "\(s.done)/\(s.total)"
     }
 
     private var accessibilityText: String {

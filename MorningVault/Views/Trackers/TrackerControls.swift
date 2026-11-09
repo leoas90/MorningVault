@@ -32,12 +32,13 @@ struct ChoiceChip: View {
 /// 12 pt member initial in a hairline circle (the row tag in the Brief and the editor).
 struct MemberInitialChip: View {
     let initial: String
+    var size: CGFloat = 22
 
     var body: some View {
         Text(initial)
-            .font(.system(size: 12, weight: .semibold))
+            .font(.system(size: size > 20 ? 12 : 11, weight: .semibold))
             .foregroundStyle(Color.inkSecondary)
-            .frame(width: 22, height: 22)
+            .frame(width: size, height: size)
             .overlay(Circle().strokeBorder(Color.hairline, lineWidth: 1))
             .accessibilityHidden(true)
     }

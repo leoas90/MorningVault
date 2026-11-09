@@ -41,7 +41,7 @@ final class SuggestionEngineTests: XCTestCase {
     func testMatchIsCaseInsensitiveAndUsesLocation() {
         let out = SuggestionEngine.rules(input([event("Checkup", location: "DENTIST on Main")]))
         XCTAssertEqual(out.first?.ruleID, "doctor")
-        XCTAssertEqual(out.first?.title, "Insurance card, questions list")
+        XCTAssertEqual(out.first?.title, "Insurance card, questions")
     }
 
     func testBestRuleByKeywordCount() {
