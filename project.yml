@@ -55,6 +55,10 @@ targets:
         com.apple.developer.healthkit.background-delivery: true
         com.apple.developer.weatherkit: true
         com.apple.developer.usernotifications.time-sensitive: true
+        com.apple.developer.icloud-services:
+          - CloudKit
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.yeziddr.morningvault
         com.apple.security.application-groups:
           - group.com.morningvault.app
     dependencies:
