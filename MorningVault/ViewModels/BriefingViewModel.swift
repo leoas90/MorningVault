@@ -206,6 +206,9 @@ final class BriefingViewModel: ObservableObject {
         // the section is the slot in the Brief.
         if BriefSectionPrefs.isEnabled("today") {
             sections.append(BriefingSection(id: "today", title: "Today", icon: "checklist", content: "", sentiment: nil))
+            // Morning refresh: rebuild the calendar suggestions from this phone's selected calendars.
+            await SuggestionEngine.refreshCacheForNow()
+            await ChecklistViewModel.shared.load()
         }
 
         // Market section (BTC + SPY/QQQ sentiment). Off in Settings > Brief sections: no fetch.

@@ -103,8 +103,13 @@ enum BackgroundRefresh {
         let completion = BackgroundTaskCompletion(task)
         // One load only: generateBriefing() already does loadData(force: true).
         let work = Task { @MainActor in
-            let viewModel = BriefingViewModel()
-            await viewModel.generateBriefing()
+            if Calendar.current.component(.hour, from: Date()) >= 19 {
+                // The 8 pm run only precomputes tomorrow's calendar suggestions.
+                await SuggestionEngine.refreshCacheForNow()
+            } else {
+                let viewModel = BriefingViewModel()
+                await viewModel.generateBriefing()
+            }
             completion.finish(success: !Task.isCancelled)
         }
         // iOS cuts app-refresh tasks at ~30 s; stop touching the model once it does.
@@ -117,11 +122,21 @@ enum BackgroundRefresh {
     nonisolated static func schedule() {
         // Hour/minute only. With year/month/day pinned to today, `nextDate` found nothing
         // once 6:55 had passed, so no refresh was ever scheduled for tomorrow.
-        let components = DateComponents(hour: 6, minute: 55)
-        guard let next6_55 = Calendar.current.nextDate(after: Date(), matching: components, matchingPolicy: .nextTime) else { return }
+        // Two runs a day: 6:55 (the Brief) and 20:00 (tomorrow's calendar suggestions, when
+        // the household checklist is on). Whichever comes first is queued.
+        let now = Date()
+        var candidates: [Date] = []
+        if let morning = Calendar.current.nextDate(after: now, matching: DateComponents(hour: 6, minute: 55), matchingPolicy: .nextTime) {
+            candidates.append(morning)
+        }
+        if BriefSectionPrefs.isHouseholdEnabled,
+           let evening = Calendar.current.nextDate(after: now, matching: DateComponents(hour: 20, minute: 0), matchingPolicy: .nextTime) {
+            candidates.append(evening)
+        }
+        guard let next = candidates.min() else { return }
 
         let request = BGAppRefreshTaskRequest(identifier: taskID)
-        request.earliestBeginDate = next6_55
+        request.earliestBeginDate = next
         try? BGTaskScheduler.shared.submit(request)
     }
 }

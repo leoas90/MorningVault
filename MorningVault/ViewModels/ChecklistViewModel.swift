@@ -13,6 +13,10 @@ final class ChecklistViewModel: ObservableObject {
     @Published private(set) var ledger: ChecklistLedger
     @Published private(set) var hasLoaded = false
     @Published var lastError: String?
+    /// Today's calendar suggestions still open (not added, not dismissed). Pro, with a 7-day preview.
+    @Published private(set) var suggestions: [Suggestion] = []
+    /// Set when suggestions exist but the free preview has run out and Pro is off.
+    @Published private(set) var suggestionsLocked = false
 
     let calendar: Calendar
     /// Fixed in previews; `Date()` in the app.
@@ -97,6 +101,7 @@ final class ChecklistViewModel: ObservableObject {
             self.members = members
             hasLoaded = true
             await reconcileTimers()
+            loadSuggestions()
         } catch {
             lastError = error.localizedDescription
         }
@@ -149,6 +154,74 @@ final class ChecklistViewModel: ObservableObject {
             return
         }
         await run { try await store.unskip(itemID: item.id, on: self.now) }
+    }
+
+    // MARK: Suggestions
+
+    /// Reads the cached suggestions for today (or tomorrow's after 19:00), drops the ones the
+    /// user dismissed or that already match an item, and applies the Pro / preview gate.
+    func loadSuggestions() {
+        guard let cache = SuggestionsCache.load() else { suggestions = []; suggestionsLocked = false; return }
+        let cal = calendar
+        let todayKey = ChecklistDay.key(for: now, calendar: cal)
+        let tomorrowKey = ChecklistDay.key(for: cal.date(byAdding: .day, value: 1, to: now) ?? now, calendar: cal)
+        let evening = cal.component(.hour, from: now) >= 19
+        guard cache.day == todayKey || (evening && cache.day == tomorrowKey) else { suggestions = []; suggestionsLocked = false; return }
+        let titles = Set(ledger.items.filter { !$0.isArchived }.map { $0.title.lowercased() })
+        let open = cache.suggestions.filter { !cache.dismissed.contains($0.eventID) && !titles.contains($0.title.lowercased()) }
+        guard !open.isEmpty else { suggestions = []; suggestionsLocked = false; return }
+        if ProGate.isUnlocked || SuggestionsCache.previewActive(now: now, calendar: cal) {
+            suggestions = open
+            suggestionsLocked = false
+        } else {
+            suggestions = []
+            suggestionsLocked = true
+        }
+    }
+
+    /// Day the current suggestions are for (today, or tomorrow in the evening).
+    var suggestionsDay: Date? {
+        guard let cache = SuggestionsCache.load(), let date = ChecklistDay.date(from: cache.day, calendar: calendar) else { return nil }
+        return date
+    }
+
+    /// Add: a one-day item for the suggestion's day (expires at the end of that day).
+    func addSuggestion(_ suggestion: Suggestion) async {
+        let day = calendar.startOfDay(for: suggestionsDay ?? now)
+        let item = ChecklistItem(
+            title: suggestion.title, icon: suggestion.icon, forMember: suggestion.forMember,
+            recurrence: .once(day), order: nextOrder, createdAt: now,
+            expiresAt: calendar.date(byAdding: .day, value: 1, to: day),
+            sourceEventID: suggestion.eventID, sourceRuleID: suggestion.ruleID)
+        if await save(item) {
+            dismiss(suggestion)
+        }
+    }
+
+    /// Not today: hides it until the cache is rebuilt for another day.
+    func dismissSuggestion(_ suggestion: Suggestion) {
+        dismiss(suggestion)
+    }
+
+    /// Never for this rule + event title.
+    func neverSuggest(_ suggestion: Suggestion) async {
+        let decision = SuggestionDecision(ruleID: suggestion.ruleID, titlePattern: SuggestionDecision.pattern(for: suggestion.eventTitle))
+        if let store { try? await store.saveSuggestionDecision(decision) }
+        dismiss(suggestion)
+    }
+
+    private func dismiss(_ suggestion: Suggestion) {
+        if var cache = SuggestionsCache.load() {
+            if !cache.dismissed.contains(suggestion.eventID) { cache.dismissed.append(suggestion.eventID) }
+            cache.save()
+        }
+        suggestions.removeAll { $0.id == suggestion.id }
+    }
+
+    /// Preview models: inject suggestions directly.
+    func setPreviewSuggestions(_ list: [Suggestion], locked: Bool = false) {
+        suggestions = list
+        suggestionsLocked = locked
     }
 
     // MARK: Timers

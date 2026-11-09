@@ -421,6 +421,15 @@ struct SettingsView: View {
                 } label: {
                     Label("Edit items", systemImage: "list.bullet")
                 }
+                NavigationLink {
+                    CalendarPickerView(model: ChecklistViewModel.shared)
+                } label: {
+                    HStack {
+                        Label("Calendars", systemImage: "calendar")
+                        Spacer()
+                        if !ProGate.isUnlocked { ProLockCaption() }
+                    }
+                }
             }
         } header: {
             Text("Trackers")

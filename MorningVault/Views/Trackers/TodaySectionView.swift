@@ -63,7 +63,51 @@ struct TodaySectionView: View {
                 }
             }
             quickAdd
+            suggested
         }
+    }
+
+    // MARK: Suggested
+
+    @ViewBuilder
+    private var suggested: some View {
+        if model.suggestionsLocked {
+            Hairline()
+            HStack(spacing: 8) {
+                Image(systemName: "lock")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color.inkSecondary)
+                Text("Calendar suggestions are part of Pro")
+                    .font(.secondaryText)
+                    .foregroundStyle(Color.inkSecondary)
+                Spacer(minLength: 0)
+            }
+            .frame(minHeight: 40)
+            .accessibilityElement(children: .combine)
+        } else if !model.suggestions.isEmpty {
+            Hairline()
+            Text(suggestedHeader)
+                .font(.metaText)
+                .foregroundStyle(Color.inkSecondary)
+                .padding(.top, 10)
+                .padding(.bottom, 2)
+            ForEach(model.suggestions) { suggestion in
+                SuggestionRow(
+                    suggestion: suggestion,
+                    memberName: model.member(suggestion.forMember)?.name,
+                    onAdd: { Task { await model.addSuggestion(suggestion) } },
+                    onNotToday: { model.dismissSuggestion(suggestion) },
+                    onNever: { Task { await model.neverSuggest(suggestion) } })
+                Hairline()
+            }
+        }
+    }
+
+    private var suggestedHeader: String {
+        if let day = model.suggestionsDay, !model.calendar.isDate(day, inSameDayAs: model.now) {
+            return "Suggested from tomorrow's calendar"
+        }
+        return "Suggested from today's calendar"
     }
 
     private struct MemberGroup {
@@ -158,6 +202,52 @@ struct TodaySectionView: View {
         let done = model.ledger.doneSlots(for: item, on: model.now, calendar: model.calendar).count
         let next = model.ledger.nextSlot(for: item, at: model.now, calendar: model.calendar)
         return TodayRow.HourlyStatus(done: min(done, total), total: total, next: next)
+    }
+}
+
+/// One proposal: "+ Pack soccer bag (Riley, practice 4:00 PM)" with Add / Not today; long
+/// press for Never for this. Nothing is added silently.
+struct SuggestionRow: View {
+    let suggestion: Suggestion
+    let memberName: String?
+    let onAdd: () -> Void
+    let onNotToday: () -> Void
+    let onNever: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "plus")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.inkSecondary)
+                .frame(width: 16)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(suggestion.title)
+                    .font(.bodyText)
+                    .foregroundStyle(Color.inkPrimary)
+                    .lineLimit(1)
+                Text(suggestion.caption(memberName: memberName))
+                    .font(.metaText)
+                    .foregroundStyle(Color.inkSecondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            Button("Add", action: onAdd)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.appAccentColor)
+                .buttonStyle(.plain)
+            Text("·").font(.metaText).foregroundStyle(Color.inkSecondary).accessibilityHidden(true)
+            Button("Not today", action: onNotToday)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.inkSecondary)
+                .buttonStyle(.plain)
+        }
+        .frame(minHeight: 48)
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button(role: .destructive) { onNever() } label: { Label("Never for this", systemImage: "hand.raised") }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Suggested: \(suggestion.title), \(suggestion.caption(memberName: memberName))")
     }
 }
 
@@ -337,6 +427,24 @@ struct TodayRow: View {
                                 checklist: ChecklistViewModel.preview())
             BriefingSectionCard(section: BriefingSection(id: "today", title: "Today", icon: "checklist", content: "", sentiment: nil),
                                 checklist: ChecklistViewModel.previewEmpty())
+        }
+        .padding(20)
+    }
+    .background(Color.backgroundColor)
+}
+
+#Preview("Today, suggestions") {
+    ThemeStore.shared.themeRaw = AppTheme.light.rawValue
+    let model = ChecklistViewModel.preview()
+    model.setPreviewSuggestions(Suggestion.sample)
+    let locked = ChecklistViewModel.preview()
+    locked.setPreviewSuggestions([], locked: true)
+    return ScrollView {
+        VStack(spacing: 28) {
+            BriefingSectionCard(section: BriefingSection(id: "today", title: "Today", icon: "checklist", content: "", sentiment: nil),
+                                checklist: model)
+            BriefingSectionCard(section: BriefingSection(id: "today", title: "Today", icon: "checklist", content: "", sentiment: nil),
+                                checklist: locked)
         }
         .padding(20)
     }

@@ -454,6 +454,40 @@ actor ChecklistStore {
         return ChecklistDay.key(for: date, calendar: calendar)
     }
 
+    // MARK: Suggestion decisions
+
+    func suggestionDecisions() async throws -> [SuggestionDecision] {
+        let context = newContext()
+        return try await context.perform {
+            let request = NSFetchRequest<CDSuggestionDecision>(entityName: "SuggestionDecision")
+            return try context.fetch(request).compactMap { object in
+                guard let rule = object.ruleID, let title = object.eventTitle else { return nil }
+                return SuggestionDecision(ruleID: rule, titlePattern: title,
+                                          decision: SuggestionDecision.Decision(rawValue: object.decision ?? "") ?? .neverForTitle)
+            }
+        }
+    }
+
+    /// "Never for this": idempotent on rule + title.
+    func saveSuggestionDecision(_ decision: SuggestionDecision) async throws {
+        let context = newContext()
+        try await context.perform {
+            let request = NSFetchRequest<CDSuggestionDecision>(entityName: "SuggestionDecision")
+            request.predicate = NSPredicate(format: "ruleID == %@ AND eventTitle == %@", decision.ruleID, decision.titlePattern)
+            request.fetchLimit = 1
+            let object = try context.fetch(request).first ?? {
+                let created = CDSuggestionDecision(context: context)
+                created.id = UUID()
+                created.ruleID = decision.ruleID
+                created.eventTitle = decision.titlePattern
+                return created
+            }()
+            object.decision = decision.decision.rawValue
+            object.decidedAt = Date()
+            if context.hasChanges { try context.save() }
+        }
+    }
+
     // MARK: Snapshot
 
     /// Builds today's snapshot from the store and writes it to the App Group.
