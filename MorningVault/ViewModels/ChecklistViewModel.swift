@@ -95,6 +95,24 @@ final class ChecklistViewModel: ObservableObject {
     func streak(_ item: ChecklistItem) -> Int { ledger.streak(for: item, asOf: now, calendar: calendar) }
     func recentMarks(_ item: ChecklistItem) -> [ChecklistLedger.DayMark] { ledger.recentMarks(for: item, asOf: now, calendar: calendar) }
 
+    // MARK: Weekly review
+
+    /// Last full Monday-to-Sunday week, from the ledger the Brief already loaded.
+    var lastWeekReview: ChecklistWeeklyReview {
+        ChecklistWeeklyReview.lastFullWeek(from: ledger, asOf: now, calendar: calendar, members: members)
+    }
+
+    /// The week in progress, counted up to today.
+    var thisWeekReview: ChecklistWeeklyReview {
+        ChecklistWeeklyReview.weekSoFar(from: ledger, asOf: now, calendar: calendar, members: members)
+    }
+
+    /// Caches the Monday sentence for the spoken brief, which has no store access.
+    private func updateWeeklyVoiceCache() {
+        let review = lastWeekReview
+        WeeklyReviewVoiceCache.save(line: review.spokenLine, weekStart: review.weekStart, calendar: calendar)
+    }
+
     // MARK: Loading
 
     func load() async {
@@ -107,6 +125,7 @@ final class ChecklistViewModel: ObservableObject {
             self.ledger = ledger
             self.members = members
             hasLoaded = true
+            updateWeeklyVoiceCache()
             await reconcileTimers()
             loadSuggestions()
         } catch {

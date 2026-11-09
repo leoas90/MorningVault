@@ -20,6 +20,8 @@ enum BriefSectionPrefs {
         static let changes = "section_changes_enabled"
         static let markets = "section_markets_enabled"
         static let today = "section_today_enabled"
+        /// Monday's "Your week" block, the weekly checklist review.
+        static let weeklyReview = "section_weekly_review_enabled"
         static let headlineCount = "headline_count"
     }
 
@@ -35,6 +37,7 @@ enum BriefSectionPrefs {
         "changes": Key.changes,
         "markets": Key.markets,
         "today": Key.today,
+        "weeklyReview": Key.weeklyReview,
         "water": waterEnabledKey,
         "health": "health_enabled",
         "calendar": "calendar_enabled",
@@ -43,7 +46,8 @@ enum BriefSectionPrefs {
     ]
 
     private static let mirroredKeys: [String] = [
-        Key.summary, Key.next, Key.changes, Key.markets, Key.today, Key.headlineCount, householdEnabledKey, waterEnabledKey,
+        Key.summary, Key.next, Key.changes, Key.markets, Key.today, Key.weeklyReview, Key.headlineCount,
+        householdEnabledKey, waterEnabledKey,
         "health_enabled", "calendar_enabled", "weather_enabled", "headlines_enabled",
     ]
 
@@ -56,6 +60,8 @@ enum BriefSectionPrefs {
     static func isEnabled(_ id: String) -> Bool {
         // The Today section also needs the Household tracker itself to be on.
         if id == "today", !isHouseholdEnabled { return false }
+        // Same for the weekly review block.
+        if id == "weeklyReview", !isHouseholdEnabled { return false }
         // The water row is off until the tracker is turned on.
         if id == "water" { return isWaterEnabled }
         guard let key = keys[id] else { return true }

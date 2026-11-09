@@ -310,7 +310,10 @@ final class VoiceBriefingService: ObservableObject {
         let summary = BriefSectionPrefs.isEnabled("summary") ? summary : nil
         var text = full
             ? compileBriefingText(from: spoken)
-            : Self.compileShortBriefing(from: spoken, summary: summary)
+            : Self.compileShortBriefing(from: spoken, summary: summary, weeklyReview: Self.weeklyReviewLine())
+        if full, let line = Self.weeklyReviewLine() {
+            text += " " + line
+        }
         if full, let line = Self.checklistLine(ChecklistSnapshotStore.load(), full: true) {
             text += " " + line
         }
@@ -340,6 +343,17 @@ final class VoiceBriefingService: ObservableObject {
             return "\(count) \(things) today; \(doneTitles[0]) is done."
         }
         return "\(count) \(things) today; \(numberWord(s.done)) are done."
+    }
+
+    /// The Monday sentence about last week's checklist: "Last week you did 18 of 24 checklist
+    /// items; walk slipped on Tuesdays." Nil on any other day, when the weekly review section
+    /// is off, or when no line has been cached for the week that just ended. Deterministic.
+    nonisolated static func weeklyReviewLine(now: Date = Date(), calendar: Calendar = .current,
+                                             enabled: Bool = BriefSectionPrefs.isEnabled("weeklyReview"),
+                                             defaults: UserDefaults = .standard) -> String? {
+        guard enabled, ChecklistWeeklyReview.isMonday(now, calendar: calendar) else { return nil }
+        let lastWeek = ChecklistWeeklyReview.previousWeekStart(containing: now, calendar: calendar)
+        return WeeklyReviewVoiceCache.line(forWeekStarting: lastWeek, calendar: calendar, defaults: defaults)
     }
 
     /// "Water: a litre to go." when the tracker is on and the intake is behind the linear
@@ -375,7 +389,8 @@ final class VoiceBriefingService: ObservableObject {
     /// then the two-sentence AI summary. Without a summary, one markets line instead.
     nonisolated static func compileShortBriefing(from sections: [BriefingSection], summary: String?, now: Date = Date(),
                                                  checklist: ChecklistTodaySnapshot? = ChecklistSnapshotStore.load(),
-                                                 water: WaterTodaySnapshot? = WaterSnapshotStore.load()) -> String {
+                                                 water: WaterTodaySnapshot? = WaterSnapshotStore.load(),
+                                                 weeklyReview: String? = nil) -> String {
         var parts: [String] = []
         let hour = Calendar.current.component(.hour, from: now)
         parts.append(hour < 12 ? "Good morning." : hour < 17 ? "Good afternoon." : "Good evening.")
@@ -420,6 +435,12 @@ final class VoiceBriefingService: ObservableObject {
 
         // Household checklist: one sentence while the list is open, nothing when it is done.
         if let line = Self.checklistLine(checklist, full: false) {
+            parts.append(line)
+        }
+
+        // Mondays only: one line about last week's checklist. Stays one sentence so the
+        // short brief stays short.
+        if let line = weeklyReview, !line.isEmpty {
             parts.append(line)
         }
 

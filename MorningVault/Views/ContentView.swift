@@ -282,6 +282,10 @@ struct BriefTabView: View {
     @AppStorage(BriefSectionPrefs.Key.next) private var nextEnabled = true
     @AppStorage(BriefSectionPrefs.Key.changes) private var changesEnabled = true
     @AppStorage(BriefSectionPrefs.Key.markets) private var marketsEnabled = true
+    @AppStorage(BriefSectionPrefs.Key.weeklyReview) private var weeklyReviewEnabled = true
+    @AppStorage(BriefSectionPrefs.householdEnabledKey) private var householdEnabled = false
+    /// Drives the Monday "Your week" block; the Today section uses the same shared model.
+    @ObservedObject private var checklist = ChecklistViewModel.shared
     private let greeting = GreetingService.shared
 
     /// Scene entrance flag (see `runEntrance`); text and rows use `.entrance(delay:)`.
@@ -418,7 +422,7 @@ struct BriefTabView: View {
                         BriefingWidgetReloader.reload()
                     }
                 }
-                .onChange(of: [summaryEnabled, nextEnabled, changesEnabled, marketsEnabled]) { _, _ in
+                .onChange(of: [summaryEnabled, nextEnabled, changesEnabled, marketsEnabled, weeklyReviewEnabled]) { _, _ in
                     // Rebuild so the snapshot, the widget and the spoken brief follow the toggles.
                     BriefSectionPrefs.mirrorToAppGroup()
                     Task {
@@ -615,6 +619,14 @@ struct BriefTabView: View {
 
     // MARK: Evidence
 
+    /// Monday's weekly review block: tracker on, section on, Monday, and last week had at
+    /// least one scheduled occurrence.
+    private var showsWeeklyReview: Bool {
+        guard weeklyReviewEnabled, householdEnabled, checklist.hasLoaded else { return false }
+        guard ChecklistWeeklyReview.isMonday(now, calendar: checklist.calendar) else { return false }
+        return checklist.lastWeekReview.hasAnythingScheduled
+    }
+
     @ViewBuilder
     private var evidence: some View {
         if let schedule {
@@ -626,6 +638,12 @@ struct BriefTabView: View {
         // Household checklist: after Next, before the rest of the world.
         if let today = section("today") {
             BriefingSectionCard(section: today)
+        }
+
+        // Monday only: how last week went. Needs the tracker on, the section on, and a
+        // previous week that actually had something scheduled.
+        if showsWeeklyReview {
+            WeeklyReviewBriefBlock(model: checklist)
         }
 
         // Water: one hairline row with an inline quick add.
