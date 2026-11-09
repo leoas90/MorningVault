@@ -101,17 +101,20 @@
 		B71AF772C81B372B0E7A75D0 /* BriefingSectionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD35C3FB14B743538182864C /* BriefingSectionCard.swift */; };
 		B8EDB2266AB086F1CE02AC0F /* WaterTrackerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1089696E28E71D10965F4DB /* WaterTrackerView.swift */; };
 		B92920D395AA2DDE460E11E9 /* Animations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47A4440AD2E04B7D687DCE54 /* Animations.swift */; };
+		B974A4F11A3D6A1C33CB6732 /* RotatingBriefWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C89E4E78FAFE85A174C0AA0 /* RotatingBriefWidget.swift */; };
 		BC0CB133D3C166B3D46F025B /* ReminderSchedulerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C38EB481AD5C705092A7B6D /* ReminderSchedulerTests.swift */; };
 		BDB5836BE653898B8DE287E5 /* ChecklistViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15DEAF212618486F40DEDCF0 /* ChecklistViewModel.swift */; };
 		BE20DBFD4EE40EF8A0784F43 /* MorningVaultWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48B5B42BD466623AFA77DEC4 /* MorningVaultWidget.swift */; };
 		C0A36CEC5BB49E25429B8ADC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F60C417DCC44D79F117B8D30 /* WidgetKit.framework */; };
 		C0B7F722C203994972B5524B /* ShareCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E49DBCBD78772F996A4CF662 /* ShareCardView.swift */; };
+		C1BB2A65E7DEEAF83D7BFB34 /* AdvanceBriefPageIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53D8EF5492D02EBF4302F90B /* AdvanceBriefPageIntent.swift */; };
 		C91D0C035EE6B32F4A91C6F7 /* HouseholdModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEE14A43C073ADAD5849355C /* HouseholdModelTests.swift */; };
 		CA9DC9924DAB8359104CC5D4 /* ThemeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A8E749131381B74347623E1 /* ThemeStore.swift */; };
 		CC9730F579B0F4EDD5D5C214 /* AlarmService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57398225F0C285023D3C56AC /* AlarmService.swift */; };
 		D009DDBA562F545B60651603 /* TrackerNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22C9BBA91338E93E472ECFD9 /* TrackerNotificationService.swift */; };
 		D31AE5982032296E4EBDDE78 /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3867BC47FB872F6A4CD54B76 /* PrivacyPolicyView.swift */; };
 		D63A801D25C95FAE5CEEB838 /* BriefingTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C018F09283F3785795D9B90 /* BriefingTemplate.swift */; };
+		D8C185ADBD948441CB763173 /* RotatingBriefPages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F3E6CA1F622F72FE4D46D62 /* RotatingBriefPages.swift */; };
 		D93C869170575E191C20AFAE /* TodaySectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E40B3A6A2552FFBD43452DE /* TodaySectionView.swift */; };
 		DB0BD0982AB79B8F03A58D64 /* WaterStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E553B61BC5FEA442F3104B84 /* WaterStore.swift */; };
 		DB93282AD861716B2245FA9C /* ChecklistIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04DB84A29E403A0583A0A5A0 /* ChecklistIntents.swift */; };
@@ -123,9 +126,11 @@
 		E0DC5D42A99B2BB9ACE12257 /* MeetingNotesKit in Frameworks */ = {isa = PBXBuildFile; productRef = 73AD641908E3D7D849FF1C9B /* MeetingNotesKit */; };
 		E42306790108A392A69268C8 /* ReminderScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27F0A46A04A22126F69846D8 /* ReminderScheduler.swift */; };
 		E4FAD937B0EE2341550559D9 /* SuggestionRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A60611230D31CB0EB0B654E /* SuggestionRules.swift */; };
+		E82F8C535F073AB87ABF02BF /* RotatingBriefPages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F3E6CA1F622F72FE4D46D62 /* RotatingBriefPages.swift */; };
 		EAF001834FD348FCC6D2339B /* WaterViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB8F29F4C01ECCED344AD8FC /* WaterViewModel.swift */; };
 		EB6566C8C2BE0D3E6383D27D /* ChecklistStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FA8E97AC6C1EC33810AADF7 /* ChecklistStore.swift */; };
 		EC1E4CA31B7C5C9B7F854E2C /* StopRecordingIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC662E3FFC1BD273F4A2D28A /* StopRecordingIntent.swift */; };
+		F32F6116C1FDD94F731D37E6 /* AdvanceBriefPageIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53D8EF5492D02EBF4302F90B /* AdvanceBriefPageIntent.swift */; };
 		F3480E6D0027A5C1884D74E5 /* GreetingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6884035D786F837686C765A3 /* GreetingService.swift */; };
 		F7C67B03B804B670B426A0DD /* GreetingComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0CBE9B72F0FE052713D0A6A /* GreetingComposer.swift */; };
 		FE86E3F25C8C584926BA51E6 /* StopRecordingIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC662E3FFC1BD273F4A2D28A /* StopRecordingIntent.swift */; };
@@ -191,7 +196,9 @@
 		4A60611230D31CB0EB0B654E /* SuggestionRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionRules.swift; sourceTree = "<group>"; };
 		4B0C6160616AE04F2461D038 /* CacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheService.swift; sourceTree = "<group>"; };
 		53A27C5D739FF263892E7845 /* BriefingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingViewModel.swift; sourceTree = "<group>"; };
+		53D8EF5492D02EBF4302F90B /* AdvanceBriefPageIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvanceBriefPageIntent.swift; sourceTree = "<group>"; };
 		57398225F0C285023D3C56AC /* AlarmService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmService.swift; sourceTree = "<group>"; };
+		5C89E4E78FAFE85A174C0AA0 /* RotatingBriefWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RotatingBriefWidget.swift; sourceTree = "<group>"; };
 		5D4F604E0DBCADA9DF649363 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5D53B287BF5058D135815D7F /* SuggestionEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionEngineTests.swift; sourceTree = "<group>"; };
 		5DCC6E36072110A0C9A13105 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
@@ -211,6 +218,7 @@
 		7CB2D87EA2DB50A8A76D7473 /* TodaySectionPrefsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySectionPrefsTests.swift; sourceTree = "<group>"; };
 		7E6C312545326EA367B78602 /* MorningVaultWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MorningVaultWidget.entitlements; sourceTree = "<group>"; };
 		7F326B33C09D42D7161B8064 /* MorningVaultWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = MorningVaultWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		7F3E6CA1F622F72FE4D46D62 /* RotatingBriefPages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RotatingBriefPages.swift; sourceTree = "<group>"; };
 		833363EBA10E1C42AD9A1901 /* WaterReminderSchedulerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterReminderSchedulerTests.swift; sourceTree = "<group>"; };
 		83D59911EA5A72F47B900500 /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
 		843E44ED42A1AFB9093A1CE7 /* HealthKitWaterClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitWaterClient.swift; sourceTree = "<group>"; };
@@ -304,6 +312,7 @@
 			isa = PBXGroup;
 			children = (
 				055397DAC2A75DB07B73B3C1 /* Household.xcdatamodeld */,
+				53D8EF5492D02EBF4302F90B /* AdvanceBriefPageIntent.swift */,
 				E3B06519DB31FFBC73F53C45 /* BriefSectionPrefs.swift */,
 				04DB84A29E403A0583A0A5A0 /* ChecklistIntents.swift */,
 				8BCF81A89034D8BFF7C4C001 /* ChecklistSnapshot.swift */,
@@ -312,6 +321,7 @@
 				D2FD59B96D01494EBE1A9597 /* MeetingsDeepLink.swift */,
 				DF4A646A414F2E800418BFA7 /* MeetingsSnapshot.swift */,
 				D95BFAC24870DCE7D888CD92 /* RecordingActivityAttributes.swift */,
+				7F3E6CA1F622F72FE4D46D62 /* RotatingBriefPages.swift */,
 				FA716AFE1B7CFF2B49C066F4 /* SharedBriefingStore.swift */,
 				CC662E3FFC1BD273F4A2D28A /* StopRecordingIntent.swift */,
 				72703070A4EFC1A13BD941D5 /* UnitsPreference.swift */,
@@ -441,6 +451,7 @@
 				7E6C312545326EA367B78602 /* MorningVaultWidget.entitlements */,
 				48B5B42BD466623AFA77DEC4 /* MorningVaultWidget.swift */,
 				9DB4E3E43D27AB579D38A19F /* RecordingLiveActivityWidget.swift */,
+				5C89E4E78FAFE85A174C0AA0 /* RotatingBriefWidget.swift */,
 				EC3A295440CFCFD620912516 /* TodayWidget.swift */,
 				7091AAB1509C6FB5D2263E41 /* WaterWidget.swift */,
 			);
@@ -677,6 +688,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F32F6116C1FDD94F731D37E6 /* AdvanceBriefPageIntent.swift in Sources */,
 				8CF1AE2A53F43BC60F58048A /* BriefSectionPrefs.swift in Sources */,
 				848F252C031C5E5C3F4D738D /* ChecklistIntents.swift in Sources */,
 				09B45772B4DBBD41236EAEE2 /* ChecklistSnapshot.swift in Sources */,
@@ -690,6 +702,8 @@
 				BE20DBFD4EE40EF8A0784F43 /* MorningVaultWidget.swift in Sources */,
 				25A6424DE251E8A88F2BE0F5 /* RecordingActivityAttributes.swift in Sources */,
 				83DCAF4E5BE7C2DF269D55EC /* RecordingLiveActivityWidget.swift in Sources */,
+				D8C185ADBD948441CB763173 /* RotatingBriefPages.swift in Sources */,
+				B974A4F11A3D6A1C33CB6732 /* RotatingBriefWidget.swift in Sources */,
 				64214E069C4D5EB46047A03F /* SharedBriefingStore.swift in Sources */,
 				EC1E4CA31B7C5C9B7F854E2C /* StopRecordingIntent.swift in Sources */,
 				E4FAD937B0EE2341550559D9 /* SuggestionRules.swift in Sources */,
@@ -708,6 +722,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DFED1E3FEBEC6D0F0F35EC04 /* AIService.swift in Sources */,
+				C1BB2A65E7DEEAF83D7BFB34 /* AdvanceBriefPageIntent.swift in Sources */,
 				CC9730F579B0F4EDD5D5C214 /* AlarmService.swift in Sources */,
 				520ECFBA0E405C95975361C9 /* AnimatedComponents.swift in Sources */,
 				B92920D395AA2DDE460E11E9 /* Animations.swift in Sources */,
@@ -757,6 +772,7 @@
 				707FF8CF0AFCADBDE4CA147A /* RSSService.swift in Sources */,
 				4827249630311489CE197890 /* RecordingActivityAttributes.swift in Sources */,
 				E42306790108A392A69268C8 /* ReminderScheduler.swift in Sources */,
+				E82F8C535F073AB87ABF02BF /* RotatingBriefPages.swift in Sources */,
 				13457E2D7C9D9F72B43D627F /* SafariView.swift in Sources */,
 				0EEB81CEA1E301A373890122 /* SettingsView.swift in Sources */,
 				C0B7F722C203994972B5524B /* ShareCardView.swift in Sources */,

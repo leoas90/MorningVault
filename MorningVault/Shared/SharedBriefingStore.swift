@@ -21,6 +21,17 @@ struct SharedBriefing: Codable, Equatable {
     var greeting: String?
     /// Optional one-line opener from the on-device model.
     var greetingOpener: String?
+    /// Tracked symbols as shown on the Brief's Markets rows, for the rotating widget. Nil
+    /// when the Markets section is off or nothing has been fetched yet.
+    var markets: [MarketLine]? = nil
+
+    /// One market row: "SPY  512.30  +0.42%". Text only, formatted by the app.
+    struct MarketLine: Codable, Equatable {
+        var symbol: String
+        var priceText: String
+        var changeText: String
+        var isPositive: Bool
+    }
 
     /// Weather line in the user's current units (falls back to the saved text).
     var displayWeatherLine: String? {
