@@ -28,6 +28,26 @@ final class ChecklistIntentsTests: XCTestCase {
         XCTAssertTrue(GetTodayProgressIntent.spokenProgress(snapshot: s).hasPrefix("Nothing"))
     }
 
+    func testVoiceLineShortAndFull() {
+        UserDefaults.standard.set(true, forKey: BriefSectionPrefs.householdEnabledKey)
+        UserDefaults.standard.set(true, forKey: BriefSectionPrefs.Key.today)
+        defer {
+            UserDefaults.standard.removeObject(forKey: BriefSectionPrefs.householdEnabledKey)
+            UserDefaults.standard.removeObject(forKey: BriefSectionPrefs.Key.today)
+        }
+        let one = snapshot(done: 1, total: 6, titles: ["Medicine", "Walk", "Piano", "A", "B", "C"], doneTitles: ["Medicine"])
+        XCTAssertEqual(VoiceBriefingService.checklistLine(one, full: false), "Six things today; medicine is done.")
+        let none = snapshot(done: 0, total: 2, titles: ["Walk", "Piano"])
+        XCTAssertEqual(VoiceBriefingService.checklistLine(none, full: false), "Two things today, nothing checked yet.")
+        let two = snapshot(done: 2, total: 3, titles: ["Walk", "Piano", "Read"], doneTitles: ["Walk", "Piano"])
+        XCTAssertEqual(VoiceBriefingService.checklistLine(two, full: false), "Three things today; two are done.")
+        XCTAssertEqual(VoiceBriefingService.checklistLine(two, full: true), "Household. Three things today, two done. Still open: read.")
+        // All done: the short brief stays short.
+        let done = snapshot(done: 2, total: 2, titles: ["Walk", "Piano"], doneTitles: ["Walk", "Piano"])
+        XCTAssertNil(VoiceBriefingService.checklistLine(done, full: false))
+        XCTAssertNil(VoiceBriefingService.checklistLine(nil, full: false))
+    }
+
     func testMarkDoneViaStoreIsIdempotent() async throws {
         var la = Calendar(identifier: .gregorian)
         la.timeZone = TimeZone(identifier: "America/Los_Angeles")!
@@ -35,8 +55,10 @@ final class ChecklistIntentsTests: XCTestCase {
         let now = la.date(from: DateComponents(year: 2026, month: 11, day: 10, hour: 9))!
         let item = ChecklistItem(title: "Walk", createdAt: la.date(from: DateComponents(year: 2026, month: 11, day: 1))!)
         try await store.saveItem(item)
-        XCTAssertTrue(try await store.markDone(itemID: item.id, on: now, at: now))
-        XCTAssertFalse(try await store.markDone(itemID: item.id, on: now, at: now))
+        let first = try await store.markDone(itemID: item.id, on: now, at: now)
+        let second = try await store.markDone(itemID: item.id, on: now, at: now)
+        XCTAssertTrue(first)
+        XCTAssertFalse(second)
         let ledger = try await store.ledger(asOf: now)
         XCTAssertEqual(ledger.completions.count, 1)
     }

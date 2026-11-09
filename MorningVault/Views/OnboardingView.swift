@@ -5,7 +5,7 @@ struct OnboardingView: View {
     @AppStorage("has_completed_onboarding") private var hasCompletedOnboarding = false
 
     @State private var currentPage = 0
-    private let pageCount = 4
+    private let pageCount = 5
 
     var body: some View {
         ZStack {
@@ -20,11 +20,15 @@ struct OnboardingView: View {
                     OnboardingSourcesStep()
                         .tag(1)
 
-                    OnboardingMeetingsStep()
+                    // Optional: starter household items. Skipping is fine.
+                    OnboardingHouseholdStep()
                         .tag(2)
 
-                    OnboardingSymbolsStep(onComplete: completeOnboarding)
+                    OnboardingMeetingsStep()
                         .tag(3)
+
+                    OnboardingSymbolsStep(onComplete: completeOnboarding)
+                        .tag(4)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut, value: currentPage)

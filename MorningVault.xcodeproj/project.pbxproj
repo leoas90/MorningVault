@@ -12,6 +12,7 @@
 		0919EDACA523845233895CD9 /* CalendarPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2D6332D8965523157F3250B /* CalendarPickerView.swift */; };
 		09B45772B4DBBD41236EAEE2 /* ChecklistSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BCF81A89034D8BFF7C4C001 /* ChecklistSnapshot.swift */; };
 		0EEB81CEA1E301A373890122 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E249A63C0B140CBBF820E5C4 /* SettingsView.swift */; };
+		11E150A2EDC6F43ABBA1A7FA /* TodayWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC3A295440CFCFD620912516 /* TodayWidget.swift */; };
 		1256E46F47C0BA89D85744B5 /* Household.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D07EA105560EBC811B63F8E /* Household.swift */; };
 		12AAB96A55AC30D1FD2AAB4F /* SuggestionEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D53B287BF5058D135815D7F /* SuggestionEngineTests.swift */; };
 		12C5E1FBC646DB8712ADA900 /* ChecklistSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BCF81A89034D8BFF7C4C001 /* ChecklistSnapshot.swift */; };
@@ -65,6 +66,7 @@
 		864377C8DAB4A7A89C816177 /* Sparkline.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E7C36006FA4ADFCBB5BDB /* Sparkline.swift */; };
 		8CF1AE2A53F43BC60F58048A /* BriefSectionPrefs.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B06519DB31FFBC73F53C45 /* BriefSectionPrefs.swift */; };
 		8EC9F42CA2D8C167CBD3C9C8 /* ChecklistIntentsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D46F8E4629B15F9027CCDC85 /* ChecklistIntentsTests.swift */; };
+		8EFFAC3707D73B3822EE149D /* OnboardingHouseholdStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7588D1189C8356C06CAD896 /* OnboardingHouseholdStep.swift */; };
 		8F656B423D1DED9974F95F7F /* Household.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D07EA105560EBC811B63F8E /* Household.swift */; };
 		93972F81748CF319BD4C676F /* Household.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 055397DAC2A75DB07B73B3C1 /* Household.xcdatamodeld */; };
 		96D3E937B4CB2AF95DFF2920 /* MeetingPrepCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0D4005055984F536F9A3C03 /* MeetingPrepCard.swift */; };
@@ -228,11 +230,13 @@
 		E3B06519DB31FFBC73F53C45 /* BriefSectionPrefs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefSectionPrefs.swift; sourceTree = "<group>"; };
 		E49DBCBD78772F996A4CF662 /* ShareCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCardView.swift; sourceTree = "<group>"; };
 		E4D4CC7A6722E21934433A6F /* SafariView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariView.swift; sourceTree = "<group>"; };
+		EC3A295440CFCFD620912516 /* TodayWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayWidget.swift; sourceTree = "<group>"; };
 		EE736702BBE6B0A9F0CED3F9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		F0CBE9B72F0FE052713D0A6A /* GreetingComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GreetingComposer.swift; sourceTree = "<group>"; };
 		F1E53372DCE56D9D3406815A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		F22FA11BC4393AA0A34AC497 /* RSSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RSSService.swift; sourceTree = "<group>"; };
 		F60C417DCC44D79F117B8D30 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		F7588D1189C8356C06CAD896 /* OnboardingHouseholdStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingHouseholdStep.swift; sourceTree = "<group>"; };
 		F88E7C36006FA4ADFCBB5BDB /* Sparkline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sparkline.swift; sourceTree = "<group>"; };
 		F95A4F8D514E38562AD1FEE9 /* MorningSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningSnapshot.swift; sourceTree = "<group>"; };
 		FA716AFE1B7CFF2B49C066F4 /* SharedBriefingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedBriefingStore.swift; sourceTree = "<group>"; };
@@ -292,6 +296,7 @@
 				241BEA956BDB6CFFEC2B09E5 /* BriefingTemplatePickerView.swift */,
 				F1E53372DCE56D9D3406815A /* ContentView.swift */,
 				9103CFC9B5596A76F30F951E /* MarketsView.swift */,
+				F7588D1189C8356C06CAD896 /* OnboardingHouseholdStep.swift */,
 				7B50422F2AD54B20129FB1C8 /* OnboardingMeetingsStep.swift */,
 				96B21FB97A30B92C5A5FC0D7 /* OnboardingNameStep.swift */,
 				19F0CE7677F525EDF60DDE61 /* OnboardingSourcesStep.swift */,
@@ -397,6 +402,7 @@
 				7E6C312545326EA367B78602 /* MorningVaultWidget.entitlements */,
 				48B5B42BD466623AFA77DEC4 /* MorningVaultWidget.swift */,
 				9DB4E3E43D27AB579D38A19F /* RecordingLiveActivityWidget.swift */,
+				EC3A295440CFCFD620912516 /* TodayWidget.swift */,
 			);
 			path = MorningVaultWidget;
 			sourceTree = "<group>";
@@ -641,6 +647,7 @@
 				64214E069C4D5EB46047A03F /* SharedBriefingStore.swift in Sources */,
 				EC1E4CA31B7C5C9B7F854E2C /* StopRecordingIntent.swift in Sources */,
 				E4FAD937B0EE2341550559D9 /* SuggestionRules.swift in Sources */,
+				11E150A2EDC6F43ABBA1A7FA /* TodayWidget.swift in Sources */,
 				2BBB6AA78636386ABA078987 /* UnitsPreference.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -687,6 +694,7 @@
 				22E2D4B849B0C751DCBD8534 /* MorningSnapshot.swift in Sources */,
 				832AD0715C3DF03018E2DCBA /* MorningVaultApp.swift in Sources */,
 				66A70D5DA185AB965C4905D6 /* NewsSource.swift in Sources */,
+				8EFFAC3707D73B3822EE149D /* OnboardingHouseholdStep.swift in Sources */,
 				21946045F1FBEDDA54D6F284 /* OnboardingMeetingsStep.swift in Sources */,
 				810F477EAD7AE4E4F37160F9 /* OnboardingNameStep.swift in Sources */,
 				72F435D8CB9ABD73AF04B4D4 /* OnboardingSourcesStep.swift in Sources */,

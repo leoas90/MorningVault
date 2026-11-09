@@ -308,10 +308,40 @@ final class VoiceBriefingService: ObservableObject {
         let full = UserDefaults.standard.bool(forKey: Self.fullBriefingKey)
         let spoken = Self.sectionsForVoice(sections)
         let summary = BriefSectionPrefs.isEnabled("summary") ? summary : nil
-        let text = full
+        var text = full
             ? compileBriefingText(from: spoken)
             : Self.compileShortBriefing(from: spoken, summary: summary)
+        if full, let line = Self.checklistLine(ChecklistSnapshotStore.load(), full: true) {
+            text += " " + line
+        }
         speak(text: text)
+    }
+
+    /// The checklist sentence. Short: "Six things today; medicine is done." Full: lists what
+    /// is still open. Nil when the Today section is off, nothing is scheduled, or all is done.
+    nonisolated static func checklistLine(_ snapshot: ChecklistTodaySnapshot?, full: Bool, now: Date = Date()) -> String? {
+        guard BriefSectionPrefs.isEnabled("today"), let s = snapshot, s.day == ChecklistTodaySnapshot.dayKey(now) else { return nil }
+        guard s.total > 0, s.done < s.total else { return nil }
+        let count = numberWord(s.total).capitalized
+        let things = s.total == 1 ? "thing" : "things"
+        let doneTitles = s.items.filter(\.isDone).map { $0.title.lowercased() }
+        let openTitles = s.items.filter { !$0.isDone }.map { $0.title.lowercased() }
+        if full {
+            let listed = openTitles.prefix(6).joined(separator: ", ")
+            return "Household. \(count) \(things) today, \(numberWord(s.done)) done. Still open: \(listed)."
+        }
+        if doneTitles.isEmpty {
+            return "\(count) \(things) today, nothing checked yet."
+        }
+        if doneTitles.count == 1 {
+            return "\(count) \(things) today; \(doneTitles[0]) is done."
+        }
+        return "\(count) \(things) today; \(numberWord(s.done)) are done."
+    }
+
+    nonisolated private static func numberWord(_ n: Int) -> String {
+        let words = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"]
+        return n >= 0 && n < words.count ? words[n] : String(n)
     }
 
     static let fullBriefingKey = "voiceBriefingFull"
@@ -328,7 +358,8 @@ final class VoiceBriefingService: ObservableObject {
 
     /// A short spoken brief: greeting, one weather line, the day's calendar in one line,
     /// then the two-sentence AI summary. Without a summary, one markets line instead.
-    nonisolated static func compileShortBriefing(from sections: [BriefingSection], summary: String?, now: Date = Date()) -> String {
+    nonisolated static func compileShortBriefing(from sections: [BriefingSection], summary: String?, now: Date = Date(),
+                                                 checklist: ChecklistTodaySnapshot? = ChecklistSnapshotStore.load()) -> String {
         var parts: [String] = []
         let hour = Calendar.current.component(.hour, from: now)
         parts.append(hour < 12 ? "Good morning." : hour < 17 ? "Good afternoon." : "Good evening.")
@@ -369,6 +400,11 @@ final class VoiceBriefingService: ObservableObject {
             } else if cal.content.hasPrefix("No events") {
                 parts.append("Your calendar is clear.")
             }
+        }
+
+        // Household checklist: one sentence while the list is open, nothing when it is done.
+        if let line = Self.checklistLine(checklist, full: false) {
+            parts.append(line)
         }
 
         if let summary, !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {

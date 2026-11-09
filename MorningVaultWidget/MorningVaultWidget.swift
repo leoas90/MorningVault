@@ -195,6 +195,7 @@ struct MorningVaultWidgetBundle: WidgetBundle {
     var body: some Widget {
         MorningVaultSummaryWidget()
         MorningVaultMeetingsWidget()
+        TodayWidget()
         RecordingLiveActivityWidget()
     }
 }
