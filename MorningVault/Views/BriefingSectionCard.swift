@@ -307,6 +307,13 @@ struct ArticleRowView: View {
     let onUnread: () -> Void
 
     @State private var showingActions = false
+    /// Article open in the in-app reader (SFSafariViewController sheet); nil when closed.
+    @State private var reader: ReaderLink? = nil
+
+    private struct ReaderLink: Identifiable {
+        let url: URL
+        var id: String { url.absoluteString }
+    }
 
     private var stateIcon: String {
         switch state {
@@ -349,7 +356,7 @@ struct ArticleRowView: View {
             .buttonStyle(.plain)
             .accessibilityLabel(state == .unread ? "Mark as read" : "Change status: \(stateLabel)")
 
-            // Article content
+            // Article content: tapping the title area opens the story in the reader.
             VStack(alignment: .leading, spacing: 3) {
                 Text(article.title)
                     .font(.body)
@@ -392,6 +399,11 @@ struct ArticleRowView: View {
                     .padding(.top, 2)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture { openArticle() }
+            .accessibilityAddTraits(canOpen ? .isButton : [])
+            .accessibilityHint(canOpen ? "Opens the article" : "")
 
             Spacer(minLength: 0)
 
@@ -424,15 +436,13 @@ struct ArticleRowView: View {
                 .accessibilityLabel("Article actions")
             }
         }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if state == .unread {
-                onRead()
-            } else {
-                openArticle()
-            }
+        .sheet(item: $reader) { link in
+            SafariView(url: link.url)
+                .ignoresSafeArea()
         }
     }
+
+    private var canOpen: Bool { SafariView.isOpenable(article.url) }
 
     private func cycleState() {
         switch state {
@@ -443,14 +453,12 @@ struct ArticleRowView: View {
         }
     }
 
+    /// Opens the story in the in-app reader. An empty or non-web URL does nothing.
+    /// Opening an unread story also marks it read, the same as the old tap did.
     private func openArticle() {
-        guard let url = URL(string: article.url), article.url.hasPrefix("http") else { return }
-        // Opening URLs would require UIApplication.shared — handled by parent view controller
-        NotificationCenter.default.post(
-            name: .openArticleURL,
-            object: nil,
-            userInfo: ["url": url]
-        )
+        guard let url = SafariView.openableURL(from: article.url) else { return }
+        if state == .unread { onRead() }
+        reader = ReaderLink(url: url)
     }
 
 }
@@ -458,7 +466,6 @@ struct ArticleRowView: View {
 // MARK: - Notification Names
 
 extension Notification.Name {
-    static let openArticleURL = Notification.Name("openArticleURL")
     /// Settings > Data sources > Headlines in brief changed; the Brief reloads its headlines.
     static let headlineCountChanged = Notification.Name("headlineCountChanged")
 }
