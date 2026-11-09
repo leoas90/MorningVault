@@ -69,6 +69,10 @@ struct MorningVaultApp: App {
         if MeetingsRouter.shared.handle(url: url) { return }
         if url.scheme == "morningvault" {
             NotificationCenter.default.post(name: .viewBriefingRequested, object: nil)
+            // morningvault://water from the Water widget opens the tracker over the Brief.
+            if url.host == "water" {
+                NotificationCenter.default.post(name: .openWaterTracker, object: nil)
+            }
         }
     }
 

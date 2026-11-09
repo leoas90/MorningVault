@@ -166,5 +166,24 @@ struct MorningVaultShortcuts: AppShortcutsProvider {
             shortTitle: "Today Progress",
             systemImageName: "checklist.checked"
         )
+        // Water tracker (Shared/WaterIntents.swift).
+        AppShortcut(
+            intent: LogWaterIntent(),
+            phrases: [
+                "Log water in \(.applicationName)",
+                "Log a glass of water in \(.applicationName)",
+            ],
+            shortTitle: "Log Water",
+            systemImageName: "drop"
+        )
+        AppShortcut(
+            intent: GetWaterProgressIntent(),
+            phrases: [
+                "How much water have I had in \(.applicationName)",
+                "How is my water in \(.applicationName)",
+            ],
+            shortTitle: "Water Progress",
+            systemImageName: "drop.circle"
+        )
     }
 }

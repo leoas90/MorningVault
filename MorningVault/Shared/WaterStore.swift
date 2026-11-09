@@ -200,11 +200,22 @@ actor WaterStore {
 
     // MARK: Internals
 
+    /// Starts a fresh snapshot on a new day, and picks up writes made by another process
+    /// (the widget's button, Siri) since this store last published.
     private func rollDay(now: Date) {
         let day = ChecklistDay.key(for: now, calendar: calendar)
-        guard snapshot.day != day else { return }
-        snapshot = WaterTodaySnapshot(day: day, goalML: WaterSettings.tracker(defaults: defaults).goalML, loggedML: 0, entries: [],
-                                      quietToday: false, updatedAt: now)
+        if snapshot.day != day {
+            snapshot = WaterTodaySnapshot(day: day, goalML: WaterSettings.tracker(defaults: defaults).goalML, loggedML: 0, entries: [],
+                                          quietToday: false, updatedAt: now)
+        }
+        if let saved = WaterSnapshotStore.load(from: snapshotDefaults), saved.day == day, saved.updatedAt > snapshot.updatedAt {
+            let known = Set(snapshot.entries.map(\.id))
+            snapshot.entries += saved.entries.filter { !known.contains($0.id) }
+            snapshot.entries.sort { $0.ts < $1.ts }
+            snapshot.quietToday = saved.quietToday
+            snapshot.snoozedUntil = saved.snoozedUntil
+            snapshot.updatedAt = saved.updatedAt
+        }
     }
 
     private func publish(now: Date) {

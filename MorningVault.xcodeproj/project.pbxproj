@@ -13,12 +13,14 @@
 		09B45772B4DBBD41236EAEE2 /* ChecklistSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BCF81A89034D8BFF7C4C001 /* ChecklistSnapshot.swift */; };
 		0EEB81CEA1E301A373890122 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E249A63C0B140CBBF820E5C4 /* SettingsView.swift */; };
 		11E150A2EDC6F43ABBA1A7FA /* TodayWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC3A295440CFCFD620912516 /* TodayWidget.swift */; };
+		1221A31458AD9F67438107FD /* WaterIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC99703E4B6C64612482F0C2 /* WaterIntents.swift */; };
 		1256E46F47C0BA89D85744B5 /* Household.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D07EA105560EBC811B63F8E /* Household.swift */; };
 		12AAB96A55AC30D1FD2AAB4F /* SuggestionEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D53B287BF5058D135815D7F /* SuggestionEngineTests.swift */; };
 		12C5E1FBC646DB8712ADA900 /* ChecklistSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BCF81A89034D8BFF7C4C001 /* ChecklistSnapshot.swift */; };
 		13457E2D7C9D9F72B43D627F /* SafariView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4D4CC7A6722E21934433A6F /* SafariView.swift */; };
 		16CC24DB9272055283A74382 /* OnboardingSymbolsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBA9C338BBD6EFB8CD1B5D46 /* OnboardingSymbolsStep.swift */; };
 		1944C239994A855F0DF1BCC4 /* WaterStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E553B61BC5FEA442F3104B84 /* WaterStore.swift */; };
+		1A496B878A385EB8E7FBC9F1 /* WaterWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7091AAB1509C6FB5D2263E41 /* WaterWidget.swift */; };
 		1C8F2104FBEFA8DD1337EC1E /* SkyScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 795319B94ED6C583F34E5FDC /* SkyScene.swift */; };
 		21946045F1FBEDDA54D6F284 /* OnboardingMeetingsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B50422F2AD54B20129FB1C8 /* OnboardingMeetingsStep.swift */; };
 		221CB4E45B59077F1559008A /* PublicNameGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1824F9A32CADF7BCB6237C30 /* PublicNameGuardTests.swift */; };
@@ -31,6 +33,7 @@
 		2E932C7B9F19E3955192EB5B /* CalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACAA8CF9C253BBAB993C7ABC /* CalendarService.swift */; };
 		2EF7A781C2B467728A3EBD2F /* SuggestionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E2CA7380A9A13F0A861F46F /* SuggestionEngine.swift */; };
 		30FA25455BC3DB5B8E1B6A29 /* TrackedSymbol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6091C9B0146CAF03D736103D /* TrackedSymbol.swift */; };
+		3197E7884FC47D436BF63F1D /* WaterIntentsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D3348795E6CB27ED99475C /* WaterIntentsTests.swift */; };
 		399FF72C653B49862C1EB0F4 /* CacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B0C6160616AE04F2461D038 /* CacheService.swift */; };
 		3A7E49FB5C4ABDB7FEC16C80 /* HealthKitWaterClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843E44ED42A1AFB9093A1CE7 /* HealthKitWaterClient.swift */; };
 		3AF3BCF7DA10AF91B9E6F653 /* MeetingsDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2FD59B96D01494EBE1A9597 /* MeetingsDeepLink.swift */; };
@@ -94,6 +97,7 @@
 		B07D561D00E93A965F10C4EF /* WaterTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A81D8B15F3DF7B3A8EF28BC6 /* WaterTracker.swift */; };
 		B281FE55E090E469DAF71AAD /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E53372DCE56D9D3406815A /* ContentView.swift */; };
 		B4D3090E731757CDE3DDA09B /* MeetingsSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF4A646A414F2E800418BFA7 /* MeetingsSnapshot.swift */; };
+		B5C02EC396FEA588C0ED6FAE /* WaterIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC99703E4B6C64612482F0C2 /* WaterIntents.swift */; };
 		B71AF772C81B372B0E7A75D0 /* BriefingSectionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD35C3FB14B743538182864C /* BriefingSectionCard.swift */; };
 		B8EDB2266AB086F1CE02AC0F /* WaterTrackerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1089696E28E71D10965F4DB /* WaterTrackerView.swift */; };
 		B92920D395AA2DDE460E11E9 /* Animations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47A4440AD2E04B7D687DCE54 /* Animations.swift */; };
@@ -198,6 +202,7 @@
 		6619476E0FF29E35D1B6F96A /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		6884035D786F837686C765A3 /* GreetingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GreetingService.swift; sourceTree = "<group>"; };
 		69D0E5107384CD994F496AF1 /* ChecklistItemEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistItemEditor.swift; sourceTree = "<group>"; };
+		7091AAB1509C6FB5D2263E41 /* WaterWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterWidget.swift; sourceTree = "<group>"; };
 		72703070A4EFC1A13BD941D5 /* UnitsPreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitsPreference.swift; sourceTree = "<group>"; };
 		72C69217FB41C814F48DA970 /* WeatherHero.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherHero.swift; sourceTree = "<group>"; };
 		744744A7C6ACBF0C75D72E34 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -244,6 +249,7 @@
 		DAF1AB9ADD648A1E241B6F52 /* DataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataModels.swift; sourceTree = "<group>"; };
 		DB14433B3B74ED214126E9F3 /* ChecklistStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistStoreTests.swift; sourceTree = "<group>"; };
 		DBA9C338BBD6EFB8CD1B5D46 /* OnboardingSymbolsStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSymbolsStep.swift; sourceTree = "<group>"; };
+		DC99703E4B6C64612482F0C2 /* WaterIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterIntents.swift; sourceTree = "<group>"; };
 		DF4A646A414F2E800418BFA7 /* MeetingsSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingsSnapshot.swift; sourceTree = "<group>"; };
 		E0D4005055984F536F9A3C03 /* MeetingPrepCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingPrepCard.swift; sourceTree = "<group>"; };
 		E1F951050E0F4C265855B07D /* BriefingIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingIntents.swift; sourceTree = "<group>"; };
@@ -260,6 +266,7 @@
 		F0CBE9B72F0FE052713D0A6A /* GreetingComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GreetingComposer.swift; sourceTree = "<group>"; };
 		F1E53372DCE56D9D3406815A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		F22FA11BC4393AA0A34AC497 /* RSSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RSSService.swift; sourceTree = "<group>"; };
+		F5D3348795E6CB27ED99475C /* WaterIntentsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterIntentsTests.swift; sourceTree = "<group>"; };
 		F60C417DCC44D79F117B8D30 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		F7588D1189C8356C06CAD896 /* OnboardingHouseholdStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingHouseholdStep.swift; sourceTree = "<group>"; };
 		F88E7C36006FA4ADFCBB5BDB /* Sparkline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sparkline.swift; sourceTree = "<group>"; };
@@ -308,6 +315,7 @@
 				FA716AFE1B7CFF2B49C066F4 /* SharedBriefingStore.swift */,
 				CC662E3FFC1BD273F4A2D28A /* StopRecordingIntent.swift */,
 				72703070A4EFC1A13BD941D5 /* UnitsPreference.swift */,
+				DC99703E4B6C64612482F0C2 /* WaterIntents.swift */,
 				BFBB72AAD637BABD1EB2158D /* WaterSnapshot.swift */,
 				E553B61BC5FEA442F3104B84 /* WaterStore.swift */,
 			);
@@ -434,6 +442,7 @@
 				48B5B42BD466623AFA77DEC4 /* MorningVaultWidget.swift */,
 				9DB4E3E43D27AB579D38A19F /* RecordingLiveActivityWidget.swift */,
 				EC3A295440CFCFD620912516 /* TodayWidget.swift */,
+				7091AAB1509C6FB5D2263E41 /* WaterWidget.swift */,
 			);
 			path = MorningVaultWidget;
 			sourceTree = "<group>";
@@ -458,6 +467,7 @@
 				0C38EB481AD5C705092A7B6D /* ReminderSchedulerTests.swift */,
 				5D53B287BF5058D135815D7F /* SuggestionEngineTests.swift */,
 				7CB2D87EA2DB50A8A76D7473 /* TodaySectionPrefsTests.swift */,
+				F5D3348795E6CB27ED99475C /* WaterIntentsTests.swift */,
 				833363EBA10E1C42AD9A1901 /* WaterReminderSchedulerTests.swift */,
 				CA6A1986361C65B640DEF946 /* WaterStoreTests.swift */,
 				A51A7F74DA066A4962831FEF /* WaterTrackerTests.swift */,
@@ -685,9 +695,11 @@
 				E4FAD937B0EE2341550559D9 /* SuggestionRules.swift in Sources */,
 				11E150A2EDC6F43ABBA1A7FA /* TodayWidget.swift in Sources */,
 				2BBB6AA78636386ABA078987 /* UnitsPreference.swift in Sources */,
+				1221A31458AD9F67438107FD /* WaterIntents.swift in Sources */,
 				3CE61E4CA0A390CF9C819641 /* WaterSnapshot.swift in Sources */,
 				DB0BD0982AB79B8F03A58D64 /* WaterStore.swift in Sources */,
 				843AFB3213F99AB06B1DBED4 /* WaterTracker.swift in Sources */,
+				1A496B878A385EB8E7FBC9F1 /* WaterWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -763,6 +775,7 @@
 				D009DDBA562F545B60651603 /* TrackerNotificationService.swift in Sources */,
 				ACE91217F54E0DCD16379681 /* UnitsPreference.swift in Sources */,
 				4E8D3AD7F3D51CDB09E3E078 /* VoiceBriefingService.swift in Sources */,
+				B5C02EC396FEA588C0ED6FAE /* WaterIntents.swift in Sources */,
 				5FE75D7340D929F7D7AC03F1 /* WaterReminderScheduler.swift in Sources */,
 				58C6487F7D1260F54EB76C89 /* WaterSettingsView.swift in Sources */,
 				63D799FF2735072EF2F0447C /* WaterSnapshot.swift in Sources */,
@@ -786,6 +799,7 @@
 				BC0CB133D3C166B3D46F025B /* ReminderSchedulerTests.swift in Sources */,
 				12AAB96A55AC30D1FD2AAB4F /* SuggestionEngineTests.swift in Sources */,
 				3B5C4866AD7B900B603B8A46 /* TodaySectionPrefsTests.swift in Sources */,
+				3197E7884FC47D436BF63F1D /* WaterIntentsTests.swift in Sources */,
 				99C06C79431F2BC9D2CAEBE0 /* WaterReminderSchedulerTests.swift in Sources */,
 				68441F80D74E380B71F8100E /* WaterStoreTests.swift in Sources */,
 				4CC8681D0CAFDB2BA9A7C538 /* WaterTrackerTests.swift in Sources */,

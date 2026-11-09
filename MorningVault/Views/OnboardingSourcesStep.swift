@@ -3,6 +3,7 @@ import SwiftUI
 struct OnboardingSourcesStep: View {
     @State private var selectedSources: Set<NewsSource> = []
     @State private var hasAppeared = false
+    @AppStorage(WaterSettings.Key.enabled) private var waterEnabled = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -35,6 +36,20 @@ struct OnboardingSourcesStep: View {
                         ) {
                             toggleSource(source)
                         }
+                    }
+
+                    // Trackers: water is off by default; the goal sheet comes later in Settings.
+                    SourceSelectionRow(
+                        name: "Water",
+                        description: "Track glasses, see a row in the Brief. Saved to Health.",
+                        icon: "drop",
+                        isSelected: waterEnabled,
+                        delay: Double(NewsSource.allCases.count) * 0.06
+                    ) {
+                        waterEnabled.toggle()
+                        WaterSettings.mirrorToAppGroup()
+                        BriefSectionPrefs.mirrorToAppGroup()
+                        if waterEnabled { Task { await WaterViewModel.shared.trackerEnabled() } }
                     }
                 }
                 .padding(.horizontal, 16)

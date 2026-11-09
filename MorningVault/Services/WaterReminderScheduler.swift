@@ -195,7 +195,10 @@ enum WaterReminderScheduler {
         case TrackerNotificationService.Action.snooze30:
             await store.snooze(minutes: 30)
         case UNNotificationDefaultActionIdentifier:
-            await MainActor.run { NotificationCenter.default.post(name: .openWaterTracker, object: nil) }
+            await MainActor.run {
+                NotificationCenter.default.post(name: .viewBriefingRequested, object: nil)
+                NotificationCenter.default.post(name: .openWaterTracker, object: nil)
+            }
         default:
             break
         }

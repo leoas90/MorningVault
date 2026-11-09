@@ -196,6 +196,7 @@ struct MorningVaultWidgetBundle: WidgetBundle {
         MorningVaultSummaryWidget()
         MorningVaultMeetingsWidget()
         TodayWidget()
+        WaterWidget()
         RecordingLiveActivityWidget()
     }
 }

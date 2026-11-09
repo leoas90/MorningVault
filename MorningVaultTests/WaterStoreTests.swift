@@ -221,4 +221,18 @@ final class WaterStoreTests: XCTestCase {
         settings.removeObject(forKey: WaterSettings.Key.briefingTime)
         XCTAssertEqual(WaterSettings.tracker(defaults: settings).windowStartMinutes, 7 * 60)
     }
+
+    func testPicksUpWidgetWritesFromTheMirror() async {
+        let app = makeStore(health: nil, now: at(9))
+        await app.log(ml: 250, at: at(9))
+        // The widget process has its own store over the same mirror.
+        let widget = makeStore(health: nil, now: at(9, 30))
+        await widget.log(ml: 250, at: at(9, 30))
+        let tracker = await app.tracker(now: at(10))
+        XCTAssertEqual(tracker.entries.count, 2, "the app sees the widget's entry")
+        XCTAssertEqual(tracker.logged(at: at(10), calendar: la), 500)
+        // And a later app write does not drop it.
+        await app.log(ml: 100, at: at(10, 5))
+        XCTAssertEqual(WaterSnapshotStore.load(from: mirror)?.loggedML, 600)
+    }
 }
