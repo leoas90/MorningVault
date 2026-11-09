@@ -140,7 +140,8 @@ struct ChecklistWeeklyReview: Equatable, Sendable {
 
     /// "up from 15 of 24" / "down from 22 of 24" / nil.
     var deltaText: String? {
-        guard let delta, previousScheduled > 0 else { return nil }
+        // No completions at all the week before usually means no history yet, not a bad week.
+        guard let delta, previousScheduled > 0, previousDone > 0 else { return nil }
         if abs(delta) < 0.005 { return "same as the week before" }
         let direction = delta > 0 ? "up" : "down"
         return "\(direction) from \(previousDone) of \(previousScheduled)"
