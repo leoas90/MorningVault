@@ -18,6 +18,8 @@ struct BriefingSectionCard: View {
     var marketSeries: [String: MarketSeries] = [:]
 
     @ObservedObject private var readState = NewsReadStateTracker.shared
+    /// Snapshots of stories saved with "Save for later".
+    @ObservedObject private var saved = SavedArticleStore.shared
     /// Household checklist behind the `today` section (previews pass a sample model).
     @ObservedObject private var checklist: ChecklistViewModel
 
@@ -165,6 +167,9 @@ struct BriefingSectionCard: View {
     private var headlinesBody: some View {
         if hasArticles, let feed = section.rssFeed {
             articleList(feed: feed)
+                // Stories marked "Save for later" before the Saved list existed carry only an
+                // id; pick up the ones still in the feed so they get a snapshot too.
+                .task(id: feed.id) { saved.migrate(from: [feed], states: readState.states) }
         } else {
             let lines = section.content
                 .split(separator: "\n")
@@ -213,18 +218,24 @@ struct BriefingSectionCard: View {
                     ArticleRowView(
                         article: article,
                         state: readState.state(for: article.id),
-                        onRead:    { readState.markRead(article.id) },
-                        onLater:   { readState.markLater(article.id) },
-                        onSkip:    { readState.markSkipped(article.id) },
-                        onUnread:  { readState.markUnread(article.id) }
+                        onRead:    { readState.markRead(article.id); saved.remove(id: article.id) },
+                        // Saving keeps a snapshot, so the story survives the next refresh.
+                        onLater:   { readState.markLater(article.id); saved.save(article, sourceName: feed.sourceName) },
+                        onSkip:    { readState.markSkipped(article.id); saved.remove(id: article.id) },
+                        onUnread:  { readState.markUnread(article.id); saved.remove(id: article.id) }
                     )
                 }
             }
+
+            // Anything saved before this list existed and still in the feed.
+            SavedArticlesLink(store: saved)
+                .padding(.top, 4)
 
             if unread > 0 {
                 Button("Mark all read") {
                     for article in feed.articles {
                         readState.markRead(article.id)
+                        saved.remove(id: article.id)
                     }
                 }
                 .font(.system(size: 13, weight: .semibold))

@@ -10,6 +10,7 @@
 		02DF3BA3F6C6E4E507990E25 /* ChecklistStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB14433B3B74ED214126E9F3 /* ChecklistStoreTests.swift */; };
 		04455B3BB2A93FDBDBF16DC2 /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 43846CD46D74B41CF7F5B426 /* HealthKit.framework */; };
 		0919EDACA523845233895CD9 /* CalendarPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2D6332D8965523157F3250B /* CalendarPickerView.swift */; };
+		09A34C70B0CB7F79748ED6E2 /* SavedArticleStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 269EF7CF148319A52DFB04EC /* SavedArticleStore.swift */; };
 		09B45772B4DBBD41236EAEE2 /* ChecklistSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BCF81A89034D8BFF7C4C001 /* ChecklistSnapshot.swift */; };
 		0EEB81CEA1E301A373890122 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E249A63C0B140CBBF820E5C4 /* SettingsView.swift */; };
 		11E150A2EDC6F43ABBA1A7FA /* TodayWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC3A295440CFCFD620912516 /* TodayWidget.swift */; };
@@ -35,6 +36,7 @@
 		2EF7A781C2B467728A3EBD2F /* SuggestionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E2CA7380A9A13F0A861F46F /* SuggestionEngine.swift */; };
 		30FA25455BC3DB5B8E1B6A29 /* TrackedSymbol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6091C9B0146CAF03D736103D /* TrackedSymbol.swift */; };
 		3197E7884FC47D436BF63F1D /* WaterIntentsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D3348795E6CB27ED99475C /* WaterIntentsTests.swift */; };
+		31E365C92AE3EEB9C3C2B474 /* SavedArticleStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D08177B4D7DF6A6F80DCBFF /* SavedArticleStoreTests.swift */; };
 		399FF72C653B49862C1EB0F4 /* CacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B0C6160616AE04F2461D038 /* CacheService.swift */; };
 		3A7E49FB5C4ABDB7FEC16C80 /* HealthKitWaterClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843E44ED42A1AFB9093A1CE7 /* HealthKitWaterClient.swift */; };
 		3AF3BCF7DA10AF91B9E6F653 /* MeetingsDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2FD59B96D01494EBE1A9597 /* MeetingsDeepLink.swift */; };
@@ -139,6 +141,7 @@
 		F3480E6D0027A5C1884D74E5 /* GreetingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6884035D786F837686C765A3 /* GreetingService.swift */; };
 		F7C67B03B804B670B426A0DD /* GreetingComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0CBE9B72F0FE052713D0A6A /* GreetingComposer.swift */; };
 		FE86E3F25C8C584926BA51E6 /* StopRecordingIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC662E3FFC1BD273F4A2D28A /* StopRecordingIntent.swift */; };
+		FF4F691F7F771914A4A4A1EA /* SavedArticlesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDE524908436CD4CF8000170 /* SavedArticlesView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -183,6 +186,7 @@
 		1A263120723E5F68E8715198 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		22C9BBA91338E93E472ECFD9 /* TrackerNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerNotificationService.swift; sourceTree = "<group>"; };
 		241BEA956BDB6CFFEC2B09E5 /* BriefingTemplatePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingTemplatePickerView.swift; sourceTree = "<group>"; };
+		269EF7CF148319A52DFB04EC /* SavedArticleStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedArticleStore.swift; sourceTree = "<group>"; };
 		26B8CF854E4E8D36FF438420 /* MorningVaultTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MorningVaultTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		27F0A46A04A22126F69846D8 /* ReminderScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderScheduler.swift; sourceTree = "<group>"; };
 		28410E5F2F24FBA6A84F1A8D /* MeetingPrep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingPrep.swift; sourceTree = "<group>"; };
@@ -193,6 +197,7 @@
 		3B28A4999CCA31CE52592458 /* MorningVault.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MorningVault.entitlements; sourceTree = "<group>"; };
 		3C018F09283F3785795D9B90 /* BriefingTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingTemplate.swift; sourceTree = "<group>"; };
 		3D07EA105560EBC811B63F8E /* Household.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Household.swift; sourceTree = "<group>"; };
+		3D08177B4D7DF6A6F80DCBFF /* SavedArticleStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedArticleStoreTests.swift; sourceTree = "<group>"; };
 		428137D842E34AED7DAB8482 /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
 		42F262638492997BDB559DCA /* SinceYesterdayService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SinceYesterdayService.swift; sourceTree = "<group>"; };
 		43846CD46D74B41CF7F5B426 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
@@ -267,6 +272,7 @@
 		DB14433B3B74ED214126E9F3 /* ChecklistStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistStoreTests.swift; sourceTree = "<group>"; };
 		DBA9C338BBD6EFB8CD1B5D46 /* OnboardingSymbolsStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSymbolsStep.swift; sourceTree = "<group>"; };
 		DC99703E4B6C64612482F0C2 /* WaterIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterIntents.swift; sourceTree = "<group>"; };
+		DDE524908436CD4CF8000170 /* SavedArticlesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedArticlesView.swift; sourceTree = "<group>"; };
 		DF4A646A414F2E800418BFA7 /* MeetingsSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingsSnapshot.swift; sourceTree = "<group>"; };
 		E0D4005055984F536F9A3C03 /* MeetingPrepCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingPrepCard.swift; sourceTree = "<group>"; };
 		E1F951050E0F4C265855B07D /* BriefingIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingIntents.swift; sourceTree = "<group>"; };
@@ -357,6 +363,7 @@
 				19F0CE7677F525EDF60DDE61 /* OnboardingSourcesStep.swift */,
 				DBA9C338BBD6EFB8CD1B5D46 /* OnboardingSymbolsStep.swift */,
 				6619476E0FF29E35D1B6F96A /* OnboardingView.swift */,
+				DDE524908436CD4CF8000170 /* SavedArticlesView.swift */,
 				E249A63C0B140CBBF820E5C4 /* SettingsView.swift */,
 				C26F9E33368D424D3AAEDFBE /* SourcesView.swift */,
 			);
@@ -440,6 +447,7 @@
 				F95A4F8D514E38562AD1FEE9 /* MorningSnapshot.swift */,
 				B5169DF9CE3C7BF70629DCB0 /* NewsSource.swift */,
 				27F0A46A04A22126F69846D8 /* ReminderScheduler.swift */,
+				269EF7CF148319A52DFB04EC /* SavedArticleStore.swift */,
 				4A60611230D31CB0EB0B654E /* SuggestionRules.swift */,
 				6091C9B0146CAF03D736103D /* TrackedSymbol.swift */,
 				A81D8B15F3DF7B3A8EF28BC6 /* WaterTracker.swift */,
@@ -491,6 +499,7 @@
 				1824F9A32CADF7BCB6237C30 /* PublicNameGuardTests.swift */,
 				0C38EB481AD5C705092A7B6D /* ReminderSchedulerTests.swift */,
 				A49734C044A32308A5A5FEE9 /* RotatingBriefPagesTests.swift */,
+				3D08177B4D7DF6A6F80DCBFF /* SavedArticleStoreTests.swift */,
 				5D53B287BF5058D135815D7F /* SuggestionEngineTests.swift */,
 				7CB2D87EA2DB50A8A76D7473 /* TodaySectionPrefsTests.swift */,
 				F5D3348795E6CB27ED99475C /* WaterIntentsTests.swift */,
@@ -790,6 +799,8 @@
 				E42306790108A392A69268C8 /* ReminderScheduler.swift in Sources */,
 				E82F8C535F073AB87ABF02BF /* RotatingBriefPages.swift in Sources */,
 				13457E2D7C9D9F72B43D627F /* SafariView.swift in Sources */,
+				09A34C70B0CB7F79748ED6E2 /* SavedArticleStore.swift in Sources */,
+				FF4F691F7F771914A4A4A1EA /* SavedArticlesView.swift in Sources */,
 				0EEB81CEA1E301A373890122 /* SettingsView.swift in Sources */,
 				C0B7F722C203994972B5524B /* ShareCardView.swift in Sources */,
 				9A643DE807D78C3B5A270B31 /* SharedBriefingStore.swift in Sources */,
@@ -833,6 +844,7 @@
 				221CB4E45B59077F1559008A /* PublicNameGuardTests.swift in Sources */,
 				BC0CB133D3C166B3D46F025B /* ReminderSchedulerTests.swift in Sources */,
 				51C46ECE6E338E3E130D7361 /* RotatingBriefPagesTests.swift in Sources */,
+				31E365C92AE3EEB9C3C2B474 /* SavedArticleStoreTests.swift in Sources */,
 				12AAB96A55AC30D1FD2AAB4F /* SuggestionEngineTests.swift in Sources */,
 				3B5C4866AD7B900B603B8A46 /* TodaySectionPrefsTests.swift in Sources */,
 				3197E7884FC47D436BF63F1D /* WaterIntentsTests.swift in Sources */,

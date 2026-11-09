@@ -550,6 +550,13 @@ struct SettingsView: View {
                 Label("Edit sources", systemImage: "list.bullet")
             }
             .disabled(localOnly || !headlinesEnabled)
+
+            // Saved stories stay reachable with Headlines off: the list is the user's.
+            NavigationLink {
+                SavedArticlesView()
+            } label: {
+                Label("Saved stories", systemImage: "bookmark")
+            }
         } header: {
             Text("Data sources")
         } footer: {
