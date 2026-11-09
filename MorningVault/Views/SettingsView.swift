@@ -8,6 +8,7 @@ struct SettingsView: View {
     @AppStorage("calendar_enabled") private var calendarEnabled = true
     @AppStorage("weather_enabled") private var weatherEnabled = true
     @AppStorage("headlines_enabled") private var headlinesEnabled = true
+    @AppStorage(BriefSectionPrefs.Key.headlineCount) private var headlineCount: Int = BriefSectionPrefs.defaultHeadlineCount
     @AppStorage(BriefSectionPrefs.Key.summary) private var summarySectionEnabled = true
     @AppStorage(BriefSectionPrefs.Key.next) private var nextSectionEnabled = true
     @AppStorage(BriefSectionPrefs.Key.changes) private var changesSectionEnabled = true
@@ -432,6 +433,19 @@ struct SettingsView: View {
 
             AnimatedToggle(isOn: $headlinesEnabled, icon: "newspaper", label: "Headlines")
                 .disabled(localOnly)
+
+            Picker("Headlines in brief", selection: $headlineCount) {
+                ForEach(BriefSectionPrefs.headlineCountChoices, id: \.self) { n in
+                    Text("\(n)").tag(n)
+                }
+            }
+            .pickerStyle(.segmented)
+            .disabled(localOnly || !headlinesEnabled)
+            .accessibilityLabel("Headlines in brief")
+            .onChange(of: headlineCount) { _, _ in
+                BriefSectionPrefs.mirrorToAppGroup()
+                NotificationCenter.default.post(name: .headlineCountChanged, object: nil)
+            }
 
             NavigationLink {
                 SourcesView()

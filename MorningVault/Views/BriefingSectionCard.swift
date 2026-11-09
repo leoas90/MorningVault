@@ -192,7 +192,8 @@ struct BriefingSectionCard: View {
 
     private func articleList(feed: RSSFeedData) -> some View {
         let unread = readState.unreadCount(in: [feed])
-        let articles = Array(feed.articles.prefix(10))
+        // The view model already cut the feed to the Headlines in brief setting.
+        let articles = feed.articles
         return VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(articles.enumerated()), id: \.element.id) { index, article in
                 numberedRow(index: index, isLast: index == articles.count - 1) {
@@ -458,6 +459,8 @@ struct ArticleRowView: View {
 
 extension Notification.Name {
     static let openArticleURL = Notification.Name("openArticleURL")
+    /// Settings > Data sources > Headlines in brief changed; the Brief reloads its headlines.
+    static let headlineCountChanged = Notification.Name("headlineCountChanged")
 }
 
 

@@ -192,6 +192,12 @@ struct ContentView: View {
                 await viewModel.silentRefresh()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .headlineCountChanged)) { _ in
+            // The headlines section and the shared snapshot are cut to the new count.
+            Task {
+                await viewModel.loadData(force: true)
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .unitsChanged)) { _ in
             // Section text and the AI summary are built with the chosen units, so rebuild both.
             Task {
