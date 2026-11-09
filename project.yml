@@ -92,12 +92,38 @@ targets:
       - sdk: WidgetKit.framework
       - sdk: SwiftUI.framework
 
+  MorningVaultTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: MorningVaultTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yeziddr.morningvault.dev.tests
+        # This xcodegen build ships without setting presets, so spell the bundle basics out.
+        PRODUCT_NAME: MorningVaultTests
+        WRAPPER_EXTENSION: xctest
+        BUNDLE_LOADER: $(TEST_HOST)
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @loader_path/Frameworks"
+        GENERATE_INFOPLIST_FILE: YES
+        # Tests run on the simulator only; no distribution profile applies.
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: ""
+        PROVISIONING_PROFILE_SPECIFIER: ""
+    dependencies:
+      - target: MorningVault
+
 schemes:
   MorningVault:
     build:
       targets:
         MorningVault: all
+        MorningVaultTests: [test]
     run:
       config: Debug
+    test:
+      config: Debug
+      targets:
+        - MorningVaultTests
     archive:
       config: Release

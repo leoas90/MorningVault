@@ -210,7 +210,7 @@ struct TemperatureText: View {
             WeatherHero(hour: 7, weather: WeatherSummary.parse(clear), dateText: "Monday, November 10", updatedText: "7:21 AM", topInset: 100).padding(.top, 100)
             WeatherHero(hour: 9, weather: WeatherSummary.parse(rain), dateText: "Monday, November 10", updatedText: "7:21 AM", topInset: 100).padding(.top, 100)
             WeatherHero(hour: 18, weather: WeatherSummary.parse(cloudy), dateText: "Monday, November 10", updatedText: "6:02 PM", colorSchemeOverride: .dark, topInset: 100).padding(.top, 100)
-            WeatherHero(hour: 7, weather: nil, dateText: "Monday, November 10", greeting: "Good morning, Yezid.", notice: "Allow Location to see the weather here.", topInset: 100).padding(.top, 100)
+            WeatherHero(hour: 7, weather: nil, dateText: "Monday, November 10", greeting: "Good morning, Sam.", notice: "Allow Location to see the weather here.", topInset: 100).padding(.top, 100)
         }
     }
     .background(Color.backgroundColor)

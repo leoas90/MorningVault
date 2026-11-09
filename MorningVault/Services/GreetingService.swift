@@ -12,7 +12,7 @@ import Observation
 final class GreetingService {
     static let shared = GreetingService()
 
-    /// "Good morning, Yezid" — always available, never empty.
+    /// "Good morning, Sam" — always available, never empty.
     private(set) var line: String = GreetingComposer.line(name: "")
     /// Optional opener written by the model, 12 words max. Nil until generated or when the model is unavailable.
     private(set) var opener: String?

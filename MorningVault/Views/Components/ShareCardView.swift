@@ -140,7 +140,7 @@ struct ShareCardView: View {
     ShareCardView(
         hour: 7,
         weather: WeatherSummary.parse(BriefingViewModel.previewWeatherClear),
-        greeting: "Good morning, Yezid.",
+        greeting: "Good morning, Sam.",
         lede: "A mild morning with three meetings, the first at nine.",
         nextEvent: CalendarLine(time: "9:00 AM", title: "Standup"),
         quotes: [

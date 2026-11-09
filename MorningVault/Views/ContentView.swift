@@ -948,7 +948,7 @@ extension BriefingViewModel {
 }
 
 #Preview("App · Brief light") {
-    appPreview(theme: .light, viewModel: BriefingViewModel.previewSample(), now: BriefingViewModel.previewNow, greeting: "Good morning, Yezid")
+    appPreview(theme: .light, viewModel: BriefingViewModel.previewSample(), now: BriefingViewModel.previewNow, greeting: "Good morning, Sam")
 }
 
 #Preview("App · Brief dark") {
@@ -957,7 +957,7 @@ extension BriefingViewModel {
                                                           weather: BriefingViewModel.previewWeatherEvening,
                                                           summary: BriefingViewModel.previewSummaryEvening,
                                                           changes: BriefingViewModel.previewChangesEvening),
-               now: BriefingViewModel.previewEvening, greeting: "Good evening, Yezid")
+               now: BriefingViewModel.previewEvening, greeting: "Good evening, Sam")
 }
 
 #Preview("App · Brief rain") {
@@ -965,15 +965,15 @@ extension BriefingViewModel {
     return appPreview(theme: .light,
                       viewModel: BriefingViewModel.previewSample(weather: BriefingViewModel.previewWeatherRain,
                                                                  summary: BriefingViewModel.previewSummaryRain),
-                      now: BriefingViewModel.previewNow, greeting: "Good morning, Yezid")
+                      now: BriefingViewModel.previewNow, greeting: "Good morning, Sam")
 }
 
 #Preview("App · Markets light") {
-    appPreview(theme: .light, viewModel: BriefingViewModel.previewSample(), now: BriefingViewModel.previewNow, greeting: "Good morning, Yezid", tab: .markets)
+    appPreview(theme: .light, viewModel: BriefingViewModel.previewSample(), now: BriefingViewModel.previewNow, greeting: "Good morning, Sam", tab: .markets)
 }
 
 #Preview("App · Markets dark") {
-    appPreview(theme: .dark, viewModel: BriefingViewModel.previewSample(), now: BriefingViewModel.previewNow, greeting: "Good morning, Yezid", tab: .markets)
+    appPreview(theme: .dark, viewModel: BriefingViewModel.previewSample(), now: BriefingViewModel.previewNow, greeting: "Good morning, Sam", tab: .markets)
 }
 
 #Preview("Brief · no weather") {
@@ -983,12 +983,12 @@ extension BriefingViewModel {
     vm.morningSnapshot.weatherNeedsLocation = true
     return BriefTabView(
         viewModel: vm,
-        userName: "Yezid",
+        userName: "Sam",
         localOnly: false,
         isVoicePlaying: .constant(false),
         showShareSheet: .constant(false),
         previewNow: BriefingViewModel.previewNow,
-        previewGreeting: "Good morning, Yezid"
+        previewGreeting: "Good morning, Sam"
     )
     .preferredColorScheme(.light)
 }

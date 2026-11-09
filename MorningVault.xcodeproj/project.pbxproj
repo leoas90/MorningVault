@@ -13,6 +13,7 @@
 		16CC24DB9272055283A74382 /* OnboardingSymbolsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBA9C338BBD6EFB8CD1B5D46 /* OnboardingSymbolsStep.swift */; };
 		1C8F2104FBEFA8DD1337EC1E /* SkyScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 795319B94ED6C583F34E5FDC /* SkyScene.swift */; };
 		21946045F1FBEDDA54D6F284 /* OnboardingMeetingsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B50422F2AD54B20129FB1C8 /* OnboardingMeetingsStep.swift */; };
+		221CB4E45B59077F1559008A /* PublicNameGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1824F9A32CADF7BCB6237C30 /* PublicNameGuardTests.swift */; };
 		22E2D4B849B0C751DCBD8534 /* MorningSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = F95A4F8D514E38562AD1FEE9 /* MorningSnapshot.swift */; };
 		2527903266B6D07786002005 /* WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96717330575D4D9806610694 /* WeatherService.swift */; };
 		25A6424DE251E8A88F2BE0F5 /* RecordingActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D95BFAC24870DCE7D888CD92 /* RecordingActivityAttributes.swift */; };
@@ -82,6 +83,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		6B608732EC37043796D51FAE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1F215DF61AA9EFA7D1FF823C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 503CFA92C92AF708C45357B5;
+			remoteInfo = MorningVault;
+		};
 		6C03D00273726DCEE430604E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1F215DF61AA9EFA7D1FF823C /* Project object */;
@@ -106,10 +114,12 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		1824F9A32CADF7BCB6237C30 /* PublicNameGuardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicNameGuardTests.swift; sourceTree = "<group>"; };
 		1927CFE7F60D2F00E0BDF16B /* MarketBackendService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketBackendService.swift; sourceTree = "<group>"; };
 		19F0CE7677F525EDF60DDE61 /* OnboardingSourcesStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSourcesStep.swift; sourceTree = "<group>"; };
 		1A263120723E5F68E8715198 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		241BEA956BDB6CFFEC2B09E5 /* BriefingTemplatePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingTemplatePickerView.swift; sourceTree = "<group>"; };
+		26B8CF854E4E8D36FF438420 /* MorningVaultTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MorningVaultTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		28410E5F2F24FBA6A84F1A8D /* MeetingPrep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingPrep.swift; sourceTree = "<group>"; };
 		2C1EAD34AC6A2C77C23646A3 /* MorningVault.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MorningVault.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2E8DEEC9A141B8A080C115ED /* VoiceBriefingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceBriefingService.swift; sourceTree = "<group>"; };
@@ -266,6 +276,7 @@
 			isa = PBXGroup;
 			children = (
 				155AAA4139B6BB6FA08596F4 /* MorningVault */,
+				4A7E843203AAD83DEC39F24E /* MorningVaultTests */,
 				40ED36F21A34ACBFD971024D /* MorningVaultWidget */,
 				9092E8CEFB127D2DDA77C558 /* Packages */,
 				95636A328EE4AFF5D7B29D1D /* Frameworks */,
@@ -320,9 +331,18 @@
 			isa = PBXGroup;
 			children = (
 				2C1EAD34AC6A2C77C23646A3 /* MorningVault.app */,
+				26B8CF854E4E8D36FF438420 /* MorningVaultTests.xctest */,
 				7F326B33C09D42D7161B8064 /* MorningVaultWidget.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		4A7E843203AAD83DEC39F24E /* MorningVaultTests */ = {
+			isa = PBXGroup;
+			children = (
+				1824F9A32CADF7BCB6237C30 /* PublicNameGuardTests.swift */,
+			);
+			path = MorningVaultTests;
 			sourceTree = "<group>";
 		};
 		890ED5881EF8B6C67CD48C92 /* PrivacyPolicy */ = {
@@ -440,6 +460,24 @@
 			productReference = 2C1EAD34AC6A2C77C23646A3 /* MorningVault.app */;
 			productType = "com.apple.product-type.application";
 		};
+		5345051405FE9842EC927F67 /* MorningVaultTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A4485DE44F047C01C5011F1A /* Build configuration list for PBXNativeTarget "MorningVaultTests" */;
+			buildPhases = (
+				FE18787FC4B1AE9D613BC244 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				392F061AA09E05BBEAB9085A /* PBXTargetDependency */,
+			);
+			name = MorningVaultTests;
+			packageProductDependencies = (
+			);
+			productName = MorningVaultTests;
+			productReference = 26B8CF854E4E8D36FF438420 /* MorningVaultTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -456,6 +494,10 @@
 					503CFA92C92AF708C45357B5 = {
 						DevelopmentTeam = 8ZPN58AQLD;
 						ProvisioningStyle = Manual;
+					};
+					5345051405FE9842EC927F67 = {
+						DevelopmentTeam = 8ZPN58AQLD;
+						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -477,6 +519,7 @@
 			projectRoot = "";
 			targets = (
 				503CFA92C92AF708C45357B5 /* MorningVault */,
+				5345051405FE9842EC927F67 /* MorningVaultTests */,
 				21D97E08F95FB50255E736A4 /* MorningVaultWidget */,
 			);
 		};
@@ -571,9 +614,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FE18787FC4B1AE9D613BC244 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				221CB4E45B59077F1559008A /* PublicNameGuardTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		392F061AA09E05BBEAB9085A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 503CFA92C92AF708C45357B5 /* MorningVault */;
+			targetProxy = 6B608732EC37043796D51FAE /* PBXContainerItemProxy */;
+		};
 		6F1901684E4D38CBD6724C96 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 21D97E08F95FB50255E736A4 /* MorningVaultWidget */;
@@ -682,9 +738,50 @@
 			};
 			name = Release;
 		};
+		D5DA7B936C59CA8443996098 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.yeziddr.morningvault.dev.tests;
+				PRODUCT_NAME = MorningVaultTests;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MorningVault.app/MorningVault";
+				WRAPPER_EXTENSION = xctest;
+			};
+			name = Release;
+		};
+		F260435DD64CB5698737BAB6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.yeziddr.morningvault.dev.tests;
+				PRODUCT_NAME = MorningVaultTests;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MorningVault.app/MorningVault";
+				WRAPPER_EXTENSION = xctest;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		A4485DE44F047C01C5011F1A /* Build configuration list for PBXNativeTarget "MorningVaultTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F260435DD64CB5698737BAB6 /* Debug */,
+				D5DA7B936C59CA8443996098 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		A5A74211332564D13C25542D /* Build configuration list for PBXProject "MorningVault" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

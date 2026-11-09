@@ -119,7 +119,7 @@ struct SummaryWidgetView: View {
         }
     }
 
-    /// Same greeting as the Brief header ("Good morning, Yezid"), written by the app.
+    /// Same greeting as the Brief header ("Good morning, Sam"), written by the app.
     private var greeting: String {
         let g = entry.briefing?.greeting?.trimmingCharacters(in: .whitespaces) ?? ""
         return g.isEmpty ? "Today" : g
@@ -212,7 +212,7 @@ extension SharedBriefing {
         headlines: [.init(title: "Fed holds rates steady as inflation cools", gist: nil, source: nil),
                     .init(title: "Apple previews on-device models for iOS 27", gist: nil, source: nil)],
         updatedAt: Date(),
-        greeting: "Good morning, Yezid"
+        greeting: "Good morning, Sam"
     )
 }
 

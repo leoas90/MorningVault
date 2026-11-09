@@ -18,7 +18,7 @@ final class NaturalVoiceTests: XCTestCase {
     func testSynthesizesFromBundledModels() async throws {
         XCTAssertNotNil(NaturalVoice.modelsDirectory)
         let voice = NaturalVoice()
-        let audio = try await voice.synthesize("Good morning, Yezid. It's 58 degrees and clear in Murrieta.")
+        let audio = try await voice.synthesize("Good morning, Sam. It's 58 degrees and clear in Murrieta.")
         XCTAssertEqual(audio.sampleRate, 24_000)
         XCTAssertGreaterThan(Double(audio.samples.count) / audio.sampleRate, 2.0)
         XCTAssertGreaterThan(audio.samples.map(abs).max() ?? 0, 0.01)

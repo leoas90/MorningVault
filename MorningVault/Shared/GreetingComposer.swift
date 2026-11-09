@@ -4,7 +4,7 @@ import Foundation
 /// it does not read the same every morning. Pure and deterministic for a given date and
 /// name, so the widget and the app agree. No model, no network.
 ///
-/// Examples: "Good morning, Yezid", "Happy Friday, Yezid", "Late one tonight, Yezid",
+/// Examples: "Good morning, Sam", "Happy Friday, Sam", "Late one tonight, Sam",
 /// "Good morning" when the name is empty — never "Good morning, .".
 enum GreetingComposer {
     enum Slot: Equatable {
@@ -64,7 +64,7 @@ enum GreetingComposer {
         return list[min(index, list.count - 1)]
     }
 
-    /// Full line, e.g. "Good morning, Yezid". Trims the name; empty names give just the base.
+    /// Full line, e.g. "Good morning, Sam". Trims the name; empty names give just the base.
     static func line(name: String, date: Date = Date(), calendar: Calendar = .current) -> String {
         let base = base(for: date, calendar: calendar)
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)

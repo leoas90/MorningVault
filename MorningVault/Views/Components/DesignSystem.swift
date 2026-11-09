@@ -19,7 +19,7 @@ extension Font {
         .system(size: size, weight: weight, design: .serif)
     }
 
-    /// "Good morning, Yezid." — 34/40 serif semibold, two lines at most.
+    /// "Good morning, Sam." — 34/40 serif semibold, two lines at most.
     static var greeting: Font { .system(size: 34, weight: .semibold, design: .serif) }
     /// Page titles on Markets / Settings.
     static var pageTitle: Font { .system(size: 34, weight: .semibold, design: .serif) }

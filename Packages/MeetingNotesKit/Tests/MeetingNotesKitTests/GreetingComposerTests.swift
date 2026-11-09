@@ -24,8 +24,8 @@ struct GreetingComposerTests {
     }
 
     @Test func nameIsAppendedAfterComma() {
-        let line = GreetingComposer.line(name: " Yezid ", date: date(2026, 11, 4, 8), calendar: calendar)
-        #expect(line.hasSuffix(", Yezid"))
+        let line = GreetingComposer.line(name: " Sam ", date: date(2026, 11, 4, 8), calendar: calendar)
+        #expect(line.hasSuffix(", Sam"))
     }
 
     @Test func slotsFollowTheClock() {
@@ -52,8 +52,8 @@ struct GreetingComposerTests {
     }
 
     @Test func sameDayIsStableAcrossRefreshes() {
-        let a = GreetingComposer.line(name: "Yezid", date: date(2026, 11, 4, 7), calendar: calendar)
-        let b = GreetingComposer.line(name: "Yezid", date: date(2026, 11, 4, 9), calendar: calendar)
+        let a = GreetingComposer.line(name: "Sam", date: date(2026, 11, 4, 7), calendar: calendar)
+        let b = GreetingComposer.line(name: "Sam", date: date(2026, 11, 4, 9), calendar: calendar)
         #expect(a == b)
     }
 
