@@ -77,7 +77,10 @@ public final class LiveTranscriber: ObservableObject {
             locale: locale,
             transcriptionOptions: [],
             reportingOptions: [.volatileResults],
-            attributeOptions: []
+            // Word timings: without them every piece lacks a time range, the
+            // meeting is saved as one block, and speaker identification has
+            // nothing to split (every word lands on one speaker).
+            attributeOptions: [.audioTimeRange]
         )
         self.transcriber = transcriber
 
@@ -142,7 +145,8 @@ public final class LiveTranscriber: ObservableObject {
                     let text = String(result.text.characters)
                     let range = result.range
                     let isFinal = result.isFinal
-                    await self?.apply(text: text, isFinal: isFinal, range: range)
+                    let words = isFinal ? Self.words(in: result.text) : []
+                    await self?.apply(text: text, isFinal: isFinal, range: range, words: words)
                 }
             } catch {
                 // The recogniser stopped. Whatever was recognised stays on screen.
@@ -201,16 +205,40 @@ public final class LiveTranscriber: ObservableObject {
         assembler.reset()
     }
 
-    private func apply(text: String, isFinal: Bool, range: CMTimeRange) {
-        if let piece = assembler.apply(text: text, isFinal: isFinal),
-           range.start.isNumeric, range.end.isNumeric {
-            onPiece?(TranscriptPiece(
-                text: piece,
-                start: CMTimeGetSeconds(range.start),
-                end: CMTimeGetSeconds(range.end)
-            ))
+    private func apply(text: String, isFinal: Bool, range: CMTimeRange, words: [FileTranscriptionService.RecognizedWord]) {
+        if let piece = assembler.apply(text: text, isFinal: isFinal) {
+            // Prefer word-level pieces (split at pauses) so each speaker turn
+            // can get its own piece; fall back to the whole result's range.
+            let split = FileTranscriptionService.pieces(from: words, offset: 0)
+            if !split.isEmpty {
+                split.forEach { onPiece?($0) }
+            } else if range.start.isNumeric, range.end.isNumeric {
+                onPiece?(TranscriptPiece(
+                    text: piece,
+                    start: CMTimeGetSeconds(range.start),
+                    end: CMTimeGetSeconds(range.end)
+                ))
+            }
         }
         onUpdate?(assembler.finalText, assembler.volatileText)
+    }
+
+    /// Words of a finalized result with their place in the recording, read
+    /// from the `audioTimeRange` attribute. Empty when timings are missing.
+    nonisolated static func words(in text: AttributedString) -> [FileTranscriptionService.RecognizedWord] {
+        var words: [FileTranscriptionService.RecognizedWord] = []
+        for run in text.runs {
+            guard let timeRange = run.audioTimeRange,
+                  timeRange.start.isNumeric, timeRange.duration.isNumeric else { continue }
+            let word = String(text[run.range].characters).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !word.isEmpty else { continue }
+            words.append(.init(
+                text: word,
+                start: CMTimeGetSeconds(timeRange.start),
+                duration: CMTimeGetSeconds(timeRange.duration)
+            ))
+        }
+        return words
     }
 
     private func teardown() async {

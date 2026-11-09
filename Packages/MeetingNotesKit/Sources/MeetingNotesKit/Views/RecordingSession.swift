@@ -246,6 +246,16 @@ public final class RecordingSession: ObservableObject {
             save(context, what: "The transcript could not be saved.")
         } else if liveText.isEmpty, !speechAuthorized {
             banner = "Speech recognition is off in Settings, so this meeting has no transcript."
+        } else if !liveText.isEmpty, pieces.count <= 1, speechAuthorized, let url = recorder.recordingURL, duration > 20 {
+            // Live text came back without timings, so speakers could not be
+            // told apart. Re-read the file for timed pieces; keep the live
+            // text if that fails.
+            if let timed = try? await FileTranscriptionService.transcribeWithTiming(fileURL: url),
+               timed.pieces.count > 1 {
+                pieces = timed.pieces
+            } else if pieces.isEmpty {
+                pieces = [TranscriptPiece(text: liveText, start: 0, end: duration)]
+            }
         } else if !liveText.isEmpty, pieces.isEmpty {
             // Live transcription without timing: keep the text as one piece so
             // the transcript sheet and exports still have something to show.
