@@ -408,8 +408,15 @@ struct BriefTabView: View {
                     // Once per day per name; a cached greeting returns immediately.
                     await greeting.refresh(name: userName, context: greetingContext)
                 }
-                .onChange(of: weatherEnabled) { _, _ in
-                    Task { await viewModel.loadData(force: true) }
+                .onChange(of: [weatherEnabled, headlinesEnabled, healthEnabled, calendarEnabled]) { _, _ in
+                    // Data sources (Settings > Data sources): refetch so a source turned off
+                    // leaves the Brief, the widget and the summary right away (headlines stayed).
+                    BriefSectionPrefs.mirrorToAppGroup()
+                    Task {
+                        await viewModel.loadData(force: true)
+                        await viewModel.generateAISummary()
+                        BriefingWidgetReloader.reload()
+                    }
                 }
                 .onChange(of: [summaryEnabled, nextEnabled, changesEnabled, marketsEnabled]) { _, _ in
                     // Rebuild so the snapshot, the widget and the spoken brief follow the toggles.
