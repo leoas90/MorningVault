@@ -19,9 +19,9 @@ struct TodaySectionView: View {
                 list
             }
         }
-        .task { await model.load() }
+        .task { await model.load(); await model.briefOpened() }
         .onReceive(NotificationCenter.default.publisher(for: .checklistChangedExternally)) { _ in Task { await model.load() } }
-        .onReceive(NotificationCenter.default.publisher(for: .appBecameActive)) { _ in Task { await model.load() } }
+        .onReceive(NotificationCenter.default.publisher(for: .appBecameActive)) { _ in Task { await model.load(); await model.briefOpened() } }
         .sheet(item: $editing) { item in ChecklistItemEditor(model: model, item: item) }
         .sheet(isPresented: $addingNew) { ChecklistItemEditor(model: model) }
         .alert(notesFor?.title ?? "", isPresented: Binding(get: { notesFor != nil }, set: { if !$0 { notesFor = nil } })) {

@@ -24,6 +24,21 @@ struct HouseholdMembersView: View {
                     .buttonStyle(.plain)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                    .contextMenu {
+                        if model.phoneMember?.id != member.id {
+                            Button { Task { await model.setPhoneMember(member) } } label: {
+                                Label("This is me", systemImage: "person.crop.circle.badge.checkmark")
+                            }
+                        }
+                    }
+                    .swipeActions(edge: .leading) {
+                        if model.phoneMember?.id != member.id {
+                            Button { Task { await model.setPhoneMember(member) } } label: {
+                                Label("This is me", systemImage: "person.crop.circle.badge.checkmark")
+                            }
+                            .tint(Color.appAccentColor)
+                        }
+                    }
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         Button(role: .destructive) {
                             Task { await model.deleteMember(member) }
@@ -54,7 +69,7 @@ struct HouseholdMembersView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
             } footer: {
-                Text("Names stay on this device. Removing a person keeps their items, untagged.")
+                Text("Names stay on this device. Removing a person keeps their items, untagged. Swipe right on a person to say this phone is theirs; reminders for other people then stay quiet here.")
                     .font(.metaText)
                     .foregroundStyle(Color.inkSecondary)
                     .padding(.horizontal, 20)
@@ -83,6 +98,11 @@ struct HouseholdMembersView: View {
                     .font(.bodyText)
                     .foregroundStyle(Color.inkPrimary)
                 Spacer()
+                if model.phoneMember?.id == member.id {
+                    Text("This phone")
+                        .font(.metaText)
+                        .foregroundStyle(Color.appAccentColor)
+                }
                 Text(member.role.label)
                     .font(.metaText)
                     .foregroundStyle(Color.inkSecondary)

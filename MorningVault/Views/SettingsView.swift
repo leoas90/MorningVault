@@ -425,9 +425,14 @@ struct SettingsView: View {
         } header: {
             Text("Trackers")
         } footer: {
-            Text(householdEnabled
-                 ? "A short list of what gets done every morning, checked off from the Brief. Stays on this device."
-                 : "A short household checklist in the Brief: lunches, meds, a walk. Off by default.")
+            if householdEnabled {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("A short list of what gets done every morning, checked off from the Brief. Stays on this device.")
+                    Text("Reminders (Pro). Gentle shows in Notification Center with no sound and no follow-up. Normal plays a sound and follows up once an hour later if the item is still open. Must do can break through Focus when you allow Time Sensitive notifications, and follows up every 45 minutes up to three times. Nothing fires after 10 pm.")
+                }
+            } else {
+                Text("A short household checklist in the Brief: lunches, meds, a walk. Off by default.")
+            }
         }
         .onChange(of: householdEnabled) { _, _ in
             BriefSectionPrefs.mirrorToAppGroup()

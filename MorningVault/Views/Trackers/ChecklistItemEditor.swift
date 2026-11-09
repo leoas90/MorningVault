@@ -49,6 +49,7 @@ struct ChecklistItemEditor: View {
     @State private var urgency: ReminderRule.Urgency
     @State private var notes: String
     @State private var saveError: String?
+    @State private var showMustDoHint = false
     @FocusState private var focus: Field?
 
     private enum Field { case title, notes }
@@ -160,6 +161,16 @@ struct ChecklistItemEditor: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
             .onAppear { if isNew { focus = .title } }
+            .onChange(of: urgency) { _, level in
+                guard level == .mustDo, !UserDefaults.standard.bool(forKey: HouseholdPhoneSettings.mustDoHintShownKey) else { return }
+                Task {
+                    // First time only, and only while Time Sensitive is off for the app.
+                    if await !TrackerNotificationService.timeSensitiveAllowed() {
+                        showMustDoHint = true
+                        UserDefaults.standard.set(true, forKey: HouseholdPhoneSettings.mustDoHintShownKey)
+                    }
+                }
+            }
         }
     }
 
@@ -354,6 +365,22 @@ struct ChecklistItemEditor: View {
                     Text(urgency.explanation)
                         .font(.metaText).foregroundStyle(Color.inkSecondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    if showMustDoHint, urgency == .mustDo {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Image(systemName: "bell.badge")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Color.appAccentColor)
+                            Text("Must do uses Time Sensitive notifications, which are off for this app. Allow them under Settings > Notifications to break through Focus.")
+                                .font(.metaText).foregroundStyle(Color.inkPrimary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: 0)
+                            Button("Settings") {
+                                if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
+                            }
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color.appAccentColor)
+                        }
+                    }
                 } else if !proUnlocked {
                     Text("Reminders come with Pro. Checking items is always free.")
                         .font(.metaText).foregroundStyle(Color.inkSecondary)

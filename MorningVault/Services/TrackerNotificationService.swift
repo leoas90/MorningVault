@@ -87,6 +87,64 @@ enum TrackerNotificationService {
         center.removeDeliveredNotifications(withIdentifiers: [id])
     }
 
+    // MARK: Reminders (Pro)
+
+    /// Rebuilds the pending `check.*` requests from the store: cancels ours, plans the next
+    /// seven days (see `ReminderScheduler`), adds them under the 40-request budget. Called
+    /// after every store write and when the Brief opens. Without Pro nothing is scheduled.
+    static func rescheduleReminders(store: ChecklistStore = .shared, now: Date = Date(), center: UNUserNotificationCenter = .current()) async {
+        let pending = await center.pendingNotificationRequests().map(\.identifier)
+        center.removePendingNotificationRequests(withIdentifiers: ReminderScheduler.identifiersToCancel(pending: pending))
+        guard ProGate.isUnlocked else { return }
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
+        guard let ledger = try? await store.ledger(asOf: now) else { return }
+
+        let context = ReminderScheduler.Context(
+            now: now,
+            calendar: .current,
+            meMemberID: HouseholdPhoneSettings.meMemberID,
+            briefLastOpened: HouseholdPhoneSettings.briefLastOpened,
+            isPro: ProGate.isUnlocked,
+            cap: max(0, ReminderScheduler.totalCap - ReminderScheduler.foreignCount(pending: pending)))
+        let plans = ReminderScheduler.plan(ledger: ledger, context: context)
+        guard !plans.isEmpty else { return }
+        registerCategories(center: center)
+        for plan in plans {
+            try? await center.add(request(for: plan, timeSensitiveAllowed: settings.timeSensitiveSetting == .enabled))
+        }
+    }
+
+    /// Builds the request for one plan. Gentle = passive, Normal = active, Must do = time
+    /// sensitive (falls back to active while the user has not allowed it). Never critical.
+    static func request(for plan: ReminderPlan, timeSensitiveAllowed: Bool) -> UNNotificationRequest {
+        let content = UNMutableNotificationContent()
+        content.title = plan.title
+        content.body = plan.isFollowUp ? "Still to do." : "Time for this."
+        content.categoryIdentifier = Category.checkRemind
+        content.threadIdentifier = "household"
+        content.userInfo = [UserInfoKey.itemID: plan.itemID.uuidString, UserInfoKey.day: plan.day, UserInfoKey.slotIndex: plan.slotIndex]
+        switch plan.urgency {
+        case .gentle:
+            content.interruptionLevel = .passive
+            content.sound = nil
+        case .normal:
+            content.interruptionLevel = .active
+            content.sound = .default
+        case .mustDo:
+            content.interruptionLevel = timeSensitiveAllowed ? .timeSensitive : .active
+            content.sound = .default
+        }
+        let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: plan.fireAt)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        return UNNotificationRequest(identifier: plan.identifier, content: content, trigger: trigger)
+    }
+
+    /// True when the user has allowed Time Sensitive notifications for the app.
+    static func timeSensitiveAllowed(center: UNUserNotificationCenter = .current()) async -> Bool {
+        await center.notificationSettings().timeSensitiveSetting == .enabled
+    }
+
     // MARK: Responses
 
     /// Handles a tap or action on a tracker notification. Returns false for other categories.
@@ -121,6 +179,7 @@ enum TrackerNotificationService {
         default:
             break
         }
+        await rescheduleReminders(store: store)
         await MainActor.run { NotificationCenter.default.post(name: .checklistChangedExternally, object: nil) }
         return true
     }

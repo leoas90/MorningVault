@@ -77,6 +77,7 @@
 		B4D3090E731757CDE3DDA09B /* MeetingsSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF4A646A414F2E800418BFA7 /* MeetingsSnapshot.swift */; };
 		B71AF772C81B372B0E7A75D0 /* BriefingSectionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD35C3FB14B743538182864C /* BriefingSectionCard.swift */; };
 		B92920D395AA2DDE460E11E9 /* Animations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47A4440AD2E04B7D687DCE54 /* Animations.swift */; };
+		BC0CB133D3C166B3D46F025B /* ReminderSchedulerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C38EB481AD5C705092A7B6D /* ReminderSchedulerTests.swift */; };
 		BDB5836BE653898B8DE287E5 /* ChecklistViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15DEAF212618486F40DEDCF0 /* ChecklistViewModel.swift */; };
 		BE20DBFD4EE40EF8A0784F43 /* MorningVaultWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48B5B42BD466623AFA77DEC4 /* MorningVaultWidget.swift */; };
 		C0A36CEC5BB49E25429B8ADC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F60C417DCC44D79F117B8D30 /* WidgetKit.framework */; };
@@ -94,6 +95,7 @@
 		DF67CDE0CEF859228EA2EFE1 /* MeetingPrepService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4FAAAF213FBE84FF9276477 /* MeetingPrepService.swift */; };
 		DFED1E3FEBEC6D0F0F35EC04 /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83D59911EA5A72F47B900500 /* AIService.swift */; };
 		E0DC5D42A99B2BB9ACE12257 /* MeetingNotesKit in Frameworks */ = {isa = PBXBuildFile; productRef = 73AD641908E3D7D849FF1C9B /* MeetingNotesKit */; };
+		E42306790108A392A69268C8 /* ReminderScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27F0A46A04A22126F69846D8 /* ReminderScheduler.swift */; };
 		EB6566C8C2BE0D3E6383D27D /* ChecklistStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FA8E97AC6C1EC33810AADF7 /* ChecklistStore.swift */; };
 		EC1E4CA31B7C5C9B7F854E2C /* StopRecordingIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC662E3FFC1BD273F4A2D28A /* StopRecordingIntent.swift */; };
 		F3480E6D0027A5C1884D74E5 /* GreetingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6884035D786F837686C765A3 /* GreetingService.swift */; };
@@ -133,6 +135,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0C38EB481AD5C705092A7B6D /* ReminderSchedulerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderSchedulerTests.swift; sourceTree = "<group>"; };
 		0FA8E97AC6C1EC33810AADF7 /* ChecklistStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistStore.swift; sourceTree = "<group>"; };
 		15DEAF212618486F40DEDCF0 /* ChecklistViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistViewModel.swift; sourceTree = "<group>"; };
 		1824F9A32CADF7BCB6237C30 /* PublicNameGuardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicNameGuardTests.swift; sourceTree = "<group>"; };
@@ -142,6 +145,7 @@
 		22C9BBA91338E93E472ECFD9 /* TrackerNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerNotificationService.swift; sourceTree = "<group>"; };
 		241BEA956BDB6CFFEC2B09E5 /* BriefingTemplatePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingTemplatePickerView.swift; sourceTree = "<group>"; };
 		26B8CF854E4E8D36FF438420 /* MorningVaultTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MorningVaultTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		27F0A46A04A22126F69846D8 /* ReminderScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderScheduler.swift; sourceTree = "<group>"; };
 		28410E5F2F24FBA6A84F1A8D /* MeetingPrep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingPrep.swift; sourceTree = "<group>"; };
 		2C1EAD34AC6A2C77C23646A3 /* MorningVault.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MorningVault.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2E40B3A6A2552FFBD43452DE /* TodaySectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySectionView.swift; sourceTree = "<group>"; };
@@ -354,6 +358,7 @@
 				28410E5F2F24FBA6A84F1A8D /* MeetingPrep.swift */,
 				F95A4F8D514E38562AD1FEE9 /* MorningSnapshot.swift */,
 				B5169DF9CE3C7BF70629DCB0 /* NewsSource.swift */,
+				27F0A46A04A22126F69846D8 /* ReminderScheduler.swift */,
 				6091C9B0146CAF03D736103D /* TrackedSymbol.swift */,
 			);
 			path = Models;
@@ -395,6 +400,7 @@
 				DB14433B3B74ED214126E9F3 /* ChecklistStoreTests.swift */,
 				AEE14A43C073ADAD5849355C /* HouseholdModelTests.swift */,
 				1824F9A32CADF7BCB6237C30 /* PublicNameGuardTests.swift */,
+				0C38EB481AD5C705092A7B6D /* ReminderSchedulerTests.swift */,
 				7CB2D87EA2DB50A8A76D7473 /* TodaySectionPrefsTests.swift */,
 			);
 			path = MorningVaultTests;
@@ -666,6 +672,7 @@
 				5B427C322DF1CEAA68D3A8E8 /* ProGate.swift in Sources */,
 				707FF8CF0AFCADBDE4CA147A /* RSSService.swift in Sources */,
 				4827249630311489CE197890 /* RecordingActivityAttributes.swift in Sources */,
+				E42306790108A392A69268C8 /* ReminderScheduler.swift in Sources */,
 				13457E2D7C9D9F72B43D627F /* SafariView.swift in Sources */,
 				0EEB81CEA1E301A373890122 /* SettingsView.swift in Sources */,
 				C0B7F722C203994972B5524B /* ShareCardView.swift in Sources */,
@@ -694,6 +701,7 @@
 				02DF3BA3F6C6E4E507990E25 /* ChecklistStoreTests.swift in Sources */,
 				C91D0C035EE6B32F4A91C6F7 /* HouseholdModelTests.swift in Sources */,
 				221CB4E45B59077F1559008A /* PublicNameGuardTests.swift in Sources */,
+				BC0CB133D3C166B3D46F025B /* ReminderSchedulerTests.swift in Sources */,
 				3B5C4866AD7B900B603B8A46 /* TodaySectionPrefsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

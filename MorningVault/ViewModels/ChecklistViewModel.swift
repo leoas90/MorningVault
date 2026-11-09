@@ -57,6 +57,28 @@ final class ChecklistViewModel: ObservableObject {
 
     var me: HouseholdMember? { members.first { $0.role == .me } }
 
+    /// The member this phone belongs to (local setting); falls back to the "Me" role.
+    var phoneMember: HouseholdMember? {
+        if let id = HouseholdPhoneSettings.meMemberID, let m = members.first(where: { $0.id == id }) { return m }
+        return me
+    }
+
+    /// "This is me" on this phone. Local only; reminders for other members stop firing here.
+    func setPhoneMember(_ member: HouseholdMember?) async {
+        HouseholdPhoneSettings.meMemberID = member?.id
+        objectWillChange.send()
+        guard store != nil else { return }
+        await TrackerNotificationService.rescheduleReminders()
+    }
+
+    /// The Brief is on screen: remember it (Gentle reminders due in the next ten minutes are
+    /// dropped) and refresh the pending reminders.
+    func briefOpened() async {
+        guard store != nil else { return }
+        HouseholdPhoneSettings.markBriefOpened(at: now)
+        await TrackerNotificationService.rescheduleReminders()
+    }
+
     func isDone(_ item: ChecklistItem) -> Bool { ledger.isDone(item, on: now, calendar: calendar) }
     func isSkipped(_ item: ChecklistItem) -> Bool { ledger.isSkipped(item, on: now, calendar: calendar) }
     func streak(_ item: ChecklistItem) -> Int { ledger.streak(for: item, asOf: now, calendar: calendar) }
@@ -282,6 +304,7 @@ final class ChecklistViewModel: ObservableObject {
         do {
             try await work()
             await load()
+            await TrackerNotificationService.rescheduleReminders(store: store ?? .shared)
             return true
         } catch {
             lastError = error.localizedDescription
