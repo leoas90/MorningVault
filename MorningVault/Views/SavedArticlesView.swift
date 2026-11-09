@@ -80,11 +80,18 @@ struct SavedArticlesView: View {
                     for id in ids where readState.state(for: id) == .later { readState.markUnread(id) }
                     store.remove(atOffsets: offsets)
                 }
-            } footer: {
-                Text(store.articles.count == 1 ? "1 saved story" : "\(store.articles.count) saved stories")
-                    .font(.metaText)
-                    .foregroundStyle(Color.inkSecondary)
             }
+
+            // Count as a last row, not a Section footer: a plain-list footer draws its own
+            // pale band and ignores the row insets, which broke the hairline grid.
+            Text(store.articles.count == 1 ? "1 saved story" : "\(store.articles.count) saved stories")
+                .font(.metaText)
+                .foregroundStyle(Color.inkSecondary)
+                .frame(minHeight: 36)
+                .listRowInsets(EdgeInsets(top: 0, leading: Grid4.margin, bottom: 0, trailing: Grid4.margin))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.backgroundColor)
+                .accessibilityHidden(true)
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
