@@ -13,6 +13,8 @@ struct SettingsView: View {
     @AppStorage(BriefSectionPrefs.Key.next) private var nextSectionEnabled = true
     @AppStorage(BriefSectionPrefs.Key.changes) private var changesSectionEnabled = true
     @AppStorage(BriefSectionPrefs.Key.markets) private var marketsSectionEnabled = true
+    @AppStorage(BriefSectionPrefs.Key.today) private var todaySectionEnabled = true
+    @AppStorage(BriefSectionPrefs.householdEnabledKey) private var householdEnabled = false
     @AppStorage("local_only") private var localOnly = false
     @AppStorage("ai_private_cloud") private var privateCloud = false
     @AppStorage(AlarmService.weekdaysOnlyKey) private var weekdaysOnly = true
@@ -113,6 +115,10 @@ struct SettingsView: View {
 
                 // MARK: - Voice
                 voiceSection
+                    .listRowBackground(Color.surfaceColor)
+
+                // MARK: - Trackers
+                trackersSection
                     .listRowBackground(Color.surfaceColor)
 
                 // MARK: - Brief sections
@@ -399,12 +405,45 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Trackers
+
+    private var trackersSection: some View {
+        Section {
+            AnimatedToggle(isOn: $householdEnabled, icon: "checklist", label: "Household checklist")
+            if householdEnabled {
+                NavigationLink {
+                    HouseholdMembersView(model: ChecklistViewModel.shared)
+                } label: {
+                    Label("Who's in your household?", systemImage: "person.2")
+                }
+                NavigationLink {
+                    ChecklistEditorView(model: ChecklistViewModel.shared)
+                } label: {
+                    Label("Edit items", systemImage: "list.bullet")
+                }
+            }
+        } header: {
+            Text("Trackers")
+        } footer: {
+            Text(householdEnabled
+                 ? "A short list of what gets done every morning, checked off from the Brief. Stays on this device."
+                 : "A short household checklist in the Brief: lunches, meds, a walk. Off by default.")
+        }
+        .onChange(of: householdEnabled) { _, _ in
+            BriefSectionPrefs.mirrorToAppGroup()
+            BriefingWidgetReloader.reload()
+        }
+    }
+
     // MARK: - Brief sections
 
     private var briefSectionsSection: some View {
         Section {
             AnimatedToggle(isOn: $summarySectionEnabled, icon: "text.alignleft", label: "Day summary")
             AnimatedToggle(isOn: $nextSectionEnabled, icon: "clock", label: "Next events")
+            if householdEnabled {
+                AnimatedToggle(isOn: $todaySectionEnabled, icon: "checklist", label: "Today checklist")
+            }
             AnimatedToggle(isOn: $changesSectionEnabled, icon: "arrow.triangle.2.circlepath", label: "Changes since yesterday")
             AnimatedToggle(isOn: $marketsSectionEnabled, icon: "chart.line.uptrend.xyaxis", label: "Markets")
         } header: {
@@ -412,7 +451,7 @@ struct SettingsView: View {
         } footer: {
             Text("Turned-off sections are left out of the Brief, the widget and the spoken brief.")
         }
-        .onChange(of: [summarySectionEnabled, nextSectionEnabled, changesSectionEnabled, marketsSectionEnabled]) { _, _ in
+        .onChange(of: [summarySectionEnabled, nextSectionEnabled, changesSectionEnabled, marketsSectionEnabled, todaySectionEnabled]) { _, _ in
             // The widget reads the App Group copy; the Brief tab rebuilds on its own.
             BriefSectionPrefs.mirrorToAppGroup()
             BriefingWidgetReloader.reload()

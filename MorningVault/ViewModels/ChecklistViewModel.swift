@@ -1,0 +1,208 @@
+import Foundation
+import SwiftUI
+
+/// Main-actor face of `ChecklistStore` for the Brief's Today section, the editor and the
+/// members screen. Holds the members and the ledger (items + 90 days of completions and
+/// skips) and re-reads them after every write. With no store (previews) the mutations are
+/// applied to the in-memory ledger instead.
+@MainActor
+final class ChecklistViewModel: ObservableObject {
+    static let shared = ChecklistViewModel(store: .shared)
+
+    @Published private(set) var members: [HouseholdMember]
+    @Published private(set) var ledger: ChecklistLedger
+    @Published private(set) var hasLoaded = false
+    @Published var lastError: String?
+
+    let calendar: Calendar
+    /// Fixed in previews; `Date()` in the app.
+    private let fixedNow: Date?
+    private let store: ChecklistStore?
+
+    var now: Date { fixedNow ?? Date() }
+
+    init(store: ChecklistStore?, members: [HouseholdMember] = [], ledger: ChecklistLedger = ChecklistLedger(),
+         now: Date? = nil, calendar: Calendar = .current) {
+        self.store = store
+        self.members = members
+        self.ledger = ledger
+        self.fixedNow = now
+        self.calendar = calendar
+        if store == nil { hasLoaded = true }
+    }
+
+    /// Preview model: the fictional household, six items, two done, one hourly.
+    static func preview(now: Date = BriefingViewModel.previewNow) -> ChecklistViewModel {
+        ChecklistViewModel(store: nil, members: HouseholdMember.sample, ledger: ChecklistLedger.sample(now: now), now: now)
+    }
+
+    static func previewEmpty(now: Date = BriefingViewModel.previewNow) -> ChecklistViewModel {
+        ChecklistViewModel(store: nil, members: [HouseholdMember.sampleMe], ledger: ChecklistLedger(), now: now)
+    }
+
+    // MARK: Derived
+
+    var activeItems: [ChecklistItem] {
+        ledger.items.filter { !$0.isArchived }.sorted { $0.order < $1.order }
+    }
+
+    var scheduledToday: [ChecklistItem] { ledger.scheduled(on: now, calendar: calendar) }
+
+    var progressToday: (done: Int, total: Int) { ledger.progress(on: now, calendar: calendar) }
+
+    func member(_ id: UUID?) -> HouseholdMember? {
+        guard let id else { return nil }
+        return members.first { $0.id == id }
+    }
+
+    var me: HouseholdMember? { members.first { $0.role == .me } }
+
+    func isDone(_ item: ChecklistItem) -> Bool { ledger.isDone(item, on: now, calendar: calendar) }
+    func isSkipped(_ item: ChecklistItem) -> Bool { ledger.isSkipped(item, on: now, calendar: calendar) }
+    func streak(_ item: ChecklistItem) -> Int { ledger.streak(for: item, asOf: now, calendar: calendar) }
+    func recentMarks(_ item: ChecklistItem) -> [ChecklistLedger.DayMark] { ledger.recentMarks(for: item, asOf: now, calendar: calendar) }
+
+    // MARK: Loading
+
+    func load() async {
+        guard let store else { return }
+        do {
+            // "Me" comes from the greeting name, once, only when the household is empty.
+            try await store.ensureMe(named: UserDefaults.standard.string(forKey: "user_name"))
+            let ledger = try await store.ledger(asOf: now)
+            let members = try await store.members()
+            self.ledger = ledger
+            self.members = members
+            hasLoaded = true
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    // MARK: Checking
+
+    /// Toggles the item for today. Hourly items toggle the current slot (the latest one that
+    /// has started); before the first slot nothing happens.
+    func toggle(_ item: ChecklistItem) async {
+        var slot = 0
+        if item.recurrence.isHourly {
+            guard let current = item.recurrence.currentSlotIndex(at: now, calendar: calendar) else { return }
+            // If the current slot is already checked, check the next unchecked one instead.
+            let done = ledger.doneSlots(for: item, on: now, calendar: calendar)
+            slot = done.contains(current) ? ((0..<item.slotCount(on: now, calendar: calendar)).first { !done.contains($0) } ?? current) : current
+        }
+        await toggle(item, slotIndex: slot)
+    }
+
+    func toggle(_ item: ChecklistItem, slotIndex: Int) async {
+        let day = ChecklistDay.key(for: now, calendar: calendar)
+        guard let store else {
+            if let index = ledger.completions.firstIndex(where: { $0.itemID == item.id && $0.day == day && $0.slotIndex == slotIndex }) {
+                ledger.completions.remove(at: index)
+            } else {
+                ledger.completions.append(Completion(itemID: item.id, day: day, slotIndex: slotIndex, byMember: me?.id, at: now))
+                ledger.skips.removeAll { $0.itemID == item.id && $0.day == day }
+            }
+            return
+        }
+        await run { try await store.toggle(itemID: item.id, on: self.now, slotIndex: slotIndex, byMember: self.me?.id, at: self.now) }
+    }
+
+    func skipToday(_ item: ChecklistItem) async {
+        let day = ChecklistDay.key(for: now, calendar: calendar)
+        guard let store else {
+            if !ledger.skips.contains(where: { $0.itemID == item.id && $0.day == day }) {
+                ledger.skips.append(Skip(itemID: item.id, day: day))
+            }
+            return
+        }
+        await run { try await store.skip(itemID: item.id, on: self.now) }
+    }
+
+    func unskipToday(_ item: ChecklistItem) async {
+        let day = ChecklistDay.key(for: now, calendar: calendar)
+        guard let store else {
+            ledger.skips.removeAll { $0.itemID == item.id && $0.day == day }
+            return
+        }
+        await run { try await store.unskip(itemID: item.id, on: self.now) }
+    }
+
+    // MARK: Items
+
+    var canAddItem: Bool { ledger.canAddItem }
+
+    /// Saves (insert or update). Returns false and sets `lastError` when the store refuses.
+    @discardableResult
+    func save(_ item: ChecklistItem) async -> Bool {
+        guard let store else {
+            if let index = ledger.items.firstIndex(where: { $0.id == item.id }) {
+                ledger.items[index] = item
+            } else {
+                guard ledger.canAddItem else { lastError = ChecklistStore.StoreError.itemCapReached.localizedDescription; return false }
+                ledger.items.append(item)
+            }
+            return true
+        }
+        return await run { try await store.saveItem(item) }
+    }
+
+    func archive(_ item: ChecklistItem) async {
+        guard let store else {
+            if let index = ledger.items.firstIndex(where: { $0.id == item.id }) { ledger.items[index].archivedAt = now }
+            return
+        }
+        await run { try await store.archiveItem(id: item.id, at: self.now) }
+    }
+
+    func move(from source: IndexSet, to destination: Int) async {
+        var items = activeItems
+        items.move(fromOffsets: source, toOffset: destination)
+        let ids = items.map(\.id)
+        guard let store else {
+            for (index, id) in ids.enumerated() {
+                if let i = ledger.items.firstIndex(where: { $0.id == id }) { ledger.items[i].order = index }
+            }
+            return
+        }
+        await run { try await store.reorderItems(ids) }
+    }
+
+    /// Next free `order` for a new item.
+    var nextOrder: Int { (activeItems.map(\.order).max() ?? -1) + 1 }
+
+    // MARK: Members
+
+    @discardableResult
+    func saveMember(_ member: HouseholdMember) async -> Bool {
+        guard let store else {
+            if let index = members.firstIndex(where: { $0.id == member.id }) { members[index] = member } else { members.append(member) }
+            return true
+        }
+        return await run { try await store.saveMember(member) }
+    }
+
+    func deleteMember(_ member: HouseholdMember) async {
+        guard let store else {
+            members.removeAll { $0.id == member.id }
+            for i in ledger.items.indices where ledger.items[i].forMember == member.id { ledger.items[i].forMember = nil }
+            return
+        }
+        await run { try await store.deleteMember(id: member.id) }
+    }
+
+    // MARK: Plumbing
+
+    /// Runs a store write, then reloads. Errors land in `lastError`.
+    @discardableResult
+    private func run(_ work: @Sendable () async throws -> Void) async -> Bool {
+        do {
+            try await work()
+            await load()
+            return true
+        } catch {
+            lastError = error.localizedDescription
+            return false
+        }
+    }
+}

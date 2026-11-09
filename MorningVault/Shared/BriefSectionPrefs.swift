@@ -19,8 +19,12 @@ enum BriefSectionPrefs {
         static let next = "section_next_enabled"
         static let changes = "section_changes_enabled"
         static let markets = "section_markets_enabled"
+        static let today = "section_today_enabled"
         static let headlineCount = "headline_count"
     }
+
+    /// Settings > Trackers > Household checklist. Off by default; the Today section needs it.
+    static let householdEnabledKey = "household_enabled"
 
     /// Section id -> defaults key. Data sources keep their older `<id>_enabled` keys.
     private static let keys: [String: String] = [
@@ -28,6 +32,7 @@ enum BriefSectionPrefs {
         "next": Key.next,
         "changes": Key.changes,
         "markets": Key.markets,
+        "today": Key.today,
         "health": "health_enabled",
         "calendar": "calendar_enabled",
         "weather": "weather_enabled",
@@ -35,7 +40,7 @@ enum BriefSectionPrefs {
     ]
 
     private static let mirroredKeys: [String] = [
-        Key.summary, Key.next, Key.changes, Key.markets, Key.headlineCount,
+        Key.summary, Key.next, Key.changes, Key.markets, Key.today, Key.headlineCount, householdEnabledKey,
         "health_enabled", "calendar_enabled", "weather_enabled", "headlines_enabled",
     ]
 
@@ -46,9 +51,16 @@ enum BriefSectionPrefs {
     /// True when the section is on. Unknown ids are on. Reads the standard defaults first
     /// (the source of truth in the app), then the App Group mirror (what an extension sees).
     static func isEnabled(_ id: String) -> Bool {
+        // The Today section also needs the Household tracker itself to be on.
+        if id == "today", !isHouseholdEnabled { return false }
         guard let key = keys[id] else { return true }
         if let value = value(forKey: key) as? Bool { return value }
         return true
+    }
+
+    /// Settings > Trackers > Household checklist (default off).
+    static var isHouseholdEnabled: Bool {
+        (value(forKey: householdEnabledKey) as? Bool) ?? false
     }
 
     /// Headlines in the Brief, 3 to 10 (default 5). Zero when headlines are off.
