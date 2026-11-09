@@ -20,6 +20,8 @@ struct TodaySectionView: View {
             }
         }
         .task { await model.load() }
+        .onReceive(NotificationCenter.default.publisher(for: .checklistChangedExternally)) { _ in Task { await model.load() } }
+        .onReceive(NotificationCenter.default.publisher(for: .appBecameActive)) { _ in Task { await model.load() } }
         .sheet(item: $editing) { item in ChecklistItemEditor(model: model, item: item) }
         .sheet(isPresented: $addingNew) { ChecklistItemEditor(model: model) }
         .alert(notesFor?.title ?? "", isPresented: Binding(get: { notesFor != nil }, set: { if !$0 { notesFor = nil } })) {
@@ -138,7 +140,11 @@ struct TodaySectionView: View {
             memberInitial: grouped ? model.member(item.forMember)?.initial : nil,
             hourly: hourlyStatus(item),
             marks: model.recentMarks(item),
+            timerEndsAt: model.timerEndsAt(item),
             onToggle: { Task { await model.toggle(item) } },
+            onStartTimer: item.kind.isTimer ? { Task { await model.startTimer(item) } } : nil,
+            onStopTimer: item.kind.isTimer ? { Task { await model.stopTimer(item) } } : nil,
+            onFinishTimer: item.kind.isTimer ? { Task { await model.finishTimer(item) } } : nil,
             onSkip: { Task { await model.skipToday(item) } },
             onUnskip: { Task { await model.unskipToday(item) } },
             onEdit: { editing = item },
@@ -170,7 +176,12 @@ struct TodayRow: View {
     let memberInitial: String?
     let hourly: HourlyStatus?
     let marks: [ChecklistLedger.DayMark]
+    /// Running timer's end; nil when idle or not a timer item.
+    var timerEndsAt: Date? = nil
     let onToggle: () -> Void
+    var onStartTimer: (() -> Void)? = nil
+    var onStopTimer: (() -> Void)? = nil
+    var onFinishTimer: (() -> Void)? = nil
     let onSkip: () -> Void
     let onUnskip: () -> Void
     let onEdit: () -> Void
@@ -197,10 +208,25 @@ struct TodayRow: View {
                         .font(.system(size: 13, weight: .medium).monospacedDigit())
                         .foregroundStyle(Color.inkSecondary)
                         .lineLimit(1)
+                } else if let timerEndsAt, !isDone {
+                    countdown(until: timerEndsAt)
                 } else if case .timer(let minutes) = item.kind {
-                    Text("\(minutes) min")
-                        .font(.system(size: 13, weight: .medium).monospacedDigit())
-                        .foregroundStyle(Color.inkSecondary)
+                    HStack(spacing: 8) {
+                        Text("\(minutes) min")
+                            .font(.system(size: 13, weight: .medium).monospacedDigit())
+                            .foregroundStyle(Color.inkSecondary)
+                        if !isDone, let onStartTimer {
+                            Button(action: onStartTimer) {
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(Color.appAccentColor)
+                                    .frame(width: 28, height: 28)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Start \(minutes) minute timer")
+                        }
+                    }
                 } else {
                     streakDots
                 }
@@ -212,6 +238,13 @@ struct TodayRow: View {
         .accessibilityLabel(accessibilityText)
         .accessibilityHint(isDone ? "Double tap to undo" : "Double tap to mark done")
         .contextMenu {
+            if item.kind.isTimer, !isDone, !isSkipped {
+                if timerEndsAt != nil, let onStopTimer {
+                    Button { onStopTimer() } label: { Label("Stop timer", systemImage: "stop") }
+                } else if let onStartTimer {
+                    Button { onStartTimer() } label: { Label("Start timer", systemImage: "play") }
+                }
+            }
             if isSkipped {
                 Button { onUnskip() } label: { Label("Undo skip", systemImage: "arrow.uturn.backward") }
             } else if !isDone {
@@ -221,6 +254,21 @@ struct TodayRow: View {
                 Button { onNotes() } label: { Label("Notes", systemImage: "text.alignleft") }
             }
             Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
+        }
+    }
+
+    /// Live "12:34" countdown, one tick a second. Tapping the row while it runs checks the item.
+    private func countdown(until end: Date) -> some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let remaining = max(0, Int(end.timeIntervalSince(context.date).rounded(.up)))
+            HStack(spacing: 6) {
+                Image(systemName: "timer")
+                    .font(.system(size: 11, weight: .semibold))
+                Text(String(format: "%d:%02d", remaining / 60, remaining % 60))
+                    .font(.system(size: 13, weight: .medium).monospacedDigit())
+            }
+            .foregroundStyle(Color.appAccentColor)
+            .accessibilityLabel("\(remaining / 60) minutes \(remaining % 60) seconds left")
         }
     }
 
@@ -272,7 +320,12 @@ struct TodayRow: View {
     private func tap() {
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
-        onToggle()
+        // A running timer ends early on tap and the item checks itself.
+        if timerEndsAt != nil, !isDone, let onFinishTimer {
+            onFinishTimer()
+        } else {
+            onToggle()
+        }
     }
 }
 
@@ -288,6 +341,18 @@ struct TodayRow: View {
         .padding(20)
     }
     .background(Color.backgroundColor)
+}
+
+#Preview("Today, timer running") {
+    ThemeStore.shared.themeRaw = AppTheme.light.rawValue
+    let model = ChecklistViewModel.preview()
+    return ScrollView {
+        BriefingSectionCard(section: BriefingSection(id: "today", title: "Today", icon: "checklist", content: "", sentiment: nil),
+                            checklist: model)
+            .padding(20)
+    }
+    .background(Color.backgroundColor)
+    .task { await model.startTimer(ChecklistItem.sample[2]) }
 }
 
 #Preview("Today, dark, all done") {

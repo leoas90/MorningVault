@@ -71,19 +71,8 @@ final class AlarmService: ObservableObject {
         // Cancel any existing first
         await cancelBriefingAlarm()
 
-        // Register category with "View Brief" action
-        let viewBriefAction = UNNotificationAction(
-            identifier: "VIEW_BRIEF_ACTION",
-            title: "View Brief ☀️",
-            options: [.foreground]
-        )
-        let briefingCategory = UNNotificationCategory(
-            identifier: "BRIEFING",
-            actions: [viewBriefAction],
-            intentIdentifiers: [],
-            options: []
-        )
-        center.setNotificationCategories([briefingCategory])
+        // Categories are one set for the whole app (alarm + trackers); see TrackerNotificationService.
+        TrackerNotificationService.registerCategories(center: center)
 
         // Build one trigger per weekday (Sun=1 … Sat=7; Mon–Fri when weekdaysOnly).
         // Each fires only on its own weekday — system-level enforcement,
@@ -128,19 +117,8 @@ final class AlarmService: ObservableObject {
 
         let center = UNUserNotificationCenter.current()
 
-        // Register category
-        let viewBriefAction = UNNotificationAction(
-            identifier: "VIEW_BRIEF_ACTION",
-            title: "View Brief ☀️",
-            options: [.foreground]
-        )
-        let briefingCategory = UNNotificationCategory(
-            identifier: "BRIEFING",
-            actions: [viewBriefAction],
-            intentIdentifiers: [],
-            options: []
-        )
-        center.setNotificationCategories([briefingCategory])
+        // Categories are one set for the whole app (alarm + trackers); see TrackerNotificationService.
+        TrackerNotificationService.registerCategories(center: center)
 
         let content = UNMutableNotificationContent()
         content.title = "MorningVault ☀️"

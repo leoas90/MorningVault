@@ -178,4 +178,44 @@ final class ChecklistStoreTests: XCTestCase {
         let data = try encoder.encode(snapshot)
         XCTAssertEqual(try decoder.decode(ChecklistTodaySnapshot.self, from: data), snapshot)
     }
+
+    // MARK: Timers
+
+    func testTimerStartPersistsAndFinishChecksOnce() async throws {
+        let store = makeStore()
+        let now = date(2026, 11, 10, 7)
+        let item = ChecklistItem(title: "Walk", kind: .timer(minutes: 20), createdAt: date(2026, 11, 1))
+        try await store.saveItem(item)
+
+        try await store.startTimer(itemID: item.id, at: now)
+        var items = try await store.items()
+        XCTAssertEqual(items.first?.timerStartedAt, now)
+        XCTAssertEqual(items.first?.timerEndsAt, now.addingTimeInterval(20 * 60))
+        XCTAssertEqual(items.first?.timerRemaining(at: now.addingTimeInterval(600)), 600)
+
+        try await store.finishTimer(itemID: item.id, on: now, at: now.addingTimeInterval(1200))
+        items = try await store.items()
+        XCTAssertNil(items.first?.timerStartedAt)
+        var ledger = try await store.ledger(asOf: now)
+        XCTAssertTrue(ledger.isDone(item, on: now, calendar: la))
+
+        // Finishing again (notification action after the row already checked) never undoes the check.
+        try await store.finishTimer(itemID: item.id, on: now, at: now.addingTimeInterval(1300))
+        ledger = try await store.ledger(asOf: now)
+        XCTAssertTrue(ledger.isDone(item, on: now, calendar: la))
+        XCTAssertEqual(ledger.completions.count, 1)
+    }
+
+    func testCancelTimerLeavesItemUndone() async throws {
+        let store = makeStore()
+        let now = date(2026, 11, 10, 7)
+        let item = ChecklistItem(title: "Read", kind: .timer(minutes: 10), createdAt: date(2026, 11, 1))
+        try await store.saveItem(item)
+        try await store.startTimer(itemID: item.id, at: now)
+        try await store.cancelTimer(itemID: item.id)
+        let items = try await store.items()
+        XCTAssertNil(items.first?.timerStartedAt)
+        let ledger = try await store.ledger(asOf: now)
+        XCTAssertFalse(ledger.isDone(item, on: now, calendar: la))
+    }
 }

@@ -282,6 +282,8 @@ struct ChecklistItem: Codable, Identifiable, Equatable, Hashable, Sendable {
     var sourceEventID: String?
     /// Suggestion rule that produced it (next task).
     var sourceRuleID: String?
+    /// Timer items: when the countdown was started; nil when idle. Cleared when it ends.
+    var timerStartedAt: Date?
 
     init(
         id: UUID = UUID(),
@@ -297,7 +299,8 @@ struct ChecklistItem: Codable, Identifiable, Equatable, Hashable, Sendable {
         archivedAt: Date? = nil,
         expiresAt: Date? = nil,
         sourceEventID: String? = nil,
-        sourceRuleID: String? = nil
+        sourceRuleID: String? = nil,
+        timerStartedAt: Date? = nil
     ) {
         self.id = id
         self.title = String(title.prefix(Self.titleLimit))
@@ -312,6 +315,7 @@ struct ChecklistItem: Codable, Identifiable, Equatable, Hashable, Sendable {
         self.archivedAt = archivedAt
         self.sourceEventID = sourceEventID
         self.sourceRuleID = sourceRuleID
+        self.timerStartedAt = timerStartedAt
         if let expiresAt {
             self.expiresAt = expiresAt
         } else if case .once(let date) = recurrence {
@@ -322,6 +326,26 @@ struct ChecklistItem: Codable, Identifiable, Equatable, Hashable, Sendable {
     }
 
     var isArchived: Bool { archivedAt != nil }
+
+    /// Timer length in seconds; nil for check items.
+    var timerDuration: TimeInterval? {
+        if case .timer(let minutes) = kind { return TimeInterval(minutes * 60) }
+        return nil
+    }
+
+    /// When a running timer ends; nil when idle or not a timer.
+    var timerEndsAt: Date? {
+        guard let timerStartedAt, let timerDuration else { return nil }
+        return timerStartedAt.addingTimeInterval(timerDuration)
+    }
+
+    /// Seconds left on a running timer at `now` (0 once it has ended); nil when idle.
+    func timerRemaining(at now: Date) -> TimeInterval? {
+        guard let end = timerEndsAt else { return nil }
+        return max(0, end.timeIntervalSince(now))
+    }
+
+    var isTimerRunning: Bool { timerStartedAt != nil && kind.isTimer }
 
     /// Title valid: 1-40 characters after trimming.
     static func isValidTitle(_ title: String) -> Bool {

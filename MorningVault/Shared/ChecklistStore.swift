@@ -41,6 +41,7 @@ final class CDItem: NSManagedObject {
     @NSManaged var expiresAt: Date?
     @NSManaged var sourceEventID: String?
     @NSManaged var sourceRuleID: String?
+    @NSManaged var timerStartedAt: Date?
 }
 
 @objc(CDCompletion)
@@ -358,6 +359,51 @@ actor ChecklistStore {
         return nowDone
     }
 
+    /// Checks item + day (+ slot) if not already checked. Idempotent, unlike `toggle`; used by
+    /// notification actions and the timer, which must never undo a check.
+    @discardableResult
+    func markDone(itemID: UUID, on day: Date, slotIndex: Int = 0, byMember: UUID? = nil, at now: Date = Date()) async throws -> Bool {
+        let key = ChecklistDay.key(for: day, calendar: calendar)
+        let context = newContext()
+        let exists: Bool = try await context.perform {
+            let request = NSFetchRequest<CDCompletion>(entityName: "Completion")
+            request.predicate = NSPredicate(format: "itemID == %@ AND day == %@ AND slotIndex == %d", itemID as CVarArg, key, Int32(slotIndex))
+            return try context.count(for: request) > 0
+        }
+        if exists { return false }
+        try await toggle(itemID: itemID, on: day, slotIndex: slotIndex, byMember: byMember, at: now)
+        return true
+    }
+
+    // MARK: Timers
+
+    /// Records when a timer item was started so the countdown survives a relaunch.
+    func startTimer(itemID: UUID, at now: Date = Date()) async throws {
+        try await setTimerStart(itemID: itemID, to: now)
+    }
+
+    /// Clears a running timer without checking the item.
+    func cancelTimer(itemID: UUID) async throws {
+        try await setTimerStart(itemID: itemID, to: nil)
+    }
+
+    /// Timer ended (or the user tapped the row): check the item for the day and clear the start.
+    func finishTimer(itemID: UUID, on day: Date = Date(), byMember: UUID? = nil, at now: Date = Date()) async throws {
+        try await setTimerStart(itemID: itemID, to: nil)
+        try await markDone(itemID: itemID, on: day, byMember: byMember, at: now)
+    }
+
+    private func setTimerStart(itemID: UUID, to date: Date?) async throws {
+        let context = newContext()
+        try await context.perform {
+            let request = NSFetchRequest<CDItem>(entityName: "Item")
+            request.predicate = NSPredicate(format: "id == %@", itemID as CVarArg)
+            for object in try context.fetch(request) { object.timerStartedAt = date }
+            if context.hasChanges { try context.save() }
+        }
+        await publishSnapshot()
+    }
+
     /// "Not today": pauses the streak. Idempotent.
     func skip(itemID: UUID, on day: Date) async throws {
         let key = ChecklistDay.key(for: day, calendar: calendar)
@@ -472,7 +518,8 @@ actor ChecklistStore {
             archivedAt: object.archivedAt,
             expiresAt: object.expiresAt,
             sourceEventID: object.sourceEventID,
-            sourceRuleID: object.sourceRuleID
+            sourceRuleID: object.sourceRuleID,
+            timerStartedAt: object.timerStartedAt
         )
     }
 
@@ -489,6 +536,7 @@ actor ChecklistStore {
         object.expiresAt = item.expiresAt
         object.sourceEventID = item.sourceEventID
         object.sourceRuleID = item.sourceRuleID
+        object.timerStartedAt = item.timerStartedAt
     }
 
     private static func completion(from object: CDCompletion) -> Completion? {

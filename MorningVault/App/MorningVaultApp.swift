@@ -163,13 +163,13 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, Se
 
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse,
-        withCompletionHandler completionHandler: @escaping () -> Void
-    ) {
+        didReceive response: UNNotificationResponse
+    ) async {
+        // Timer and reminder actions write to the checklist store off the main actor.
+        if await TrackerNotificationService.handle(response: response) { return }
         if response.notification.request.content.categoryIdentifier == "BRIEFING" {
             NotificationCenter.default.post(name: .viewBriefingRequested, object: nil)
         }
-        completionHandler()
     }
 }
 

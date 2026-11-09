@@ -29,6 +29,7 @@
         <attribute name="expiresAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="sourceEventID" optional="YES" attributeType="String"/>
         <attribute name="sourceRuleID" optional="YES" attributeType="String"/>
+        <attribute name="timerStartedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
     <entity name="Completion" representedClassName="CDCompletion" syncable="YES" codeGenerationType="none">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>

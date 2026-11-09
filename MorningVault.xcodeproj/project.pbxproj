@@ -84,6 +84,7 @@
 		C91D0C035EE6B32F4A91C6F7 /* HouseholdModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEE14A43C073ADAD5849355C /* HouseholdModelTests.swift */; };
 		CA9DC9924DAB8359104CC5D4 /* ThemeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A8E749131381B74347623E1 /* ThemeStore.swift */; };
 		CC9730F579B0F4EDD5D5C214 /* AlarmService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57398225F0C285023D3C56AC /* AlarmService.swift */; };
+		D009DDBA562F545B60651603 /* TrackerNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22C9BBA91338E93E472ECFD9 /* TrackerNotificationService.swift */; };
 		D31AE5982032296E4EBDDE78 /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3867BC47FB872F6A4CD54B76 /* PrivacyPolicyView.swift */; };
 		D63A801D25C95FAE5CEEB838 /* BriefingTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C018F09283F3785795D9B90 /* BriefingTemplate.swift */; };
 		D93C869170575E191C20AFAE /* TodaySectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E40B3A6A2552FFBD43452DE /* TodaySectionView.swift */; };
@@ -138,6 +139,7 @@
 		1927CFE7F60D2F00E0BDF16B /* MarketBackendService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketBackendService.swift; sourceTree = "<group>"; };
 		19F0CE7677F525EDF60DDE61 /* OnboardingSourcesStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSourcesStep.swift; sourceTree = "<group>"; };
 		1A263120723E5F68E8715198 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		22C9BBA91338E93E472ECFD9 /* TrackerNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerNotificationService.swift; sourceTree = "<group>"; };
 		241BEA956BDB6CFFEC2B09E5 /* BriefingTemplatePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingTemplatePickerView.swift; sourceTree = "<group>"; };
 		26B8CF854E4E8D36FF438420 /* MorningVaultTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MorningVaultTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		28410E5F2F24FBA6A84F1A8D /* MeetingPrep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingPrep.swift; sourceTree = "<group>"; };
@@ -456,6 +458,7 @@
 				F22FA11BC4393AA0A34AC497 /* RSSService.swift */,
 				42F262638492997BDB559DCA /* SinceYesterdayService.swift */,
 				8A8E749131381B74347623E1 /* ThemeStore.swift */,
+				22C9BBA91338E93E472ECFD9 /* TrackerNotificationService.swift */,
 				2E8DEEC9A141B8A080C115ED /* VoiceBriefingService.swift */,
 				96717330575D4D9806610694 /* WeatherService.swift */,
 			);
@@ -676,6 +679,7 @@
 				D93C869170575E191C20AFAE /* TodaySectionView.swift in Sources */,
 				30FA25455BC3DB5B8E1B6A29 /* TrackedSymbol.swift in Sources */,
 				3BFA13D33BB04427CE614A02 /* TrackerControls.swift in Sources */,
+				D009DDBA562F545B60651603 /* TrackerNotificationService.swift in Sources */,
 				ACE91217F54E0DCD16379681 /* UnitsPreference.swift in Sources */,
 				4E8D3AD7F3D51CDB09E3E078 /* VoiceBriefingService.swift in Sources */,
 				549ADEB6E203FE50117BAB36 /* WeatherHero.swift in Sources */,

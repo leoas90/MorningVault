@@ -74,6 +74,7 @@ final class ChecklistViewModel: ObservableObject {
             self.ledger = ledger
             self.members = members
             hasLoaded = true
+            await reconcileTimers()
         } catch {
             lastError = error.localizedDescription
         }
@@ -126,6 +127,88 @@ final class ChecklistViewModel: ObservableObject {
             return
         }
         await run { try await store.unskip(itemID: item.id, on: self.now) }
+    }
+
+    // MARK: Timers
+
+    /// Sleeping tasks that finish a running timer when it ends while the app is open.
+    private var timerTasks: [UUID: Task<Void, Never>] = [:]
+
+    func isTimerRunning(_ item: ChecklistItem) -> Bool {
+        ledger.items.first { $0.id == item.id }?.isTimerRunning ?? false
+    }
+
+    func timerEndsAt(_ item: ChecklistItem) -> Date? {
+        ledger.items.first { $0.id == item.id }?.timerEndsAt
+    }
+
+    /// Starts the countdown, persists the start, schedules the end notification.
+    func startTimer(_ item: ChecklistItem) async {
+        guard item.kind.isTimer, !isDone(item) else { return }
+        let start = now
+        if let store {
+            await run { try await store.startTimer(itemID: item.id, at: start) }
+        } else if let index = ledger.items.firstIndex(where: { $0.id == item.id }) {
+            ledger.items[index].timerStartedAt = start
+        }
+        guard let running = ledger.items.first(where: { $0.id == item.id }), let end = running.timerEndsAt else { return }
+        if store != nil {
+            await TrackerNotificationService.scheduleTimerDone(item: running, endsAt: end, day: ChecklistDay.key(for: start, calendar: calendar))
+        }
+        armTimerTask(for: item.id, endsAt: end)
+    }
+
+    /// Stops without checking.
+    func stopTimer(_ item: ChecklistItem) async {
+        timerTasks[item.id]?.cancel()
+        timerTasks[item.id] = nil
+        TrackerNotificationService.cancelTimerDone(itemID: item.id)
+        if let store {
+            await run { try await store.cancelTimer(itemID: item.id) }
+        } else if let index = ledger.items.firstIndex(where: { $0.id == item.id }) {
+            ledger.items[index].timerStartedAt = nil
+        }
+    }
+
+    /// Timer ended, or the user tapped the running row: check the item and clear the start.
+    func finishTimer(_ item: ChecklistItem) async {
+        timerTasks[item.id]?.cancel()
+        timerTasks[item.id] = nil
+        TrackerNotificationService.cancelTimerDone(itemID: item.id)
+        let day = ChecklistDay.key(for: now, calendar: calendar)
+        guard let store else {
+            if let index = ledger.items.firstIndex(where: { $0.id == item.id }) { ledger.items[index].timerStartedAt = nil }
+            if !ledger.completions.contains(where: { $0.itemID == item.id && $0.day == day && $0.slotIndex == 0 }) {
+                ledger.completions.append(Completion(itemID: item.id, day: day, byMember: me?.id, at: now))
+            }
+            return
+        }
+        await run { try await store.finishTimer(itemID: item.id, on: self.now, byMember: self.me?.id, at: self.now) }
+    }
+
+    /// After a load: timers that ended while the app was away check their item; the rest get
+    /// a fresh sleeping task.
+    private func reconcileTimers() async {
+        for item in ledger.items where item.isTimerRunning {
+            guard let end = item.timerEndsAt else { continue }
+            if end <= now {
+                await finishTimer(item)
+            } else if timerTasks[item.id] == nil {
+                armTimerTask(for: item.id, endsAt: end)
+            }
+        }
+    }
+
+    private func armTimerTask(for id: UUID, endsAt: Date) {
+        timerTasks[id]?.cancel()
+        let seconds = max(0, endsAt.timeIntervalSince(now))
+        timerTasks[id] = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(seconds))
+            guard !Task.isCancelled, let self else { return }
+            if let item = self.ledger.items.first(where: { $0.id == id }), item.isTimerRunning {
+                await self.finishTimer(item)
+            }
+        }
     }
 
     // MARK: Items
