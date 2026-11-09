@@ -39,7 +39,8 @@ struct SummaryWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: SummaryEntry
 
-    private var summary: String? { entry.briefing?.summary }
+    /// Nil when the Day summary section is off in Settings (the snapshot drops it too).
+    private var summary: String? { BriefSectionPrefs.isEnabled("summary") ? entry.briefing?.summary : nil }
     private let empty = "Open MorningVault for today's summary."
 
     // Composition per size (labels never below 12 pt):
@@ -150,7 +151,7 @@ struct SummaryWidgetView: View {
 
     @ViewBuilder
     private func nextEvent(lines: Int) -> some View {
-        if let title = entry.briefing?.firstEventTitle, let start = entry.briefing?.firstEventStart, start > entry.date {
+        if BriefSectionPrefs.isEnabled("next"), let title = entry.briefing?.firstEventTitle, let start = entry.briefing?.firstEventStart, start > entry.date {
             VStack(alignment: .leading, spacing: 2) {
                 Text("NEXT")
                     .font(.system(size: 12, weight: .semibold))

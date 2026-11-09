@@ -202,28 +202,35 @@ final class BriefingViewModel: ObservableObject {
             ))
         }
 
-        // Market section (BTC + SPY/QQQ sentiment)
-        let marketSentiment = await fetchMarketSentiment()
-        sections.append(BriefingSection(
-            id: "markets",
-            title: "Markets",
-            icon: "📈",
-            content: marketSentiment.content,
-            sentiment: marketSentiment.sentiment
-        ))
+        // Market section (BTC + SPY/QQQ sentiment). Off in Settings > Brief sections: no fetch.
+        if BriefSectionPrefs.isEnabled("markets") {
+            let marketSentiment = await fetchMarketSentiment()
+            sections.append(BriefingSection(
+                id: "markets",
+                title: "Markets",
+                icon: "📈",
+                content: marketSentiment.content,
+                sentiment: marketSentiment.sentiment
+            ))
+        } else {
+            marketSeries = [:]
+        }
 
         // RSS headlines
-        if !rssFeeds.isEmpty {
-            let allArticles = rssFeeds.flatMap { $0.articles }
-            let unreadCount = NewsReadStateTracker.shared.unreadCount(in: rssFeeds)
-            let headlines = allArticles.prefix(5).map { "• \($0.title)" }.joined(separator: "\n")
+        let headlineCount = BriefSectionPrefs.headlineCount
+        if !rssFeeds.isEmpty, headlineCount > 0 {
+            // Settings > Data sources > Headlines in brief decides how many stories make it.
+            let shown = Array(rssFeeds.flatMap { $0.articles }.prefix(headlineCount))
+            let shownFeed = RSSFeedData(id: "headlines", sourceName: "News", articles: shown)
+            let unreadCount = NewsReadStateTracker.shared.unreadCount(in: [shownFeed])
+            let headlines = shown.map { "• \($0.title)" }.joined(separator: "\n")
             let section = BriefingSection(
                 id: "headlines",
                 title: unreadCount > 0 ? "Headlines (\(unreadCount) new)" : "Headlines",
                 icon: "📰",
                 content: headlines,
                 sentiment: nil,
-                rssFeed: RSSFeedData(id: "headlines", sourceName: "News", articles: Array(allArticles))
+                rssFeed: shownFeed
             )
             sections.append(section)
         }
@@ -234,11 +241,8 @@ final class BriefingViewModel: ObservableObject {
         for i in sections.indices {
             sections[i].priority = template.sectionPriority(for: sections[i].id)
         }
-        // Sort: enabled sections first (ascending priority), then by template order
-        let enabledSections = sections.filter { isSectionEnabled($0.id) }.sorted { $0.priority < $1.priority }
-        let disabledSections = sections.filter { !isSectionEnabled($0.id) }.sorted { $0.priority < $1.priority }
-
-        briefingSections = enabledSections + disabledSections
+        // A turned-off section is left out whatever the template says: the toggle wins.
+        briefingSections = sections.filter { BriefSectionPrefs.isEnabled($0.id) }.sorted { $0.priority < $1.priority }
         updateNetworkBadge()
         await refreshMorningSnapshot(weather: weatherData, calendarCount: calendarEvents.count)
 
@@ -248,37 +252,48 @@ final class BriefingViewModel: ObservableObject {
             headlines: rssFeeds.flatMap { $0.articles }.map(\.title),
             health: healthData
         )
-        sinceYesterday = SinceYesterday.update(with: todayDigest)
+        // Always record today's digest so tomorrow's diff has something to compare against;
+        // only show the result when the section is on.
+        var changes = SinceYesterday.update(with: todayDigest)
         if let startOfYesterday = Calendar.current.date(byAdding: .day, value: -1, to: Calendar.current.startOfDay(for: Date())) {
             do {
                 let open = try MeetingDigest.openActionItems(since: startOfYesterday)
                 if let first = open.first {
-                    sinceYesterday.append(open.count == 1
+                    changes.append(open.count == 1
                         ? "Open from a meeting: \(first)."
                         : "\(open.count) open meeting action items, starting with: \(first).")
                 }
             } catch {
                 // Say so instead of quietly dropping the meeting items from the brief.
-                sinceYesterday.append("Meeting action items could not be read: \(error.localizedDescription)")
+                changes.append("Meeting action items could not be read: \(error.localizedDescription)")
             }
         }
+        sinceYesterday = BriefSectionPrefs.isEnabled("changes") ? changes : []
 
-        // Share what's on screen with the widget and Siri actions.
-        let firstUpcoming = calendarEvents.first { !$0.isAllDay && $0.endDate > Date() }
-        let articles = rssFeeds.flatMap { $0.articles }
+        // Share what's on screen with the widget and Siri actions. Sections turned off in
+        // Settings are left out of the snapshot too, so the widget never shows them.
+        BriefSectionPrefs.mirrorToAppGroup()
+        let nextEnabled = BriefSectionPrefs.isEnabled("next")
+        let firstUpcoming = nextEnabled ? calendarEvents.first { !$0.isAllDay && $0.endDate > Date() } : nil
+        let articles = Array(rssFeeds.flatMap { $0.articles }.prefix(min(headlineCount, 10)))
         SharedBriefingStore.update { b in
             b.firstEventTitle = firstUpcoming?.title
             b.firstEventStart = firstUpcoming?.startDate
             b.weatherTempC = weatherData?.temperatureC
             b.weatherCondition = weatherData?.condition
             b.weatherLine = weatherData.map { "\(units.formatTemperatureShort(celsius: $0.temperatureC)) \($0.condition)" }
-            b.headlines = articles.prefix(10).map {
+            b.headlines = articles.map {
                 SharedBriefing.Headline(title: $0.title, gist: Self.savedGists[$0.id], source: nil)
+            }
+            if BriefSectionPrefs.isEnabled("summary") {
+                if let summary = self.aiDaySummary, !summary.isEmpty { b.summary = summary }
+            } else {
+                b.summary = nil
             }
         }
         applySavedGists()
         if headlinesEnabled && !articles.isEmpty {
-            Task { await self.addHeadlineGists(for: Array(articles.prefix(10))) }
+            Task { await self.addHeadlineGists(for: articles) }
         }
     }
 
@@ -326,18 +341,6 @@ final class BriefingViewModel: ObservableObject {
                 if idx < articles.count, let g = gists[articles[idx].id] { h.gist = g }
                 return h
             }
-        }
-    }
-
-    /// Returns true if a section's data source toggle is enabled.
-    private func isSectionEnabled(_ sectionId: String) -> Bool {
-        switch sectionId {
-        case "health":    return healthEnabled
-        case "calendar":  return calendarEnabled
-        case "weather":   return weatherEnabled
-        case "headlines": return headlinesEnabled
-        case "markets":   return true  // markets section always shown if data available
-        default:          return true
         }
     }
 
@@ -403,6 +406,11 @@ final class BriefingViewModel: ObservableObject {
     /// Streams the day summary into `aiDaySummary` and saves it for the rest of the day,
     /// so the summary made by the 6am background refresh is what you see when you open the app.
     func generateAISummary() async {
+        guard BriefSectionPrefs.isEnabled("summary") else {
+            aiDaySummary = nil
+            aiUnavailableReason = nil
+            return
+        }
         guard !briefingSections.isEmpty, !isGeneratingAI else { return }
         let ai = AIService.shared
         guard ai.refreshAvailability() else {
@@ -459,7 +467,7 @@ final class BriefingViewModel: ObservableObject {
         if let cached: BriefingData = await cache.getBriefing() {
             briefingSections = cached.sections
             // AI summary lives outside BriefingData; restore today's saved copy.
-            if aiDaySummary == nil { aiDaySummary = Self.todaysSavedSummary() }
+            if aiDaySummary == nil, BriefSectionPrefs.isEnabled("summary") { aiDaySummary = Self.todaysSavedSummary() }
             updateNetworkBadge()
         }
     }
@@ -506,6 +514,11 @@ final class BriefingViewModel: ObservableObject {
             snapshot.calendarLine = "Calendar clear today"
         }
 
+        guard BriefSectionPrefs.isEnabled("markets") else {
+            snapshot.marketsStatus = .unavailable
+            morningSnapshot = snapshot
+            return
+        }
         snapshot.marketsStatus = .loading
         morningSnapshot = snapshot
 
@@ -836,6 +849,7 @@ extension BriefingViewModel {
     func generateAudioBriefing() async -> URL? {
         // Collect key sections for voice briefing
         var voiceSections: [BriefingSection] = []
+        let briefingSections = VoiceBriefingService.sectionsForVoice(self.briefingSections)
 
         // Weather (first if available)
         if let weatherSection = briefingSections.first(where: { $0.id == "weather" }) {
@@ -865,7 +879,8 @@ extension BriefingViewModel {
 
     /// Speaks the briefing aloud using the warm voice.
     func speakBriefingAloud() {
-        voiceBriefingService.speakBriefing(sections: briefingSections, summary: aiDaySummary)
+        voiceBriefingService.speakBriefing(sections: briefingSections,
+                                           summary: BriefSectionPrefs.isEnabled("summary") ? aiDaySummary : nil)
     }
 
     /// Stops any current voice briefing playback.

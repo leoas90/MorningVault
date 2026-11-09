@@ -8,6 +8,10 @@ struct SettingsView: View {
     @AppStorage("calendar_enabled") private var calendarEnabled = true
     @AppStorage("weather_enabled") private var weatherEnabled = true
     @AppStorage("headlines_enabled") private var headlinesEnabled = true
+    @AppStorage(BriefSectionPrefs.Key.summary) private var summarySectionEnabled = true
+    @AppStorage(BriefSectionPrefs.Key.next) private var nextSectionEnabled = true
+    @AppStorage(BriefSectionPrefs.Key.changes) private var changesSectionEnabled = true
+    @AppStorage(BriefSectionPrefs.Key.markets) private var marketsSectionEnabled = true
     @AppStorage("local_only") private var localOnly = false
     @AppStorage("ai_private_cloud") private var privateCloud = false
     @AppStorage(AlarmService.weekdaysOnlyKey) private var weekdaysOnly = true
@@ -108,6 +112,10 @@ struct SettingsView: View {
 
                 // MARK: - Voice
                 voiceSection
+                    .listRowBackground(Color.surfaceColor)
+
+                // MARK: - Brief sections
+                briefSectionsSection
                     .listRowBackground(Color.surfaceColor)
 
                 // MARK: - Data Sources
@@ -387,6 +395,26 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(Color.inkSecondary)
             }
+        }
+    }
+
+    // MARK: - Brief sections
+
+    private var briefSectionsSection: some View {
+        Section {
+            AnimatedToggle(isOn: $summarySectionEnabled, icon: "text.alignleft", label: "Day summary")
+            AnimatedToggle(isOn: $nextSectionEnabled, icon: "clock", label: "Next events")
+            AnimatedToggle(isOn: $changesSectionEnabled, icon: "arrow.triangle.2.circlepath", label: "Changes since yesterday")
+            AnimatedToggle(isOn: $marketsSectionEnabled, icon: "chart.line.uptrend.xyaxis", label: "Markets")
+        } header: {
+            Text("Brief sections")
+        } footer: {
+            Text("Turned-off sections are left out of the Brief, the widget and the spoken brief.")
+        }
+        .onChange(of: [summarySectionEnabled, nextSectionEnabled, changesSectionEnabled, marketsSectionEnabled]) { _, _ in
+            // The widget reads the App Group copy; the Brief tab rebuilds on its own.
+            BriefSectionPrefs.mirrorToAppGroup()
+            BriefingWidgetReloader.reload()
         }
     }
 

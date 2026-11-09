@@ -306,13 +306,25 @@ final class VoiceBriefingService: ObservableObject {
     /// on-device day summary, about 20 seconds. Full: every section, as before.
     func speakBriefing(sections: [BriefingSection], summary: String? = nil) {
         let full = UserDefaults.standard.bool(forKey: Self.fullBriefingKey)
+        let spoken = Self.sectionsForVoice(sections)
+        let summary = BriefSectionPrefs.isEnabled("summary") ? summary : nil
         let text = full
-            ? compileBriefingText(from: sections)
-            : Self.compileShortBriefing(from: sections, summary: summary)
+            ? compileBriefingText(from: spoken)
+            : Self.compileShortBriefing(from: spoken, summary: summary)
         speak(text: text)
     }
 
     static let fullBriefingKey = "voiceBriefingFull"
+
+    /// Drops the sections turned off under Settings > Brief sections. The calendar line in
+    /// the spoken brief is the Next events block, so it follows that toggle.
+    nonisolated static func sectionsForVoice(_ sections: [BriefingSection]) -> [BriefingSection] {
+        sections.filter { section in
+            guard BriefSectionPrefs.isEnabled(section.id) else { return false }
+            if section.id == "calendar" { return BriefSectionPrefs.isEnabled("next") }
+            return true
+        }
+    }
 
     /// A short spoken brief: greeting, one weather line, the day's calendar in one line,
     /// then the two-sentence AI summary. Without a summary, one markets line instead.

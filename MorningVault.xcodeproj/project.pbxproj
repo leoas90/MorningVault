@@ -27,6 +27,7 @@
 		4827249630311489CE197890 /* RecordingActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D95BFAC24870DCE7D888CD92 /* RecordingActivityAttributes.swift */; };
 		4E8D3AD7F3D51CDB09E3E078 /* VoiceBriefingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E8DEEC9A141B8A080C115ED /* VoiceBriefingService.swift */; };
 		520ECFBA0E405C95975361C9 /* AnimatedComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F43942BE2B4BF54161D7B94 /* AnimatedComponents.swift */; };
+		549ADEB6E203FE50117BAB36 /* WeatherHero.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72C69217FB41C814F48DA970 /* WeatherHero.swift */; };
 		55631AA0EA78A2EDCB297348 /* BriefingTemplatePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 241BEA956BDB6CFFEC2B09E5 /* BriefingTemplatePickerView.swift */; };
 		5C3D1A0FB5E4798557684B3E /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6619476E0FF29E35D1B6F96A /* OnboardingView.swift */; };
 		64214E069C4D5EB46047A03F /* SharedBriefingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA716AFE1B7CFF2B49C066F4 /* SharedBriefingStore.swift */; };
@@ -45,10 +46,12 @@
 		83DCAF4E5BE7C2DF269D55EC /* RecordingLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DB4E3E43D27AB579D38A19F /* RecordingLiveActivityWidget.swift */; };
 		859DC93EAC22D3E1E724A26C /* MeetingsSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF4A646A414F2E800418BFA7 /* MeetingsSnapshot.swift */; };
 		864377C8DAB4A7A89C816177 /* Sparkline.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E7C36006FA4ADFCBB5BDB /* Sparkline.swift */; };
+		8CF1AE2A53F43BC60F58048A /* BriefSectionPrefs.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B06519DB31FFBC73F53C45 /* BriefSectionPrefs.swift */; };
 		96D3E937B4CB2AF95DFF2920 /* MeetingPrepCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0D4005055984F536F9A3C03 /* MeetingPrepCard.swift */; };
 		9994A34682A8B9FAE5024E49 /* MorningVaultWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7F326B33C09D42D7161B8064 /* MorningVaultWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		9A643DE807D78C3B5A270B31 /* SharedBriefingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA716AFE1B7CFF2B49C066F4 /* SharedBriefingStore.swift */; };
 		9DACD9BC231ED3565039C8FB /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DCC6E36072110A0C9A13105 /* DesignSystem.swift */; };
+		A1B716F10D9FCC13AFB36923 /* BriefSectionPrefs.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B06519DB31FFBC73F53C45 /* BriefSectionPrefs.swift */; };
 		A279BFD7446F1715B100AD06 /* SinceYesterdayService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F262638492997BDB559DCA /* SinceYesterdayService.swift */; };
 		A2BFE25D447520BF05FCF662 /* MeetingsDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2FD59B96D01494EBE1A9597 /* MeetingsDeepLink.swift */; };
 		A489201F8F6DA14C54FF5D7C /* BriefingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F951050E0F4C265855B07D /* BriefingIntents.swift */; };
@@ -66,7 +69,6 @@
 		CC9730F579B0F4EDD5D5C214 /* AlarmService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57398225F0C285023D3C56AC /* AlarmService.swift */; };
 		D31AE5982032296E4EBDDE78 /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3867BC47FB872F6A4CD54B76 /* PrivacyPolicyView.swift */; };
 		D63A801D25C95FAE5CEEB838 /* BriefingTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C018F09283F3785795D9B90 /* BriefingTemplate.swift */; };
-		D7F4150E1A3C51B5BAA0DA65 /* WeatherHero.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE8B3753F56D5FD7EDF3AA79 /* WeatherHero.swift */; };
 		DC19F6726F134CBD3E779546 /* BriefingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A27C5D739FF263892E7845 /* BriefingViewModel.swift */; };
 		DC829F929772EF1FCA6B304A /* MeetingPrep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28410E5F2F24FBA6A84F1A8D /* MeetingPrep.swift */; };
 		DF67CDE0CEF859228EA2EFE1 /* MeetingPrepService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4FAAAF213FBE84FF9276477 /* MeetingPrepService.swift */; };
@@ -128,6 +130,7 @@
 		6619476E0FF29E35D1B6F96A /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		6884035D786F837686C765A3 /* GreetingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GreetingService.swift; sourceTree = "<group>"; };
 		72703070A4EFC1A13BD941D5 /* UnitsPreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitsPreference.swift; sourceTree = "<group>"; };
+		72C69217FB41C814F48DA970 /* WeatherHero.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherHero.swift; sourceTree = "<group>"; };
 		744744A7C6ACBF0C75D72E34 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		795319B94ED6C583F34E5FDC /* SkyScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyScene.swift; sourceTree = "<group>"; };
 		7B50422F2AD54B20129FB1C8 /* OnboardingMeetingsStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingMeetingsStep.swift; sourceTree = "<group>"; };
@@ -160,9 +163,9 @@
 		E0D4005055984F536F9A3C03 /* MeetingPrepCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingPrepCard.swift; sourceTree = "<group>"; };
 		E1F951050E0F4C265855B07D /* BriefingIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingIntents.swift; sourceTree = "<group>"; };
 		E249A63C0B140CBBF820E5C4 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		E3B06519DB31FFBC73F53C45 /* BriefSectionPrefs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefSectionPrefs.swift; sourceTree = "<group>"; };
 		E49DBCBD78772F996A4CF662 /* ShareCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCardView.swift; sourceTree = "<group>"; };
 		EE736702BBE6B0A9F0CED3F9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		EE8B3753F56D5FD7EDF3AA79 /* WeatherHero.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherHero.swift; sourceTree = "<group>"; };
 		F0CBE9B72F0FE052713D0A6A /* GreetingComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GreetingComposer.swift; sourceTree = "<group>"; };
 		F1E53372DCE56D9D3406815A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		F22FA11BC4393AA0A34AC497 /* RSSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RSSService.swift; sourceTree = "<group>"; };
@@ -200,6 +203,7 @@
 		03E855DB005FA049693C8C81 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				E3B06519DB31FFBC73F53C45 /* BriefSectionPrefs.swift */,
 				F0CBE9B72F0FE052713D0A6A /* GreetingComposer.swift */,
 				D2FD59B96D01494EBE1A9597 /* MeetingsDeepLink.swift */,
 				DF4A646A414F2E800418BFA7 /* MeetingsSnapshot.swift */,
@@ -356,7 +360,7 @@
 				E49DBCBD78772F996A4CF662 /* ShareCardView.swift */,
 				795319B94ED6C583F34E5FDC /* SkyScene.swift */,
 				F88E7C36006FA4ADFCBB5BDB /* Sparkline.swift */,
-				EE8B3753F56D5FD7EDF3AA79 /* WeatherHero.swift */,
+				72C69217FB41C814F48DA970 /* WeatherHero.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -492,6 +496,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8CF1AE2A53F43BC60F58048A /* BriefSectionPrefs.swift in Sources */,
 				AC5A57FBA45F6ADE00BB7B64 /* GreetingComposer.swift in Sources */,
 				3AF3BCF7DA10AF91B9E6F653 /* MeetingsDeepLink.swift in Sources */,
 				859DC93EAC22D3E1E724A26C /* MeetingsSnapshot.swift in Sources */,
@@ -513,6 +518,7 @@
 				CC9730F579B0F4EDD5D5C214 /* AlarmService.swift in Sources */,
 				520ECFBA0E405C95975361C9 /* AnimatedComponents.swift in Sources */,
 				B92920D395AA2DDE460E11E9 /* Animations.swift in Sources */,
+				A1B716F10D9FCC13AFB36923 /* BriefSectionPrefs.swift in Sources */,
 				A489201F8F6DA14C54FF5D7C /* BriefingIntents.swift in Sources */,
 				B71AF772C81B372B0E7A75D0 /* BriefingSectionCard.swift in Sources */,
 				D63A801D25C95FAE5CEEB838 /* BriefingTemplate.swift in Sources */,
@@ -556,7 +562,7 @@
 				30FA25455BC3DB5B8E1B6A29 /* TrackedSymbol.swift in Sources */,
 				ACE91217F54E0DCD16379681 /* UnitsPreference.swift in Sources */,
 				4E8D3AD7F3D51CDB09E3E078 /* VoiceBriefingService.swift in Sources */,
-				D7F4150E1A3C51B5BAA0DA65 /* WeatherHero.swift in Sources */,
+				549ADEB6E203FE50117BAB36 /* WeatherHero.swift in Sources */,
 				2527903266B6D07786002005 /* WeatherService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

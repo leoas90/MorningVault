@@ -263,6 +263,12 @@ struct BriefTabView: View {
     @AppStorage("calendar_enabled") private var calendarEnabled = true
     @AppStorage("health_enabled") private var healthEnabled = true
     @AppStorage("headlines_enabled") private var headlinesEnabled = true
+    // Brief sections (Settings > Brief sections). Read through @AppStorage so a change
+    // re-renders; the view model applies the same choices when it builds the data.
+    @AppStorage(BriefSectionPrefs.Key.summary) private var summaryEnabled = true
+    @AppStorage(BriefSectionPrefs.Key.next) private var nextEnabled = true
+    @AppStorage(BriefSectionPrefs.Key.changes) private var changesEnabled = true
+    @AppStorage(BriefSectionPrefs.Key.markets) private var marketsEnabled = true
     private let greeting = GreetingService.shared
 
     /// Scene entrance flag (see `runEntrance`); text and rows use `.entrance(delay:)`.
@@ -293,12 +299,13 @@ struct BriefTabView: View {
     }
 
     private var schedule: BriefSchedule? {
-        guard let cal = section("calendar"), cal.errorMessage == nil else { return nil }
+        guard nextEnabled, let cal = section("calendar"), cal.errorMessage == nil else { return nil }
         return BriefSchedule.make(from: CalendarLine.parse(cal.content), now: now)
     }
 
     private var ledeParts: (lede: String, rest: String?)? {
-        viewModel.aiDaySummary.map { EditorialFormat.splitLede($0) }
+        guard summaryEnabled else { return nil }
+        return viewModel.aiDaySummary.map { EditorialFormat.splitLede($0) }
     }
 
     /// Why the Brief is empty, in the user's terms: no source on, no Calendar access, or
@@ -390,6 +397,14 @@ struct BriefTabView: View {
                 }
                 .onChange(of: weatherEnabled) { _, _ in
                     Task { await viewModel.loadData(force: true) }
+                }
+                .onChange(of: [summaryEnabled, nextEnabled, changesEnabled, marketsEnabled]) { _, _ in
+                    // Rebuild so the snapshot, the widget and the spoken brief follow the toggles.
+                    BriefSectionPrefs.mirrorToAppGroup()
+                    Task {
+                        await viewModel.loadData(force: true)
+                        if viewModel.aiDaySummary == nil { await viewModel.generateAISummary() }
+                    }
                 }
                 .task(id: voiceBriefingEnabled) {
                     // Load Emma's voice before the first Listen tap.
@@ -555,7 +570,7 @@ struct BriefTabView: View {
                         .lineLimit(2)
                 }
             }
-        } else if viewModel.isGeneratingAI {
+        } else if summaryEnabled, viewModel.isGeneratingAI {
             VStack(alignment: .leading, spacing: 8) {
                 SkeletonLine(height: 16)
                 SkeletonLine(width: 220, height: 16)
@@ -568,7 +583,7 @@ struct BriefTabView: View {
                 .foregroundStyle(Color.inkPrimary)
                 .fixedSize(horizontal: false, vertical: true)
                 .lineLimit(2)
-        } else if let reason = viewModel.aiUnavailableReason {
+        } else if summaryEnabled, let reason = viewModel.aiUnavailableReason {
             Text(reason)
                 .font(.secondaryText)
                 .foregroundStyle(Color.inkSecondary)
@@ -582,15 +597,15 @@ struct BriefTabView: View {
     private var evidence: some View {
         if let schedule {
             nextCard(schedule)
-        } else if let cal = section("calendar"), cal.errorMessage != nil {
+        } else if nextEnabled, let cal = section("calendar"), cal.errorMessage != nil {
             BriefingSectionCard(section: cal)
         }
 
-        if !viewModel.sinceYesterday.isEmpty {
+        if changesEnabled, !viewModel.sinceYesterday.isEmpty {
             changesStrip
         }
 
-        if section("markets") != nil || !viewModel.morningSnapshot.marketQuotes.isEmpty {
+        if marketsEnabled, section("markets") != nil || !viewModel.morningSnapshot.marketQuotes.isEmpty {
             marketsBlock
         }
 
