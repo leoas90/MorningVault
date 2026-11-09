@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		04455B3BB2A93FDBDBF16DC2 /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 43846CD46D74B41CF7F5B426 /* HealthKit.framework */; };
 		0EEB81CEA1E301A373890122 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E249A63C0B140CBBF820E5C4 /* SettingsView.swift */; };
+		1256E46F47C0BA89D85744B5 /* Household.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D07EA105560EBC811B63F8E /* Household.swift */; };
 		13457E2D7C9D9F72B43D627F /* SafariView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4D4CC7A6722E21934433A6F /* SafariView.swift */; };
 		16CC24DB9272055283A74382 /* OnboardingSymbolsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBA9C338BBD6EFB8CD1B5D46 /* OnboardingSymbolsStep.swift */; };
 		1C8F2104FBEFA8DD1337EC1E /* SkyScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 795319B94ED6C583F34E5FDC /* SkyScene.swift */; };
@@ -67,6 +68,7 @@
 		BE20DBFD4EE40EF8A0784F43 /* MorningVaultWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48B5B42BD466623AFA77DEC4 /* MorningVaultWidget.swift */; };
 		C0A36CEC5BB49E25429B8ADC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F60C417DCC44D79F117B8D30 /* WidgetKit.framework */; };
 		C0B7F722C203994972B5524B /* ShareCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E49DBCBD78772F996A4CF662 /* ShareCardView.swift */; };
+		C91D0C035EE6B32F4A91C6F7 /* HouseholdModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEE14A43C073ADAD5849355C /* HouseholdModelTests.swift */; };
 		CA9DC9924DAB8359104CC5D4 /* ThemeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A8E749131381B74347623E1 /* ThemeStore.swift */; };
 		CC9730F579B0F4EDD5D5C214 /* AlarmService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57398225F0C285023D3C56AC /* AlarmService.swift */; };
 		D31AE5982032296E4EBDDE78 /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3867BC47FB872F6A4CD54B76 /* PrivacyPolicyView.swift */; };
@@ -126,6 +128,7 @@
 		3867BC47FB872F6A4CD54B76 /* PrivacyPolicyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyPolicyView.swift; sourceTree = "<group>"; };
 		3B28A4999CCA31CE52592458 /* MorningVault.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MorningVault.entitlements; sourceTree = "<group>"; };
 		3C018F09283F3785795D9B90 /* BriefingTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingTemplate.swift; sourceTree = "<group>"; };
+		3D07EA105560EBC811B63F8E /* Household.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Household.swift; sourceTree = "<group>"; };
 		428137D842E34AED7DAB8482 /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
 		42F262638492997BDB559DCA /* SinceYesterdayService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SinceYesterdayService.swift; sourceTree = "<group>"; };
 		43846CD46D74B41CF7F5B426 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
@@ -160,6 +163,7 @@
 		A4FAAAF213FBE84FF9276477 /* MeetingPrepService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingPrepService.swift; sourceTree = "<group>"; };
 		ACAA8CF9C253BBAB993C7ABC /* CalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarService.swift; sourceTree = "<group>"; };
 		AD35C3FB14B743538182864C /* BriefingSectionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingSectionCard.swift; sourceTree = "<group>"; };
+		AEE14A43C073ADAD5849355C /* HouseholdModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HouseholdModelTests.swift; sourceTree = "<group>"; };
 		B5169DF9CE3C7BF70629DCB0 /* NewsSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewsSource.swift; sourceTree = "<group>"; };
 		C26F9E33368D424D3AAEDFBE /* SourcesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourcesView.swift; sourceTree = "<group>"; };
 		CAA42C170687186B32811FBE /* MeetingsWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingsWidget.swift; sourceTree = "<group>"; };
@@ -299,6 +303,7 @@
 				47A4440AD2E04B7D687DCE54 /* Animations.swift */,
 				3C018F09283F3785795D9B90 /* BriefingTemplate.swift */,
 				DAF1AB9ADD648A1E241B6F52 /* DataModels.swift */,
+				3D07EA105560EBC811B63F8E /* Household.swift */,
 				28410E5F2F24FBA6A84F1A8D /* MeetingPrep.swift */,
 				F95A4F8D514E38562AD1FEE9 /* MorningSnapshot.swift */,
 				B5169DF9CE3C7BF70629DCB0 /* NewsSource.swift */,
@@ -340,6 +345,7 @@
 		4A7E843203AAD83DEC39F24E /* MorningVaultTests */ = {
 			isa = PBXGroup;
 			children = (
+				AEE14A43C073ADAD5849355C /* HouseholdModelTests.swift */,
 				1824F9A32CADF7BCB6237C30 /* PublicNameGuardTests.swift */,
 			);
 			path = MorningVaultTests;
@@ -578,6 +584,7 @@
 				F7C67B03B804B670B426A0DD /* GreetingComposer.swift in Sources */,
 				F3480E6D0027A5C1884D74E5 /* GreetingService.swift in Sources */,
 				AECF485B2044FA53AB0A4C19 /* HealthKitService.swift in Sources */,
+				1256E46F47C0BA89D85744B5 /* Household.swift in Sources */,
 				3C2C043C65B846CCF1A2FF59 /* MarketBackendService.swift in Sources */,
 				791163896D6AEC61A6564A70 /* MarketsView.swift in Sources */,
 				DC829F929772EF1FCA6B304A /* MeetingPrep.swift in Sources */,
@@ -618,6 +625,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C91D0C035EE6B32F4A91C6F7 /* HouseholdModelTests.swift in Sources */,
 				221CB4E45B59077F1559008A /* PublicNameGuardTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -645,6 +653,7 @@
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = 8ZPN58AQLD;
+				ENABLE_TESTABILITY = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				ONLY_ACTIVE_ARCH = YES;
 				PROVISIONING_PROFILE_SPECIFIER = MorningVaultAppStores;
