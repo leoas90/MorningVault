@@ -202,6 +202,12 @@ final class BriefingViewModel: ObservableObject {
             ))
         }
 
+        // Household checklist (Settings > Trackers). The rows come from ChecklistViewModel;
+        // the section is the slot in the Brief.
+        if BriefSectionPrefs.isEnabled("today") {
+            sections.append(BriefingSection(id: "today", title: "Today", icon: "checklist", content: "", sentiment: nil))
+        }
+
         // Market section (BTC + SPY/QQQ sentiment). Off in Settings > Brief sections: no fetch.
         if BriefSectionPrefs.isEnabled("markets") {
             let marketSentiment = await fetchMarketSentiment()

@@ -5,7 +5,7 @@ import Foundation
 /// Available briefing templates that define the order and visibility of sections.
 /// Users select one template in Settings; it controls section priority/scoring.
 enum BriefingTemplate: String, CaseIterable, Codable, Identifiable {
-    /// Weather → Health → Calendar → Markets → Headlines → Build Task
+    /// Weather → Health → Calendar → Today → Markets → Headlines → Build Task
     case standard = "standard"
     /// Markets → Weather → Headlines → Calendar → Health → Build Task
     case traderFocus = "trader-focus"
@@ -68,9 +68,10 @@ enum BriefingTemplate: String, CaseIterable, Codable, Identifiable {
                 ("weather", 1),
                 ("health", 2),
                 ("calendar", 3),
-                ("markets", 4),
-                ("headlines", 5),
-                ("build", 6),
+                ("today", 4),
+                ("markets", 5),
+                ("headlines", 6),
+                ("build", 7),
             ], sectionId: sectionId)
 
         case .traderFocus:
@@ -79,8 +80,9 @@ enum BriefingTemplate: String, CaseIterable, Codable, Identifiable {
                 ("weather", 2),
                 ("headlines", 3),
                 ("calendar", 4),
-                ("health", 5),
-                ("build", 6),
+                ("today", 5),
+                ("health", 6),
+                ("build", 7),
             ], sectionId: sectionId)
 
         case .wellnessFirst:
@@ -88,9 +90,10 @@ enum BriefingTemplate: String, CaseIterable, Codable, Identifiable {
                 ("health", 1),
                 ("weather", 2),
                 ("calendar", 3),
-                ("markets", 4),
-                ("headlines", 5),
-                ("build", 6),
+                ("today", 4),
+                ("markets", 5),
+                ("headlines", 6),
+                ("build", 7),
             ], sectionId: sectionId)
 
         case .newsFirst:
@@ -99,18 +102,20 @@ enum BriefingTemplate: String, CaseIterable, Codable, Identifiable {
                 ("weather", 2),
                 ("markets", 3),
                 ("calendar", 4),
-                ("health", 5),
-                ("build", 6),
+                ("today", 5),
+                ("health", 6),
+                ("build", 7),
             ], sectionId: sectionId)
 
         case .balanced:
             return priorityMap([
                 ("weather", 1),
                 ("calendar", 2),
-                ("health", 3),
-                ("markets", 4),
-                ("headlines", 5),
-                ("build", 6),
+                ("today", 3),
+                ("health", 4),
+                ("markets", 5),
+                ("headlines", 6),
+                ("build", 7),
             ], sectionId: sectionId)
 
         case .custom:

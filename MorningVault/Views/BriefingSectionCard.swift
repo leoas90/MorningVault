@@ -18,12 +18,16 @@ struct BriefingSectionCard: View {
     var marketSeries: [String: MarketSeries] = [:]
 
     @ObservedObject private var readState = NewsReadStateTracker.shared
+    /// Household checklist behind the `today` section (previews pass a sample model).
+    @ObservedObject private var checklist: ChecklistViewModel
 
-    init(section: BriefingSection, delay: Double = 0, onOpenMarkets: (() -> Void)? = nil, marketSeries: [String: MarketSeries] = [:]) {
+    init(section: BriefingSection, delay: Double = 0, onOpenMarkets: (() -> Void)? = nil,
+         marketSeries: [String: MarketSeries] = [:], checklist: ChecklistViewModel = .shared) {
         self.section = section
         self.delay = delay
         self.onOpenMarkets = onOpenMarkets
         self.marketSeries = marketSeries
+        self.checklist = checklist
     }
 
     private var hasArticles: Bool {
@@ -48,6 +52,7 @@ struct BriefingSectionCard: View {
                 case "markets": marketsBody
                 case "headlines": headlinesBody
                 case "health": healthBody
+                case "today": TodaySectionView(model: checklist)
                 default: plainBody
                 }
             }
@@ -66,6 +71,14 @@ struct BriefingSectionCard: View {
         HStack(alignment: .firstTextBaseline) {
             Eyebrow(text: eyebrowTitle)
             Spacer()
+            if section.id == "today", checklist.hasLoaded {
+                let progress = checklist.progressToday
+                if progress.total > 0 {
+                    Text("\(progress.done) of \(progress.total)")
+                        .font(.metaText.monospacedDigit())
+                        .foregroundStyle(Color.inkSecondary)
+                }
+            }
             if section.id == "headlines", let feed = section.rssFeed {
                 let unread = readState.unreadCount(in: [feed])
                 if unread > 0 {

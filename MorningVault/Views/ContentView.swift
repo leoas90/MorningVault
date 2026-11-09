@@ -607,6 +607,11 @@ struct BriefTabView: View {
             BriefingSectionCard(section: cal)
         }
 
+        // Household checklist: after Next, before the rest of the world.
+        if let today = section("today") {
+            BriefingSectionCard(section: today)
+        }
+
         if changesEnabled, !viewModel.sinceYesterday.isEmpty {
             changesStrip
         }
@@ -615,7 +620,7 @@ struct BriefTabView: View {
             marketsBlock
         }
 
-        ForEach(viewModel.briefingSections.filter { !["weather", "calendar", "markets"].contains($0.id) }) { section in
+        ForEach(viewModel.briefingSections.filter { !["weather", "calendar", "markets", "today"].contains($0.id) }) { section in
             BriefingSectionCard(section: section)
         }
 
