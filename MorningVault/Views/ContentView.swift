@@ -641,7 +641,14 @@ struct BriefTabView: View {
             marketsBlock
         }
 
-        ForEach(viewModel.briefingSections.filter { !["weather", "calendar", "markets", "today", "water"].contains($0.id) }) { section in
+        // The toggles are read here too, so a section turned off disappears at once instead
+        // of waiting for the reload (headlines stayed on screen in build 71).
+        ForEach(viewModel.briefingSections.filter { section in
+            if ["weather", "calendar", "markets", "today", "water"].contains(section.id) { return false }
+            if section.id == "headlines", !headlinesEnabled { return false }
+            if section.id == "health", !healthEnabled { return false }
+            return true
+        }) { section in
             BriefingSectionCard(section: section)
         }
 

@@ -87,6 +87,7 @@
 		99C06C79431F2BC9D2CAEBE0 /* WaterReminderSchedulerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 833363EBA10E1C42AD9A1901 /* WaterReminderSchedulerTests.swift */; };
 		9A643DE807D78C3B5A270B31 /* SharedBriefingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA716AFE1B7CFF2B49C066F4 /* SharedBriefingStore.swift */; };
 		9DACD9BC231ED3565039C8FB /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DCC6E36072110A0C9A13105 /* DesignSystem.swift */; };
+		9EE42F2C25922DDD6DEB7792 /* HeadlinesToggleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD4199CD0DF218F2FF743180 /* HeadlinesToggleTests.swift */; };
 		A1B716F10D9FCC13AFB36923 /* BriefSectionPrefs.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B06519DB31FFBC73F53C45 /* BriefSectionPrefs.swift */; };
 		A279BFD7446F1715B100AD06 /* SinceYesterdayService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F262638492997BDB559DCA /* SinceYesterdayService.swift */; };
 		A2BFE25D447520BF05FCF662 /* MeetingsDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2FD59B96D01494EBE1A9597 /* MeetingsDeepLink.swift */; };
@@ -242,6 +243,7 @@
 		A81D8B15F3DF7B3A8EF28BC6 /* WaterTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterTracker.swift; sourceTree = "<group>"; };
 		ACAA8CF9C253BBAB993C7ABC /* CalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarService.swift; sourceTree = "<group>"; };
 		AD35C3FB14B743538182864C /* BriefingSectionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingSectionCard.swift; sourceTree = "<group>"; };
+		AD4199CD0DF218F2FF743180 /* HeadlinesToggleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeadlinesToggleTests.swift; sourceTree = "<group>"; };
 		AEE14A43C073ADAD5849355C /* HouseholdModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HouseholdModelTests.swift; sourceTree = "<group>"; };
 		B5169DF9CE3C7BF70629DCB0 /* NewsSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewsSource.swift; sourceTree = "<group>"; };
 		BFBB72AAD637BABD1EB2158D /* WaterSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterSnapshot.swift; sourceTree = "<group>"; };
@@ -475,6 +477,7 @@
 			children = (
 				D46F8E4629B15F9027CCDC85 /* ChecklistIntentsTests.swift */,
 				DB14433B3B74ED214126E9F3 /* ChecklistStoreTests.swift */,
+				AD4199CD0DF218F2FF743180 /* HeadlinesToggleTests.swift */,
 				AEE14A43C073ADAD5849355C /* HouseholdModelTests.swift */,
 				1824F9A32CADF7BCB6237C30 /* PublicNameGuardTests.swift */,
 				0C38EB481AD5C705092A7B6D /* ReminderSchedulerTests.swift */,
@@ -813,6 +816,7 @@
 			files = (
 				8EC9F42CA2D8C167CBD3C9C8 /* ChecklistIntentsTests.swift in Sources */,
 				02DF3BA3F6C6E4E507990E25 /* ChecklistStoreTests.swift in Sources */,
+				9EE42F2C25922DDD6DEB7792 /* HeadlinesToggleTests.swift in Sources */,
 				C91D0C035EE6B32F4A91C6F7 /* HouseholdModelTests.swift in Sources */,
 				221CB4E45B59077F1559008A /* PublicNameGuardTests.swift in Sources */,
 				BC0CB133D3C166B3D46F025B /* ReminderSchedulerTests.swift in Sources */,
