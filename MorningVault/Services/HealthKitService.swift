@@ -48,7 +48,8 @@ final class HealthKitService: ObservableObject {
             HKObjectType.quantityType(forIdentifier: .stepCount)!,
             HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,
             HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!,
-            HKObjectType.quantityType(forIdentifier: .heartRate)!
+            HKObjectType.quantityType(forIdentifier: .heartRate)!,
+            Self.waterType
         ]
 
         do {
@@ -62,6 +63,82 @@ final class HealthKitService: ObservableObject {
             isAuthorized = false
             return false
         }
+    }
+
+    // MARK: - Water
+
+    static let waterType = HKQuantityType(.dietaryWater)
+
+    /// True when the app may write dietary water. Never shows a sheet.
+    var canWriteWater: Bool {
+        HKHealthStore.isHealthDataAvailable() && healthStore.authorizationStatus(for: Self.waterType) == .sharingAuthorized
+    }
+
+    /// Asks to write (and read) dietary water. Only called when the water tracker is turned
+    /// on, so the write prompt never appears for users who do not track water.
+    func requestWaterShareAuthorization() async -> Bool {
+        guard HKHealthStore.isHealthDataAvailable() else { return false }
+        do {
+            try await healthStore.requestAuthorization(toShare: [Self.waterType], read: [Self.waterType])
+            return canWriteWater
+        } catch {
+            lastError = error.localizedDescription
+            return false
+        }
+    }
+
+    /// Writes one dietary water sample and returns its UUID.
+    func saveWater(ml: Int, date: Date) async throws -> UUID {
+        let quantity = HKQuantity(unit: .literUnit(with: .milli), doubleValue: Double(ml))
+        let sample = HKQuantitySample(type: Self.waterType, quantity: quantity, start: date, end: date)
+        try await healthStore.save(sample)
+        return sample.uuid
+    }
+
+    /// Deletes a water sample the app wrote (other apps' samples cannot be deleted).
+    func deleteWater(healthID: UUID) async throws {
+        let predicate = HKQuery.predicateForObject(with: healthID)
+        let samples: [HKSample] = try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(sampleType: Self.waterType, predicate: predicate, limit: 1, sortDescriptors: nil) { _, samples, error in
+                if let error { continuation.resume(throwing: error) } else { continuation.resume(returning: samples ?? []) }
+            }
+            healthStore.execute(query)
+        }
+        guard let sample = samples.first else { return }
+        try await healthStore.delete(sample)
+    }
+
+    /// Every dietary water sample on the given day, oldest first. Nil when Health is
+    /// unavailable or the query fails (no read permission reads as an empty list).
+    func waterSamples(on day: Date) async -> [WaterHealthSample]? {
+        guard HKHealthStore.isHealthDataAvailable() else { return nil }
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: day)
+        let end = calendar.date(byAdding: .day, value: 1, to: start) ?? day
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: Self.waterType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+            ) { _, samples, error in
+                guard error == nil, let samples = samples as? [HKQuantitySample] else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                let unit = HKUnit.literUnit(with: .milli)
+                continuation.resume(returning: samples.map {
+                    WaterHealthSample(id: $0.uuid, ts: $0.startDate, ml: Int($0.quantity.doubleValue(for: unit).rounded()))
+                })
+            }
+            healthStore.execute(query)
+        }
+    }
+
+    /// Millilitres of water in Health on the given day, nil when unreadable.
+    func waterTotal(on day: Date) async -> Int? {
+        await waterSamples(on: day)?.reduce(0) { $0 + $1.ml }
     }
 
     // MARK: - Fetch Sleep (last night)

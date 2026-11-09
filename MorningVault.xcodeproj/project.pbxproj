@@ -18,6 +18,7 @@
 		12C5E1FBC646DB8712ADA900 /* ChecklistSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BCF81A89034D8BFF7C4C001 /* ChecklistSnapshot.swift */; };
 		13457E2D7C9D9F72B43D627F /* SafariView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4D4CC7A6722E21934433A6F /* SafariView.swift */; };
 		16CC24DB9272055283A74382 /* OnboardingSymbolsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBA9C338BBD6EFB8CD1B5D46 /* OnboardingSymbolsStep.swift */; };
+		1944C239994A855F0DF1BCC4 /* WaterStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E553B61BC5FEA442F3104B84 /* WaterStore.swift */; };
 		1C8F2104FBEFA8DD1337EC1E /* SkyScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 795319B94ED6C583F34E5FDC /* SkyScene.swift */; };
 		21946045F1FBEDDA54D6F284 /* OnboardingMeetingsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B50422F2AD54B20129FB1C8 /* OnboardingMeetingsStep.swift */; };
 		221CB4E45B59077F1559008A /* PublicNameGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1824F9A32CADF7BCB6237C30 /* PublicNameGuardTests.swift */; };
@@ -31,10 +32,12 @@
 		2EF7A781C2B467728A3EBD2F /* SuggestionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E2CA7380A9A13F0A861F46F /* SuggestionEngine.swift */; };
 		30FA25455BC3DB5B8E1B6A29 /* TrackedSymbol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6091C9B0146CAF03D736103D /* TrackedSymbol.swift */; };
 		399FF72C653B49862C1EB0F4 /* CacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B0C6160616AE04F2461D038 /* CacheService.swift */; };
+		3A7E49FB5C4ABDB7FEC16C80 /* HealthKitWaterClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843E44ED42A1AFB9093A1CE7 /* HealthKitWaterClient.swift */; };
 		3AF3BCF7DA10AF91B9E6F653 /* MeetingsDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2FD59B96D01494EBE1A9597 /* MeetingsDeepLink.swift */; };
 		3B5C4866AD7B900B603B8A46 /* TodaySectionPrefsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CB2D87EA2DB50A8A76D7473 /* TodaySectionPrefsTests.swift */; };
 		3BFA13D33BB04427CE614A02 /* TrackerControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C2EE2004506C2EC2540FD25 /* TrackerControls.swift */; };
 		3C2C043C65B846CCF1A2FF59 /* MarketBackendService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1927CFE7F60D2F00E0BDF16B /* MarketBackendService.swift */; };
+		3CE61E4CA0A390CF9C819641 /* WaterSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFBB72AAD637BABD1EB2158D /* WaterSnapshot.swift */; };
 		3F8DB020365D28AF69EA085B /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D59A1276B0A66C4F36590B5C /* SwiftUI.framework */; };
 		45CFE2CF9DA4013A765AB61D /* ChecklistItemEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69D0E5107384CD994F496AF1 /* ChecklistItemEditor.swift */; };
 		4827249630311489CE197890 /* RecordingActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D95BFAC24870DCE7D888CD92 /* RecordingActivityAttributes.swift */; };
@@ -47,10 +50,12 @@
 		5B427C322DF1CEAA68D3A8E8 /* ProGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20B100F7370B45B6A3C0DF6 /* ProGate.swift */; };
 		5C3D1A0FB5E4798557684B3E /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6619476E0FF29E35D1B6F96A /* OnboardingView.swift */; };
 		636797E40B4F20908CB0BC4B /* ChecklistEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60DA075F9A135B2C2FC32C2C /* ChecklistEditorView.swift */; };
+		63D799FF2735072EF2F0447C /* WaterSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFBB72AAD637BABD1EB2158D /* WaterSnapshot.swift */; };
 		64214E069C4D5EB46047A03F /* SharedBriefingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA716AFE1B7CFF2B49C066F4 /* SharedBriefingStore.swift */; };
 		64F6609F49C467CE469C5F3B /* CoreLocation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6376F2CF2B5439BE403B053D /* CoreLocation.framework */; };
 		6671483266A6436D74A0A160 /* EventKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 88242292BC38B613DCF5E115 /* EventKit.framework */; };
 		66A70D5DA185AB965C4905D6 /* NewsSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5169DF9CE3C7BF70629DCB0 /* NewsSource.swift */; };
+		68441F80D74E380B71F8100E /* WaterStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA6A1986361C65B640DEF946 /* WaterStoreTests.swift */; };
 		6930C99BB5D04D6E57C1E262 /* DataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAF1AB9ADD648A1E241B6F52 /* DataModels.swift */; };
 		707FF8CF0AFCADBDE4CA147A /* RSSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F22FA11BC4393AA0A34AC497 /* RSSService.swift */; };
 		72A4B6CD4EEAF78D67B2A1FE /* SourcesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C26F9E33368D424D3AAEDFBE /* SourcesView.swift */; };
@@ -100,6 +105,7 @@
 		D31AE5982032296E4EBDDE78 /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3867BC47FB872F6A4CD54B76 /* PrivacyPolicyView.swift */; };
 		D63A801D25C95FAE5CEEB838 /* BriefingTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C018F09283F3785795D9B90 /* BriefingTemplate.swift */; };
 		D93C869170575E191C20AFAE /* TodaySectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E40B3A6A2552FFBD43452DE /* TodaySectionView.swift */; };
+		DB0BD0982AB79B8F03A58D64 /* WaterStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E553B61BC5FEA442F3104B84 /* WaterStore.swift */; };
 		DB93282AD861716B2245FA9C /* ChecklistIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04DB84A29E403A0583A0A5A0 /* ChecklistIntents.swift */; };
 		DC19F6726F134CBD3E779546 /* BriefingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A27C5D739FF263892E7845 /* BriefingViewModel.swift */; };
 		DC829F929772EF1FCA6B304A /* MeetingPrep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28410E5F2F24FBA6A84F1A8D /* MeetingPrep.swift */; };
@@ -196,6 +202,7 @@
 		7E6C312545326EA367B78602 /* MorningVaultWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MorningVaultWidget.entitlements; sourceTree = "<group>"; };
 		7F326B33C09D42D7161B8064 /* MorningVaultWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = MorningVaultWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		83D59911EA5A72F47B900500 /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
+		843E44ED42A1AFB9093A1CE7 /* HealthKitWaterClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitWaterClient.swift; sourceTree = "<group>"; };
 		88242292BC38B613DCF5E115 /* EventKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = EventKit.framework; path = System/Library/Frameworks/EventKit.framework; sourceTree = SDKROOT; };
 		8A7E8D846A7789789D5D40ED /* MeetingNotesKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MeetingNotesKit; path = Packages/MeetingNotesKit; sourceTree = SOURCE_ROOT; };
 		8A8E749131381B74347623E1 /* ThemeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeStore.swift; sourceTree = "<group>"; };
@@ -215,8 +222,10 @@
 		AD35C3FB14B743538182864C /* BriefingSectionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingSectionCard.swift; sourceTree = "<group>"; };
 		AEE14A43C073ADAD5849355C /* HouseholdModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HouseholdModelTests.swift; sourceTree = "<group>"; };
 		B5169DF9CE3C7BF70629DCB0 /* NewsSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewsSource.swift; sourceTree = "<group>"; };
+		BFBB72AAD637BABD1EB2158D /* WaterSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterSnapshot.swift; sourceTree = "<group>"; };
 		C20B100F7370B45B6A3C0DF6 /* ProGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProGate.swift; sourceTree = "<group>"; };
 		C26F9E33368D424D3AAEDFBE /* SourcesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourcesView.swift; sourceTree = "<group>"; };
+		CA6A1986361C65B640DEF946 /* WaterStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterStoreTests.swift; sourceTree = "<group>"; };
 		CAA42C170687186B32811FBE /* MeetingsWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingsWidget.swift; sourceTree = "<group>"; };
 		CC662E3FFC1BD273F4A2D28A /* StopRecordingIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StopRecordingIntent.swift; sourceTree = "<group>"; };
 		D2A9C53AC93866B046540ED0 /* WeatherKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WeatherKit.framework; path = System/Library/Frameworks/WeatherKit.framework; sourceTree = SDKROOT; };
@@ -235,6 +244,7 @@
 		E3B06519DB31FFBC73F53C45 /* BriefSectionPrefs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefSectionPrefs.swift; sourceTree = "<group>"; };
 		E49DBCBD78772F996A4CF662 /* ShareCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCardView.swift; sourceTree = "<group>"; };
 		E4D4CC7A6722E21934433A6F /* SafariView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariView.swift; sourceTree = "<group>"; };
+		E553B61BC5FEA442F3104B84 /* WaterStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterStore.swift; sourceTree = "<group>"; };
 		EC3A295440CFCFD620912516 /* TodayWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayWidget.swift; sourceTree = "<group>"; };
 		EE736702BBE6B0A9F0CED3F9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		F0CBE9B72F0FE052713D0A6A /* GreetingComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GreetingComposer.swift; sourceTree = "<group>"; };
@@ -288,6 +298,8 @@
 				FA716AFE1B7CFF2B49C066F4 /* SharedBriefingStore.swift */,
 				CC662E3FFC1BD273F4A2D28A /* StopRecordingIntent.swift */,
 				72703070A4EFC1A13BD941D5 /* UnitsPreference.swift */,
+				BFBB72AAD637BABD1EB2158D /* WaterSnapshot.swift */,
+				E553B61BC5FEA442F3104B84 /* WaterStore.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -433,6 +445,7 @@
 				0C38EB481AD5C705092A7B6D /* ReminderSchedulerTests.swift */,
 				5D53B287BF5058D135815D7F /* SuggestionEngineTests.swift */,
 				7CB2D87EA2DB50A8A76D7473 /* TodaySectionPrefsTests.swift */,
+				CA6A1986361C65B640DEF946 /* WaterStoreTests.swift */,
 				A51A7F74DA066A4962831FEF /* WaterTrackerTests.swift */,
 			);
 			path = MorningVaultTests;
@@ -490,6 +503,7 @@
 				ACAA8CF9C253BBAB993C7ABC /* CalendarService.swift */,
 				6884035D786F837686C765A3 /* GreetingService.swift */,
 				428137D842E34AED7DAB8482 /* HealthKitService.swift */,
+				843E44ED42A1AFB9093A1CE7 /* HealthKitWaterClient.swift */,
 				1927CFE7F60D2F00E0BDF16B /* MarketBackendService.swift */,
 				A4FAAAF213FBE84FF9276477 /* MeetingPrepService.swift */,
 				C20B100F7370B45B6A3C0DF6 /* ProGate.swift */,
@@ -656,6 +670,8 @@
 				E4FAD937B0EE2341550559D9 /* SuggestionRules.swift in Sources */,
 				11E150A2EDC6F43ABBA1A7FA /* TodayWidget.swift in Sources */,
 				2BBB6AA78636386ABA078987 /* UnitsPreference.swift in Sources */,
+				3CE61E4CA0A390CF9C819641 /* WaterSnapshot.swift in Sources */,
+				DB0BD0982AB79B8F03A58D64 /* WaterStore.swift in Sources */,
 				843AFB3213F99AB06B1DBED4 /* WaterTracker.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -689,6 +705,7 @@
 				F7C67B03B804B670B426A0DD /* GreetingComposer.swift in Sources */,
 				F3480E6D0027A5C1884D74E5 /* GreetingService.swift in Sources */,
 				AECF485B2044FA53AB0A4C19 /* HealthKitService.swift in Sources */,
+				3A7E49FB5C4ABDB7FEC16C80 /* HealthKitWaterClient.swift in Sources */,
 				1256E46F47C0BA89D85744B5 /* Household.swift in Sources */,
 				4F68DEA18772F7125396E0D5 /* Household.xcdatamodeld in Sources */,
 				DE71F93B2D1D0296877657EE /* HouseholdMembersView.swift in Sources */,
@@ -731,6 +748,8 @@
 				D009DDBA562F545B60651603 /* TrackerNotificationService.swift in Sources */,
 				ACE91217F54E0DCD16379681 /* UnitsPreference.swift in Sources */,
 				4E8D3AD7F3D51CDB09E3E078 /* VoiceBriefingService.swift in Sources */,
+				63D799FF2735072EF2F0447C /* WaterSnapshot.swift in Sources */,
+				1944C239994A855F0DF1BCC4 /* WaterStore.swift in Sources */,
 				B07D561D00E93A965F10C4EF /* WaterTracker.swift in Sources */,
 				549ADEB6E203FE50117BAB36 /* WeatherHero.swift in Sources */,
 				2527903266B6D07786002005 /* WeatherService.swift in Sources */,
@@ -748,6 +767,7 @@
 				BC0CB133D3C166B3D46F025B /* ReminderSchedulerTests.swift in Sources */,
 				12AAB96A55AC30D1FD2AAB4F /* SuggestionEngineTests.swift in Sources */,
 				3B5C4866AD7B900B603B8A46 /* TodaySectionPrefsTests.swift in Sources */,
+				68441F80D74E380B71F8100E /* WaterStoreTests.swift in Sources */,
 				4CC8681D0CAFDB2BA9A7C538 /* WaterTrackerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

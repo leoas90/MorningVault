@@ -55,6 +55,9 @@ struct MorningVaultApp: App {
         // The Live Activity's Stop button performs StopRecordingIntent in this process;
         // this is the only link from that intent to the recorder.
         RecordingStopBridge.stopAction = { await ActiveRecordingRegistry.shared.stop() }
+
+        // Water logs go to Health from the app; the widget's logs sync on the next load.
+        Task { await WaterStore.shared.configure(health: HealthKitWaterClient()) }
     }
 
     // MARK: - Deep Link Handling
