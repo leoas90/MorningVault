@@ -612,6 +612,11 @@ struct BriefTabView: View {
             BriefingSectionCard(section: today)
         }
 
+        // Water: one hairline row with an inline quick add.
+        if section("water") != nil {
+            WaterBriefRow(model: WaterViewModel.shared)
+        }
+
         if changesEnabled, !viewModel.sinceYesterday.isEmpty {
             changesStrip
         }
@@ -620,7 +625,7 @@ struct BriefTabView: View {
             marketsBlock
         }
 
-        ForEach(viewModel.briefingSections.filter { !["weather", "calendar", "markets", "today"].contains($0.id) }) { section in
+        ForEach(viewModel.briefingSections.filter { !["weather", "calendar", "markets", "today", "water"].contains($0.id) }) { section in
             BriefingSectionCard(section: section)
         }
 

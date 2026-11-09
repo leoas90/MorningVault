@@ -25,6 +25,8 @@ enum BriefSectionPrefs {
 
     /// Settings > Trackers > Household checklist. Off by default; the Today section needs it.
     static let householdEnabledKey = "household_enabled"
+    /// Settings > Trackers > Water. Off by default; the `water` Brief row appears when it is on.
+    static let waterEnabledKey = "water_enabled"
 
     /// Section id -> defaults key. Data sources keep their older `<id>_enabled` keys.
     private static let keys: [String: String] = [
@@ -33,6 +35,7 @@ enum BriefSectionPrefs {
         "changes": Key.changes,
         "markets": Key.markets,
         "today": Key.today,
+        "water": waterEnabledKey,
         "health": "health_enabled",
         "calendar": "calendar_enabled",
         "weather": "weather_enabled",
@@ -40,7 +43,7 @@ enum BriefSectionPrefs {
     ]
 
     private static let mirroredKeys: [String] = [
-        Key.summary, Key.next, Key.changes, Key.markets, Key.today, Key.headlineCount, householdEnabledKey,
+        Key.summary, Key.next, Key.changes, Key.markets, Key.today, Key.headlineCount, householdEnabledKey, waterEnabledKey,
         "health_enabled", "calendar_enabled", "weather_enabled", "headlines_enabled",
     ]
 
@@ -53,9 +56,16 @@ enum BriefSectionPrefs {
     static func isEnabled(_ id: String) -> Bool {
         // The Today section also needs the Household tracker itself to be on.
         if id == "today", !isHouseholdEnabled { return false }
+        // The water row is off until the tracker is turned on.
+        if id == "water" { return isWaterEnabled }
         guard let key = keys[id] else { return true }
         if let value = value(forKey: key) as? Bool { return value }
         return true
+    }
+
+    /// Settings > Trackers > Water (default off).
+    static var isWaterEnabled: Bool {
+        (value(forKey: waterEnabledKey) as? Bool) ?? false
     }
 
     /// Settings > Trackers > Household checklist (default off).

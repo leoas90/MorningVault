@@ -211,6 +211,11 @@ final class BriefingViewModel: ObservableObject {
             await ChecklistViewModel.shared.load()
         }
 
+        // Water tracker (Settings > Trackers): one row after Today, rendered by WaterBriefRow.
+        if BriefSectionPrefs.isEnabled("water") {
+            sections.append(BriefingSection(id: "water", title: "Water", icon: "drop", content: "", sentiment: nil))
+        }
+
         // Market section (BTC + SPY/QQQ sentiment). Off in Settings > Brief sections: no fetch.
         if BriefSectionPrefs.isEnabled("markets") {
             let marketSentiment = await fetchMarketSentiment()

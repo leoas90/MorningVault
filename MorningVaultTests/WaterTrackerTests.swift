@@ -116,4 +116,33 @@ final class WaterTrackerTests: XCTestCase {
         XCTAssertEqual(today.map(\.ml), [500, 250])
         XCTAssertEqual(t.logged(at: at(12), calendar: la), 750, "yesterday does not count")
     }
+
+    // MARK: Voice and Brief prefs
+
+    func testVoiceLineOnlyWhenBehind() {
+        let today = Calendar.current.startOfDay(for: Date())
+        let two = today.addingTimeInterval(14 * 3600)
+        let day = ChecklistDay.key(for: two)
+        let behind = WaterTodaySnapshot(day: day, goalML: 2000, loggedML: 500,
+                                        entries: [WaterEntry(ts: today.addingTimeInterval(8 * 3600), ml: 500)], quietToday: false)
+        XCTAssertEqual(VoiceBriefingService.waterLine(behind, now: two, units: .metric, enabled: true), "Water: 1.5 litres to go.")
+        XCTAssertNil(VoiceBriefingService.waterLine(behind, now: two, units: .metric, enabled: false), "tracker off")
+        let onTrack = WaterTodaySnapshot(day: day, goalML: 2000, loggedML: 1500,
+                                         entries: [WaterEntry(ts: today.addingTimeInterval(8 * 3600), ml: 1500)], quietToday: false)
+        XCTAssertNil(VoiceBriefingService.waterLine(onTrack, now: two, units: .metric, enabled: true), "ahead: nothing to say")
+        XCTAssertNil(VoiceBriefingService.waterLine(nil, now: two, units: .metric, enabled: true))
+        let yesterday = WaterTodaySnapshot(day: "2000-01-01", goalML: 2000, loggedML: 0, entries: [], quietToday: false)
+        XCTAssertNil(VoiceBriefingService.waterLine(yesterday, now: two, units: .metric, enabled: true), "stale snapshot")
+    }
+
+    func testWaterBriefSectionFollowsTheTrackerToggle() {
+        let key = BriefSectionPrefs.waterEnabledKey
+        let previous = UserDefaults.standard.object(forKey: key)
+        defer { UserDefaults.standard.set(previous, forKey: key) }
+        UserDefaults.standard.removeObject(forKey: key)
+        UserDefaults(suiteName: BriefSectionPrefs.appGroup)?.removeObject(forKey: key)
+        XCTAssertFalse(BriefSectionPrefs.isEnabled("water"), "off by default")
+        UserDefaults.standard.set(true, forKey: key)
+        XCTAssertTrue(BriefSectionPrefs.isEnabled("water"))
+    }
 }

@@ -173,8 +173,8 @@ final class VoiceBriefingService: ObservableObject {
         parts.append(greeting)
 
         for section in sections {
-            // Skip sections with error messages
-            if section.errorMessage != nil { continue }
+            // Skip sections with error messages, and slots whose text lives elsewhere (today, water).
+            if section.errorMessage != nil || section.content.isEmpty { continue }
 
             // Icon emoji dropped: the synthesizer would read it out ("sun", "red heart").
             let text = "\(section.title). \(section.content)"
@@ -314,6 +314,9 @@ final class VoiceBriefingService: ObservableObject {
         if full, let line = Self.checklistLine(ChecklistSnapshotStore.load(), full: true) {
             text += " " + line
         }
+        if full, let line = Self.waterLine(WaterSnapshotStore.load()) {
+            text += " " + line
+        }
         speak(text: text)
     }
 
@@ -339,6 +342,18 @@ final class VoiceBriefingService: ObservableObject {
         return "\(count) \(things) today; \(numberWord(s.done)) are done."
     }
 
+    /// "Water: a litre to go." when the tracker is on and the intake is behind the linear
+    /// expectation for now; nil when off, on track, outside the window or the goal is met.
+    nonisolated static func waterLine(_ snapshot: WaterTodaySnapshot?, now: Date = Date(), units: UnitsPreference = .current,
+                                      enabled: Bool = BriefSectionPrefs.isWaterEnabled) -> String? {
+        guard enabled, let s = snapshot, s.isToday(now), !s.isGoalMet else { return nil }
+        var tracker = WaterSettings.tracker()
+        tracker.goalML = s.goalML
+        tracker.entries = s.entries
+        guard tracker.isInWindow(now), tracker.deficit(at: now) > 0 else { return nil }
+        return "Water: \(units.spokenVolume(ml: s.remainingML)) to go."
+    }
+
     nonisolated private static func numberWord(_ n: Int) -> String {
         let words = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"]
         return n >= 0 && n < words.count ? words[n] : String(n)
@@ -359,7 +374,8 @@ final class VoiceBriefingService: ObservableObject {
     /// A short spoken brief: greeting, one weather line, the day's calendar in one line,
     /// then the two-sentence AI summary. Without a summary, one markets line instead.
     nonisolated static func compileShortBriefing(from sections: [BriefingSection], summary: String?, now: Date = Date(),
-                                                 checklist: ChecklistTodaySnapshot? = ChecklistSnapshotStore.load()) -> String {
+                                                 checklist: ChecklistTodaySnapshot? = ChecklistSnapshotStore.load(),
+                                                 water: WaterTodaySnapshot? = WaterSnapshotStore.load()) -> String {
         var parts: [String] = []
         let hour = Calendar.current.component(.hour, from: now)
         parts.append(hour < 12 ? "Good morning." : hour < 17 ? "Good afternoon." : "Good evening.")
@@ -404,6 +420,11 @@ final class VoiceBriefingService: ObservableObject {
 
         // Household checklist: one sentence while the list is open, nothing when it is done.
         if let line = Self.checklistLine(checklist, full: false) {
+            parts.append(line)
+        }
+
+        // Water: one short sentence when behind, nothing when on track.
+        if let line = Self.waterLine(water, now: now) {
             parts.append(line)
         }
 

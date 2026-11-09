@@ -15,6 +15,10 @@ struct SettingsView: View {
     @AppStorage(BriefSectionPrefs.Key.markets) private var marketsSectionEnabled = true
     @AppStorage(BriefSectionPrefs.Key.today) private var todaySectionEnabled = true
     @AppStorage(BriefSectionPrefs.householdEnabledKey) private var householdEnabled = false
+    @AppStorage(BriefSectionPrefs.waterEnabledKey) private var waterEnabled = false
+    @AppStorage(WaterSettings.Key.goalSheetShown) private var waterGoalSheetShown = false
+    @AppStorage(WaterSettings.Key.goalML) private var waterGoalML: Int = WaterTracker.defaultGoalML
+    @State private var showWaterGoalSheet = false
     @AppStorage("local_only") private var localOnly = false
     @AppStorage("ai_private_cloud") private var privateCloud = false
     @AppStorage(AlarmService.weekdaysOnlyKey) private var weekdaysOnly = true
@@ -431,21 +435,54 @@ struct SettingsView: View {
                     }
                 }
             }
+            AnimatedToggle(isOn: $waterEnabled, icon: "drop", label: "Water")
+            if waterEnabled {
+                NavigationLink {
+                    WaterSettingsView(model: WaterViewModel.shared)
+                } label: {
+                    Label("Water settings", systemImage: "slider.horizontal.3")
+                }
+            }
         } header: {
             Text("Trackers")
         } footer: {
-            if householdEnabled {
-                VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 6) {
+                if householdEnabled {
                     Text("A short list of what gets done every morning, checked off from the Brief. Stays on this device.")
                     Text("Reminders (Pro). Gentle shows in Notification Center with no sound and no follow-up. Normal plays a sound and follows up once an hour later if the item is still open. Must do can break through Focus when you allow Time Sensitive notifications, and follows up every 45 minutes up to three times. Nothing fires after 10 pm.")
+                } else {
+                    Text("A short household checklist in the Brief: lunches, meds, a walk. Off by default.")
                 }
-            } else {
-                Text("A short household checklist in the Brief: lunches, meds, a walk. Off by default.")
+                if waterEnabled {
+                    Text("Water you log is saved to Health; Watch and other apps' entries count too. Reminders (Pro) follow how far behind you are and stop an hour before your last glass.")
+                } else {
+                    Text("Water: a goal, quick-add buttons and a row in the Brief. Off by default.")
+                }
             }
         }
         .onChange(of: householdEnabled) { _, _ in
             BriefSectionPrefs.mirrorToAppGroup()
             BriefingWidgetReloader.reload()
+        }
+        .onChange(of: waterEnabled) { _, on in
+            BriefSectionPrefs.mirrorToAppGroup()
+            BriefingWidgetReloader.reload()
+            if on {
+                if !waterGoalSheetShown {
+                    waterGoalSheetShown = true
+                    showWaterGoalSheet = true
+                }
+                Task { await WaterViewModel.shared.trackerEnabled() }
+            } else {
+                Task { await WaterViewModel.shared.trackerDisabled() }
+            }
+        }
+        .sheet(isPresented: $showWaterGoalSheet) {
+            WaterGoalFromWeightSheet(units: UnitsPreference.current, currentGoalML: waterGoalML) { ml in
+                waterGoalML = WaterTracker.clampGoal(ml)
+                Task { await WaterViewModel.shared.settingsChanged() }
+            }
+            .presentationDetents([.medium])
         }
     }
 
