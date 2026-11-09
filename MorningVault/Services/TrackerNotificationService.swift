@@ -13,6 +13,7 @@ enum TrackerNotificationService {
         static let briefing = "BRIEFING"
         static let checkRemind = "CHECK_REMIND"
         static let timerDone = "TIMER_DONE"
+        static let waterRemind = "WATER_REMIND"
     }
 
     enum Action {
@@ -20,6 +21,8 @@ enum TrackerNotificationService {
         static let markDone = "MARK_DONE"
         static let snooze30 = "SNOOZE_30"
         static let skipToday = "SKIP_TODAY"
+        static let log250 = "LOG_250"
+        static let log500 = "LOG_500"
     }
 
     enum UserInfoKey {
@@ -44,7 +47,13 @@ enum TrackerNotificationService {
         let skip = UNNotificationAction(identifier: Action.skipToday, title: "Skip today", options: [])
         let check = UNNotificationCategory(identifier: Category.checkRemind, actions: [markDone, snooze, skip], intentIdentifiers: [], options: [])
         let timer = UNNotificationCategory(identifier: Category.timerDone, actions: [markDone], intentIdentifiers: [], options: [])
-        return [briefing, check, timer]
+
+        // Water: amounts in the user's unit, logged in the background, no app launch.
+        let units = UnitsPreference.current
+        let log250 = UNNotificationAction(identifier: Action.log250, title: "Log \(units.formatVolume(ml: 250))", options: [])
+        let log500 = UNNotificationAction(identifier: Action.log500, title: "Log \(units.formatVolume(ml: 500))", options: [])
+        let water = UNNotificationCategory(identifier: Category.waterRemind, actions: [log250, log500, snooze], intentIdentifiers: [], options: [])
+        return [briefing, check, timer, water]
     }
 
     static func registerCategories(center: UNUserNotificationCenter = .current()) {
@@ -153,6 +162,10 @@ enum TrackerNotificationService {
     static func handle(response: UNNotificationResponse, store: ChecklistStore = .shared) async -> Bool {
         let content = response.notification.request.content
         let category = content.categoryIdentifier
+        if category == Category.waterRemind {
+            await WaterReminderScheduler.handle(response: response)
+            return true
+        }
         guard category == Category.timerDone || category == Category.checkRemind else { return false }
         guard let idString = content.userInfo[UserInfoKey.itemID] as? String, let itemID = UUID(uuidString: idString) else { return true }
         let dayKey = content.userInfo[UserInfoKey.day] as? String
