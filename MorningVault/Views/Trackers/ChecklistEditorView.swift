@@ -20,12 +20,7 @@ struct ChecklistEditorView: View {
     var body: some View {
         List {
             if model.hasLoaded, model.activeItems.isEmpty {
-                Section {
-                    templates
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
-                }
-                .listRowBackground(Color.clear)
+                templatesSection
             }
 
             Section {
@@ -80,6 +75,11 @@ struct ChecklistEditorView: View {
                     .padding(.horizontal, 20)
             }
             .listRowBackground(Color.clear)
+
+            // Suggestions stay after the first item too: only the ones already on the list drop out.
+            if model.hasLoaded, !model.activeItems.isEmpty, model.canAddItem, !remainingTemplates.isEmpty {
+                templatesSection
+            }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
@@ -131,12 +131,32 @@ struct ChecklistEditorView: View {
 
     // MARK: Templates
 
+    /// Starter items not on the list yet (matched by title, case-insensitive).
+    private var remainingTemplates: [ChecklistTemplate] {
+        let titles = Set(model.activeItems.map { $0.title.lowercased() })
+        return (ChecklistTemplate.all + ChecklistTemplate.timeWithChildren(members: model.members))
+            .filter { !titles.contains($0.title.lowercased()) }
+    }
+
+    private var templatesSection: some View {
+        Section {
+            templates
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+        }
+        .listRowBackground(Color.clear)
+    }
+
     private var templates: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Add the things you do every morning")
-                .font(.bodyText).foregroundStyle(Color.inkPrimary)
+            if model.activeItems.isEmpty {
+                Text("Add the things you do every morning")
+                    .font(.bodyText).foregroundStyle(Color.inkPrimary)
+            } else {
+                Eyebrow(text: "Suggestions")
+            }
             FlowLayout(spacing: 8, alignment: .leading) {
-                ForEach(ChecklistTemplate.all + ChecklistTemplate.timeWithChildren(members: model.members)) { template in
+                ForEach(remainingTemplates) { template in
                     ChoiceChip(title: template.title, systemImage: "plus", isSelected: false) {
                         Task { await add(template) }
                     }
