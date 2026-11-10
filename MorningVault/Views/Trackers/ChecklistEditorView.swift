@@ -5,6 +5,8 @@ import SwiftUI
 struct ChecklistEditorView: View {
     @ObservedObject var model: ChecklistViewModel
     @State private var editing: EditorTarget?
+    @State private var dedupeResult: String?
+    @State private var isDeduping = false
 
     enum EditorTarget: Identifiable {
         case new
@@ -58,6 +60,10 @@ struct ChecklistEditorView: View {
                 .disabled(!model.canAddItem)
                 .listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+
+                dedupeRow
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
             } header: {
                 HStack {
                     Eyebrow(text: "Items")
@@ -94,6 +100,41 @@ struct ChecklistEditorView: View {
             }
         }
         .task { await model.load() }
+    }
+
+    // MARK: Duplicates
+
+    /// Same title, person, kind and schedule twice over: keep the one with the history.
+    private var dedupeRow: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                Task {
+                    isDeduping = true
+                    let removed = await model.removeDuplicates()
+                    dedupeResult = removed > 0
+                        ? "Removed \(removed) duplicate\(removed == 1 ? "" : "s")"
+                        : "No duplicates found"
+                    isDeduping = false
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "square.on.square").font(.system(size: 15, weight: .medium)).frame(width: 22)
+                    Text("Remove duplicates").font(.bodyText)
+                    Spacer()
+                    if isDeduping { ProgressView().controlSize(.small) }
+                }
+                .foregroundStyle(Color.inkPrimary)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(isDeduping)
+            if let dedupeResult {
+                Text(dedupeResult)
+                    .font(.metaText).foregroundStyle(Color.inkSecondary)
+                    .padding(.bottom, 8)
+            }
+        }
     }
 
     private func row(_ item: ChecklistItem) -> some View {

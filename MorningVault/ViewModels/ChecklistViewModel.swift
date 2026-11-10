@@ -120,16 +120,33 @@ final class ChecklistViewModel: ObservableObject {
         do {
             // "Me" comes from the greeting name, once, only when the household is empty.
             try await store.ensureMe(named: UserDefaults.standard.string(forKey: "user_name"))
+            // Mirrored calendars once produced two items for one event; sweep the leftovers
+            // before anything is shown, silently.
+            let removed = (try? await store.removeDuplicateItems(at: now)) ?? 0
             let ledger = try await store.ledger(asOf: now)
             let members = try await store.members()
             self.ledger = ledger
             self.members = members
             hasLoaded = true
+            if removed > 0 { await store.publishSnapshot(now: now) }
             updateWeeklyVoiceCache()
             await reconcileTimers()
             loadSuggestions()
         } catch {
             lastError = error.localizedDescription
+        }
+    }
+
+    /// Editor control: archive duplicate items now. Returns how many went away.
+    func removeDuplicates() async -> Int {
+        guard let store else { return 0 }
+        do {
+            let removed = try await store.removeDuplicateItems(at: now)
+            if removed > 0 { await load() }
+            return removed
+        } catch {
+            lastError = error.localizedDescription
+            return 0
         }
     }
 
@@ -194,14 +211,22 @@ final class ChecklistViewModel: ObservableObject {
         let evening = cal.component(.hour, from: now) >= 19
         guard cache.day == todayKey || (evening && cache.day == tomorrowKey) else { suggestions = []; suggestionsLocked = false; return }
         // Only items typed in by hand hide a suggestion by title; an item added from one
-        // suggestion must not hide a different event's suggestion that shares its title.
+        // suggestion must not hide a different event's suggestion that shares its title on
+        // another day. Mirrored calendars give the same event two ids, so an added
+        // suggestion also hides a suggestion with the same rule, title and day.
         let active = ledger.items.filter { !$0.isArchived }
-        let titles = Set(active.filter { $0.sourceEventID == nil }.map { $0.title.lowercased() })
+        let titles = Set(active.filter { $0.sourceEventID == nil }.map { ChecklistDeduper.normalizedTitle($0.title) })
         let added = Set(active.compactMap { item in item.sourceEventID.map { "\($0)|\(item.sourceRuleID ?? "")" } })
+        let addedKeys = Set(active.filter { $0.sourceEventID != nil }.compactMap { item -> String? in
+            guard let day = Self.itemDayKey(item, calendar: cal) else { return nil }
+            return "\(item.sourceRuleID ?? "")|\(ChecklistDeduper.normalizedTitle(item.title))|\(day)"
+        })
         let open = cache.suggestions.filter {
-            !cache.dismissed.contains($0.id)
-                && !titles.contains($0.title.lowercased())
+            let key = "\($0.ruleID)|\(ChecklistDeduper.normalizedTitle($0.title))|\(ChecklistDay.key(for: $0.eventStart, calendar: cal))"
+            return !cache.dismissed.contains($0.id)
+                && !titles.contains(ChecklistDeduper.normalizedTitle($0.title))
                 && !added.contains("\($0.eventID)|\($0.ruleID)")
+                && !addedKeys.contains(key)
         }
         guard !open.isEmpty else { suggestions = []; suggestionsLocked = false; return }
         if ProGate.isUnlocked || SuggestionsCache.previewActive(now: now, calendar: cal) {
@@ -211,6 +236,12 @@ final class ChecklistViewModel: ObservableObject {
             suggestions = []
             suggestionsLocked = true
         }
+    }
+
+    /// Day a suggestion-derived item belongs to: the `.once` date, else the day it was made.
+    static func itemDayKey(_ item: ChecklistItem, calendar: Calendar) -> String? {
+        if case .once(let day) = item.recurrence { return ChecklistDay.key(for: day, calendar: calendar) }
+        return ChecklistDay.key(for: item.createdAt, calendar: calendar)
     }
 
     /// Day the current suggestions are for (today, or tomorrow in the evening).

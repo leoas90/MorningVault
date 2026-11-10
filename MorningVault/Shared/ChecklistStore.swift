@@ -299,6 +299,36 @@ actor ChecklistStore {
         await publishSnapshot()
     }
 
+    /// Archives active items that duplicate another one (same normalized title, member, kind
+    /// and recurrence), keeping the one with the most completion history and then the oldest.
+    /// Nothing is hard deleted, so the kept item's history and the archived ones both stay.
+    /// Returns how many were archived. Idempotent: a second call finds nothing.
+    @discardableResult
+    func removeDuplicateItems(at date: Date = Date()) async throws -> Int {
+        let active = try await items()
+        guard active.count > 1 else { return 0 }
+        let counts = try await completionCounts()
+        let ids = ChecklistDeduper.duplicateIDsToArchive(items: active, completionCounts: counts)
+        guard !ids.isEmpty else { return 0 }
+        for id in ids { try await archiveItem(id: id, at: date) }
+        await publishSnapshot(now: date)
+        return ids.count
+    }
+
+    /// item id -> number of completions on record (the stored 90-day window).
+    private func completionCounts() async throws -> [UUID: Int] {
+        let context = newContext()
+        return try await context.perform {
+            let request = NSFetchRequest<CDCompletion>(entityName: "Completion")
+            var counts: [UUID: Int] = [:]
+            for row in try context.fetch(request) {
+                guard let id = row.itemID else { continue }
+                counts[id, default: 0] += 1
+            }
+            return counts
+        }
+    }
+
     // MARK: Completions and skips
 
     /// Items (all, including archived, so history resolves), plus completions and skips from
