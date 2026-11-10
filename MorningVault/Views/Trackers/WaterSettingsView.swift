@@ -251,7 +251,7 @@ struct WaterCupEditorSheet: View {
 
                 Text(sizeML == nil
                      ? "Between \(units.formatVolume(ml: 50)) and \(units.formatVolume(ml: 2000))."
-                     : "Logs \(units.formatVolume(ml: sizeML ?? 0)) a tap.")
+                     : "One tap logs \(units.formatVolume(ml: sizeML ?? 0)).")
                     .font(.metaText)
                     .foregroundStyle(Color.inkSecondary)
 
