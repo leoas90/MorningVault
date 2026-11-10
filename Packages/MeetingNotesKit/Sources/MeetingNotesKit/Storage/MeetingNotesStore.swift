@@ -152,7 +152,14 @@ public enum MeetingNotesStore {
             } catch {
                 return
             }
-            sweepOrphanedAudio(knownMeetingIDs: known.union(activeRecordingIDs))
+            // Read the running recording again here, not only at the call site: a
+            // recording started while this task was waiting would otherwise have its
+            // brand new folder deleted, and the recorder stops the moment it cannot
+            // write (the recording appeared to start and stop at once).
+            let running = await MainActor.run { ActiveRecordingRegistry.shared.session?.activeRecordingID }
+            sweepOrphanedAudio(
+                knownMeetingIDs: known.union(activeRecordingIDs).union(running.map { [$0] } ?? [])
+            )
         }
     }
 
@@ -160,24 +167,36 @@ public enum MeetingNotesStore {
     /// `knownMeetingIDs`, and everything under `enrollmentFolder`.
     ///
     /// Folders whose name is not a UUID are left alone. Returns the folders removed.
+    /// - Parameter grace: folders touched more recently than this are left alone, so a
+    ///   recording or an enrollment that started while the sweep was queued survives.
     @discardableResult
     static func sweepOrphanedAudio(
         knownMeetingIDs: Set<UUID>,
         meetingsFolder: URL = meetingsFolder,
-        enrollmentFolder: URL = enrollmentFolder
+        enrollmentFolder: URL = enrollmentFolder,
+        grace: TimeInterval = 600,
+        now: Date = Date()
     ) -> [URL] {
         let fileManager = FileManager.default
         var removed: [URL] = []
 
+        /// True when the item was created or changed inside the grace window.
+        func isRecent(_ url: URL) -> Bool {
+            let values = try? url.resourceValues(forKeys: [.contentModificationDateKey, .creationDateKey])
+            let dates = [values?.contentModificationDate, values?.creationDate].compactMap { $0 }
+            return dates.contains { now.timeIntervalSince($0) < grace }
+        }
+
         if let entries = try? fileManager.contentsOfDirectory(
             at: meetingsFolder,
-            includingPropertiesForKeys: [.isDirectoryKey],
+            includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey, .creationDateKey],
             options: [.skipsHiddenFiles]
         ) {
             for entry in entries {
                 guard (try? entry.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { continue }
                 guard let id = UUID(uuidString: entry.lastPathComponent) else { continue }
                 guard !knownMeetingIDs.contains(id) else { continue }
+                guard !isRecent(entry) else { continue }
                 if (try? fileManager.removeItem(at: entry)) != nil {
                     removed.append(entry)
                 }
@@ -186,11 +205,11 @@ public enum MeetingNotesStore {
 
         if let entries = try? fileManager.contentsOfDirectory(
             at: enrollmentFolder,
-            includingPropertiesForKeys: nil,
+            includingPropertiesForKeys: [.contentModificationDateKey, .creationDateKey],
             options: [.skipsHiddenFiles]
         ) {
-            for entry in entries where (try? fileManager.removeItem(at: entry)) != nil {
-                removed.append(entry)
+            for entry in entries where !isRecent(entry) {
+                if (try? fileManager.removeItem(at: entry)) != nil { removed.append(entry) }
             }
         }
         return removed

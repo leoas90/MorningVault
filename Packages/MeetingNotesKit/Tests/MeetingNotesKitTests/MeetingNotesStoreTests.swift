@@ -65,10 +65,13 @@ final class MeetingNotesStoreTests: XCTestCase {
         let clip = enrollment.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: clip, withIntermediateDirectories: true)
 
+        // grace 0: the folders were made a moment ago, and the grace window exists to
+        // protect exactly that (see testSweepKeepsFoldersInsideTheGraceWindow).
         let removed = MeetingNotesStore.sweepOrphanedAudio(
             knownMeetingIDs: [known, active],
             meetingsFolder: meetings,
-            enrollmentFolder: enrollment
+            enrollmentFolder: enrollment,
+            grace: 0
         )
 
         XCTAssertEqual(Set(removed.map(\.lastPathComponent)), [orphan.uuidString, clip.lastPathComponent])
@@ -77,6 +80,46 @@ final class MeetingNotesStoreTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: meetings.appendingPathComponent(orphan.uuidString).path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: stray.path), "non-UUID folders are left alone")
         XCTAssertFalse(FileManager.default.fileExists(atPath: clip.path))
+    }
+
+    /// A recording that starts while the launch sweep is queued must survive it: the
+    /// recorder stops the moment its folder goes away, which looked like a recording
+    /// that started and stopped at once.
+    func testSweepKeepsFoldersInsideTheGraceWindow() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sweep-grace-\(UUID().uuidString)", isDirectory: true)
+        let meetings = root.appendingPathComponent("Meetings", isDirectory: true)
+        let enrollment = root.appendingPathComponent("Enrollment", isDirectory: true)
+        try FileManager.default.createDirectory(at: enrollment, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let justStarted = UUID()
+        let folder = meetings.appendingPathComponent(justStarted.uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Data([1, 2, 3]).write(to: folder.appendingPathComponent("recording.m4a"))
+
+        let clip = enrollment.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: clip, withIntermediateDirectories: true)
+
+        let removed = MeetingNotesStore.sweepOrphanedAudio(
+            knownMeetingIDs: [],
+            meetingsFolder: meetings,
+            enrollmentFolder: enrollment
+        )
+
+        XCTAssertTrue(removed.isEmpty, "nothing touched in the last ten minutes is swept")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: folder.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: clip.path))
+
+        // Older than the window: swept as before.
+        let old = MeetingNotesStore.sweepOrphanedAudio(
+            knownMeetingIDs: [],
+            meetingsFolder: meetings,
+            enrollmentFolder: enrollment,
+            now: Date().addingTimeInterval(3600)
+        )
+        XCTAssertEqual(old.count, 2)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.path))
     }
 
     func testPathGettersDoNotCreateFolders() {
