@@ -206,13 +206,15 @@ final class WaterStoreTests: XCTestCase {
         settings.set(2500, forKey: WaterSettings.Key.goalML)
         settings.set(8 * 60, forKey: WaterSettings.Key.windowStart)
         settings.set(22 * 60, forKey: WaterSettings.Key.windowEnd)
-        settings.set(200, forKey: WaterSettings.Key.quick1)
+        WaterSettings.saveCups([WaterCup(name: "Small glass", ml: 200), WaterCup(name: "Bottle", ml: 500)], defaults: settings)
         let store = makeStore(health: nil, now: at(9))
         let tracker = await store.tracker(now: at(9))
         XCTAssertEqual(tracker.goalML, 2500)
         XCTAssertEqual(tracker.windowStartMinutes, 8 * 60)
         XCTAssertEqual(tracker.windowEndMinutes, 22 * 60)
-        XCTAssertEqual(tracker.quickAmounts, [200, 350, 500])
+        XCTAssertEqual(tracker.cups.map(\.name), ["Small glass", "Bottle"])
+        XCTAssertEqual(tracker.cups.map(\.ml), [200, 500])
+        XCTAssertEqual(tracker.primaryCup.ml, 200)
     }
 
     func testWindowStartDefaultsToAlarmTime() {

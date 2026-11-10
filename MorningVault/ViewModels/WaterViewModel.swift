@@ -118,7 +118,7 @@ final class WaterViewModel: ObservableObject {
         await WaterReminderScheduler.reschedule(store: store, now: now)
     }
 
-    /// Settings changed (goal, window, quick amounts, urgent flag): re-read and reschedule.
+    /// Settings changed (goal, window, cups, urgent flag): re-read and reschedule.
     func settingsChanged() async {
         WaterSettings.mirrorToAppGroup()
         guard let store else { return }

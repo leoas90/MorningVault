@@ -8,18 +8,19 @@ import Foundation
 // `LogWaterIntent` in place. Writes go through the `WaterStore` actor; in the widget process
 // there is no Health client, so the entry waits in the mirror until the app syncs it.
 
-/// Logs an amount of water for now. Defaults to one glass (250 mL).
+/// Logs an amount of water for now. With no amount it logs the first of the user's cups.
 struct LogWaterIntent: AppIntent {
     static let title: LocalizedStringResource = "Log Water"
     static let description = IntentDescription("Adds water to today's total. Saved to Health when the app has access.")
     static let openAppWhenRun = false
 
-    @Parameter(title: "Amount (mL)", default: 250, inclusiveRange: (50, 2000))
-    var ml: Int
+    /// Optional: nothing given means the primary cup.
+    @Parameter(title: "Amount (mL)", inclusiveRange: (50, 2000))
+    var ml: Int?
 
     init() {}
 
-    init(ml: Int) {
+    init(ml: Int?) {
         self.ml = ml
     }
 
@@ -27,12 +28,17 @@ struct LogWaterIntent: AppIntent {
         Summary("Log \(\.$ml) mL of water")
     }
 
+    /// The amount this run logs: the given one, else the primary cup.
+    static func amount(ml: Int?, cup: WaterCup) -> Int {
+        WaterTracker.clampAmount(ml ?? cup.ml)
+    }
+
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard WaterSettings.isEnabled() else {
             return .result(dialog: "The water tracker is off. Turn it on under Settings, Trackers in MorningVault.")
         }
         let store = WaterStore.shared
-        await store.log(ml: ml)
+        await store.log(ml: Self.amount(ml: ml, cup: WaterSettings.primaryCup()))
         let snapshot = await store.current()
         WaterWidgetReloader.reload()
         await MainActor.run { NotificationCenter.default.post(name: .waterChangedExternally, object: nil) }

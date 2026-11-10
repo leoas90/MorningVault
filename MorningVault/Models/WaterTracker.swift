@@ -8,9 +8,43 @@ import Foundation
 //
 // Stored amounts are always millilitres; `UnitsPreference` turns them into text.
 
-/// One glass of water, the unit the urgency tiers are measured in.
+/// The fallback glass, used when no cup is configured. The urgency tiers measure the deficit
+/// in cups: the first cup's size, this when there is none.
 enum WaterGlass {
     static let ml = 250
+}
+
+/// One of the user's own cups: a name and a size. Up to five, kept in order; the first one is
+/// the primary cup the widget, Siri and the reminders use.
+struct WaterCup: Codable, Hashable, Identifiable, Sendable {
+    static let maxCount = 5
+    static let maxNameLength = 20
+
+    var id: UUID
+    var name: String
+    var ml: Int
+
+    /// Clamps the size and trims the name. An empty name falls back to the size text.
+    init(id: UUID = UUID(), name: String, ml: Int) {
+        let clamped = WaterTracker.clampAmount(ml)
+        self.id = id
+        self.ml = clamped
+        self.name = Self.cleanedName(name, ml: clamped)
+    }
+
+    /// Decoding goes through the designated initializer so stored JSON is clamped too.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(id: try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID(),
+                  name: try c.decodeIfPresent(String.self, forKey: .name) ?? "",
+                  ml: try c.decodeIfPresent(Int.self, forKey: .ml) ?? WaterGlass.ml)
+    }
+
+    static func cleanedName(_ raw: String, ml: Int) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return UnitsPreference.current.formatVolume(ml: ml) }
+        return String(trimmed.prefix(maxNameLength))
+    }
 }
 
 /// One logged amount. `source` says who wrote it: the app (and mirrored to Health) or
@@ -65,7 +99,13 @@ enum WaterTier: Int, Comparable, Sendable {
 /// Today's goal, window and entries, plus the deficit math the reminders are built from.
 struct WaterTracker: Codable, Equatable, Sendable {
     static let defaultGoalML = 2000
+    /// Legacy quick amounts, kept only to migrate old settings into cups.
     static let defaultQuickAmounts = [250, 350, 500]
+    static let defaultCupNames = ["Glass", "Bottle", "Large bottle"]
+    /// Three cups out of the box: a glass, a bottle and a large bottle.
+    static var defaultCups: [WaterCup] {
+        zip(defaultCupNames, defaultQuickAmounts).map { WaterCup(name: $0, ml: $1) }
+    }
     static let defaultWindowStartMinutes = 7 * 60
     static let defaultWindowEndMinutes = 21 * 60
     /// The evening close fires this long before the window ends.
@@ -79,22 +119,39 @@ struct WaterTracker: Codable, Equatable, Sendable {
     /// Minutes after local midnight.
     var windowStartMinutes: Int
     var windowEndMinutes: Int
-    var quickAmounts: [Int]
+    /// The user's cups, in order. Never empty; at most `WaterCup.maxCount`.
+    var cups: [WaterCup]
     var quietToday: Bool
 
     init(goalML: Int = WaterTracker.defaultGoalML,
          entries: [WaterEntry] = [],
          windowStartMinutes: Int = WaterTracker.defaultWindowStartMinutes,
          windowEndMinutes: Int = WaterTracker.defaultWindowEndMinutes,
-         quickAmounts: [Int] = WaterTracker.defaultQuickAmounts,
+         cups: [WaterCup]? = nil,
          quietToday: Bool = false) {
         self.goalML = goalML
         self.entries = entries
         self.windowStartMinutes = windowStartMinutes
         self.windowEndMinutes = windowEndMinutes
-        self.quickAmounts = quickAmounts
+        self.cups = WaterTracker.normalizedCups(cups ?? WaterTracker.defaultCups)
         self.quietToday = quietToday
     }
+
+    // MARK: Cups
+
+    /// At most five cups, never empty: an empty list falls back to the defaults.
+    static func normalizedCups(_ cups: [WaterCup]) -> [WaterCup] {
+        let capped = Array(cups.prefix(WaterCup.maxCount))
+        return capped.isEmpty ? defaultCups : capped
+    }
+
+    /// The cup the widget, Siri, the Brief row and the reminders use.
+    var primaryCup: WaterCup {
+        cups.first ?? WaterCup(name: WaterTracker.defaultCupNames[0], ml: WaterGlass.ml)
+    }
+
+    /// The size the urgency tiers are measured in: the primary cup.
+    var glassML: Int { primaryCup.ml }
 
     // MARK: Goal
 
@@ -174,8 +231,8 @@ struct WaterTracker: Codable, Equatable, Sendable {
         if logged == 0, t >= noon(on: t, calendar: calendar) { return .behind }
         let d = deficit(at: t, calendar: calendar)
         if d <= 0 { return .quiet }
-        if d <= WaterGlass.ml { return .nudge }
-        if d <= 2 * WaterGlass.ml { return .reminder }
+        if d <= glassML { return .nudge }
+        if d <= 2 * glassML { return .reminder }
         return .behind
     }
 

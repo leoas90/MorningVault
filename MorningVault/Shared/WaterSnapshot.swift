@@ -16,9 +16,12 @@ enum WaterSettings {
         static let goalML = "water_goal_ml"
         static let windowStart = "water_window_start_min"
         static let windowEnd = "water_window_end_min"
+        /// Legacy quick amounts. Read once to migrate into cups, never written again.
         static let quick1 = "water_quick_1"
         static let quick2 = "water_quick_2"
         static let quick3 = "water_quick_3"
+        /// The user's cups, JSON encoded `[WaterCup]`.
+        static let cups = "water_cups_v1"
         /// Tier 3 may use `.timeSensitive`. Opt-in; default false.
         static let urgentEnabled = "water_urgent_enabled"
         /// The one-time "Set from weight" sheet has been shown.
@@ -28,7 +31,7 @@ enum WaterSettings {
     }
 
     static let mirroredKeys = [Key.enabled, Key.goalML, Key.windowStart, Key.windowEnd, Key.quick1, Key.quick2, Key.quick3,
-                               Key.urgentEnabled, Key.goalSheetShown, Key.briefingTime]
+                               Key.cups, Key.urgentEnabled, Key.goalSheetShown, Key.briefingTime]
 
     /// Reads the standard defaults first (the app), then the App Group mirror (an extension).
     static func value(forKey key: String, defaults: UserDefaults = .standard) -> Any? {
@@ -60,11 +63,45 @@ enum WaterSettings {
         t.windowStartMinutes = (value(forKey: Key.windowStart, defaults: defaults) as? Int) ?? defaultWindowStartMinutes(defaults: defaults)
         t.windowEndMinutes = (value(forKey: Key.windowEnd, defaults: defaults) as? Int) ?? WaterTracker.defaultWindowEndMinutes
         if t.windowEndMinutes <= t.windowStartMinutes { t.windowEndMinutes = min(24 * 60 - 1, t.windowStartMinutes + 60) }
-        let quick = [Key.quick1, Key.quick2, Key.quick3].enumerated().map { index, key in
-            (value(forKey: key, defaults: defaults) as? Int).map(WaterTracker.clampAmount) ?? WaterTracker.defaultQuickAmounts[index]
-        }
-        t.quickAmounts = quick
+        t.cups = cups(defaults: defaults)
         return t
+    }
+
+    // MARK: Cups
+
+    /// The saved cups, or the ones migrated from the old quick amounts, or the defaults.
+    static func cups(defaults: UserDefaults = .standard) -> [WaterCup] {
+        if let data = value(forKey: Key.cups, defaults: defaults) as? Data,
+           let decoded = try? JSONDecoder().decode([WaterCup].self, from: data),
+           !decoded.isEmpty {
+            return WaterTracker.normalizedCups(decoded)
+        }
+        return WaterTracker.normalizedCups(migratedCups(defaults: defaults))
+    }
+
+    /// The first cup: what the widget, Siri and the reminders log.
+    static func primaryCup(defaults: UserDefaults = .standard) -> WaterCup {
+        cups(defaults: defaults).first ?? WaterCup(name: WaterTracker.defaultCupNames[0], ml: WaterGlass.ml)
+    }
+
+    /// Old `water_quick_1...3` values become named cups. No saved values: the defaults.
+    static func migratedCups(defaults: UserDefaults = .standard) -> [WaterCup] {
+        let saved = [Key.quick1, Key.quick2, Key.quick3].map { value(forKey: $0, defaults: defaults) as? Int }
+        guard saved.contains(where: { $0 != nil }) else { return WaterTracker.defaultCups }
+        return saved.enumerated().map { index, ml in
+            WaterCup(name: WaterTracker.defaultCupNames[index], ml: ml ?? WaterTracker.defaultQuickAmounts[index])
+        }
+    }
+
+    /// Saves the cups (normalized) and mirrors them for the widget and the intents.
+    @discardableResult
+    static func saveCups(_ cups: [WaterCup], defaults: UserDefaults = .standard) -> [WaterCup] {
+        let normalized = WaterTracker.normalizedCups(cups)
+        if let data = try? JSONEncoder().encode(normalized) {
+            defaults.set(data, forKey: Key.cups)
+            if defaults === UserDefaults.standard { UserDefaults(suiteName: appGroup)?.set(data, forKey: Key.cups) }
+        }
+        return normalized
     }
 
     /// Copies the standard-defaults values into the App Group so extensions see them.

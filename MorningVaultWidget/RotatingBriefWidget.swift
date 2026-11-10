@@ -273,15 +273,17 @@ struct RotatingBriefWidgetView: View {
                 }
                 if isMedium {
                     Spacer(minLength: 8)
-                    Button(intent: LogWaterIntent(ml: 250)) {
-                        Label("Log \(units.formatVolume(ml: 250))", systemImage: "plus")
+                    let cup = WaterSettings.primaryCup()
+                    Button(intent: LogWaterIntent(ml: cup.ml)) {
+                        Label("Log \(cup.name)", systemImage: "plus")
                             .font(.system(size: 13, weight: .semibold))
                             .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                             .frame(minHeight: 30)
                     }
                     .buttonStyle(.bordered)
                     .tint(.accentColor)
-                    .accessibilityLabel("Log \(units.formatVolume(ml: 250)) of water")
+                    .accessibilityLabel("Log \(cup.name), \(units.formatVolume(ml: cup.ml)) of water")
                 }
             }
             .accessibilityValue("\(units.formatVolume(ml: s.loggedML)) of \(units.formatVolume(ml: s.goalML))")

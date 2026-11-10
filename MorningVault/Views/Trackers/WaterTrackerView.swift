@@ -71,10 +71,13 @@ struct WaterTrackerView: View {
         VStack(alignment: .leading, spacing: Grid4.label) {
             Eyebrow(text: "Add")
             FlowLayout(spacing: 8, alignment: .leading) {
-                ForEach(model.tracker.quickAmounts, id: \.self) { ml in
-                    PillButton(title: model.units.formatVolume(ml: ml), systemImage: "plus", prominent: ml == model.tracker.quickAmounts.first) {
-                        Task { await model.log(ml: ml) }
+                ForEach(model.tracker.cups) { cup in
+                    PillButton(title: "\(cup.name) · \(model.units.formatVolume(ml: cup.ml))",
+                               systemImage: "plus",
+                               prominent: cup.id == model.tracker.cups.first?.id) {
+                        Task { await model.log(ml: cup.ml) }
                     }
+                    .accessibilityLabel("Log \(cup.name), \(model.units.formatVolume(ml: cup.ml))")
                 }
                 PillButton(title: "Custom", systemImage: "number", isActive: showCustom) {
                     withAnimation(.easeOut(duration: 0.2)) { showCustom.toggle() }
@@ -228,11 +231,12 @@ struct WaterBriefRow: View {
                 .accessibilityLabel("Water, \(model.summaryLine), \(model.remainingLine)")
                 .accessibilityHint("Opens the water tracker")
 
-                if !model.isGoalMet, let first = model.tracker.quickAmounts.first {
+                if !model.isGoalMet {
+                    let cup = model.tracker.primaryCup
                     Button {
-                        Task { await model.log(ml: first) }
+                        Task { await model.log(ml: cup.ml) }
                     } label: {
-                        Text("+\(model.units.formatVolumeNumber(ml: first))")
+                        Text("+\(model.units.formatVolumeNumber(ml: cup.ml))")
                             .font(.system(size: 13, weight: .semibold).monospacedDigit())
                             .foregroundStyle(Color.inkPrimary)
                             .padding(.horizontal, 12)
@@ -241,7 +245,7 @@ struct WaterBriefRow: View {
                             .overlay(Capsule().strokeBorder(Color.hairline, lineWidth: 1))
                     }
                     .buttonStyle(.pressable)
-                    .accessibilityLabel("Log \(model.units.formatVolume(ml: first))")
+                    .accessibilityLabel("Log \(cup.name), \(model.units.formatVolume(ml: cup.ml))")
                 }
             }
             Hairline()
@@ -261,6 +265,18 @@ struct WaterBriefRow: View {
 #Preview("Tracker") {
     ThemeStore.shared.themeRaw = AppTheme.light.rawValue
     return NavigationStack { WaterTrackerView(model: .preview()) }
+}
+
+#Preview("Tracker, five cups") {
+    ThemeStore.shared.themeRaw = AppTheme.light.rawValue
+    let cups = [WaterCup(name: "Glass", ml: 250),
+                WaterCup(name: "Bottle", ml: 500),
+                WaterCup(name: "Travel mug", ml: 350),
+                WaterCup(name: "Large bottle", ml: 750),
+                WaterCup(name: "Espresso cup", ml: 60)]
+    let now = Calendar.current.startOfDay(for: BriefingViewModel.previewNow).addingTimeInterval(11 * 3600)
+    let tracker = WaterTracker(entries: [WaterEntry(ts: now.addingTimeInterval(-3 * 3600), ml: 250)], cups: cups)
+    return NavigationStack { WaterTrackerView(model: WaterViewModel(store: nil, tracker: tracker, now: now)) }
 }
 
 #Preview("Tracker, empty") {

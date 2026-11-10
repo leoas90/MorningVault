@@ -81,15 +81,17 @@ struct WaterWidgetView: View {
             Spacer(minLength: 0)
             if let s = snapshot {
                 HStack(spacing: 8) {
-                    Button(intent: LogWaterIntent(ml: 250)) {
-                        Label("Log \(units.formatVolume(ml: 250))", systemImage: "plus")
+                    let cup = WaterSettings.primaryCup()
+                    Button(intent: LogWaterIntent(ml: cup.ml)) {
+                        Label("Log \(cup.name)", systemImage: "plus")
                             .font(.system(size: 13, weight: .semibold))
                             .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                             .frame(maxWidth: .infinity, minHeight: 32)
                     }
                     .buttonStyle(.bordered)
                     .tint(.accentColor)
-                    .accessibilityLabel("Log \(units.formatVolume(ml: 250)) of water")
+                    .accessibilityLabel("Log \(cup.name), \(units.formatVolume(ml: cup.ml)) of water")
                 }
                 .accessibilityValue("\(units.formatVolume(ml: s.loggedML)) of \(units.formatVolume(ml: s.goalML))")
             } else {
