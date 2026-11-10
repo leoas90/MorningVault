@@ -19,6 +19,7 @@
 		12AAB96A55AC30D1FD2AAB4F /* SuggestionEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D53B287BF5058D135815D7F /* SuggestionEngineTests.swift */; };
 		12C5E1FBC646DB8712ADA900 /* ChecklistSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BCF81A89034D8BFF7C4C001 /* ChecklistSnapshot.swift */; };
 		13457E2D7C9D9F72B43D627F /* SafariView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4D4CC7A6722E21934433A6F /* SafariView.swift */; };
+		15B1CD9EE3357AABAC3B8B76 /* ChecklistDeduper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C33DEF507B89F0A04A64ED /* ChecklistDeduper.swift */; };
 		16CC24DB9272055283A74382 /* OnboardingSymbolsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBA9C338BBD6EFB8CD1B5D46 /* OnboardingSymbolsStep.swift */; };
 		1944C239994A855F0DF1BCC4 /* WaterStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E553B61BC5FEA442F3104B84 /* WaterStore.swift */; };
 		1A496B878A385EB8E7FBC9F1 /* WaterWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7091AAB1509C6FB5D2263E41 /* WaterWidget.swift */; };
@@ -71,6 +72,7 @@
 		72F435D8CB9ABD73AF04B4D4 /* OnboardingSourcesStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19F0CE7677F525EDF60DDE61 /* OnboardingSourcesStep.swift */; };
 		764BFFE9AF023668F4BC94F8 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 744744A7C6ACBF0C75D72E34 /* PrivacyInfo.xcprivacy */; };
 		791163896D6AEC61A6564A70 /* MarketsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9103CFC9B5596A76F30F951E /* MarketsView.swift */; };
+		792542AAFF589FA1F2D7B67B /* ChecklistDeduper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C33DEF507B89F0A04A64ED /* ChecklistDeduper.swift */; };
 		7AD5FEE4BB1E4B56F83FE10C /* MeetingsWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAA42C170687186B32811FBE /* MeetingsWidget.swift */; };
 		7F68A88EA9892CCC9000EC03 /* ChecklistStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FA8E97AC6C1EC33810AADF7 /* ChecklistStore.swift */; };
 		810F477EAD7AE4E4F37160F9 /* OnboardingNameStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96B21FB97A30B92C5A5FC0D7 /* OnboardingNameStep.swift */; };
@@ -142,6 +144,7 @@
 		F3480E6D0027A5C1884D74E5 /* GreetingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6884035D786F837686C765A3 /* GreetingService.swift */; };
 		F7C67B03B804B670B426A0DD /* GreetingComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0CBE9B72F0FE052713D0A6A /* GreetingComposer.swift */; };
 		FE86E3F25C8C584926BA51E6 /* StopRecordingIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC662E3FFC1BD273F4A2D28A /* StopRecordingIntent.swift */; };
+		FEC284FFAC4F1E023E8F16AB /* ChecklistDedupeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CB39654429C86F4F852CC90 /* ChecklistDedupeTests.swift */; };
 		FF4F691F7F771914A4A4A1EA /* SavedArticlesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDE524908436CD4CF8000170 /* SavedArticlesView.swift */; };
 /* End PBXBuildFile section */
 
@@ -221,6 +224,7 @@
 		6619476E0FF29E35D1B6F96A /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		6884035D786F837686C765A3 /* GreetingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GreetingService.swift; sourceTree = "<group>"; };
 		69D0E5107384CD994F496AF1 /* ChecklistItemEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistItemEditor.swift; sourceTree = "<group>"; };
+		6CB39654429C86F4F852CC90 /* ChecklistDedupeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistDedupeTests.swift; sourceTree = "<group>"; };
 		7091AAB1509C6FB5D2263E41 /* WaterWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterWidget.swift; sourceTree = "<group>"; };
 		72703070A4EFC1A13BD941D5 /* UnitsPreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitsPreference.swift; sourceTree = "<group>"; };
 		72C69217FB41C814F48DA970 /* WeatherHero.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherHero.swift; sourceTree = "<group>"; };
@@ -256,6 +260,7 @@
 		AD35C3FB14B743538182864C /* BriefingSectionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingSectionCard.swift; sourceTree = "<group>"; };
 		AD4199CD0DF218F2FF743180 /* HeadlinesToggleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeadlinesToggleTests.swift; sourceTree = "<group>"; };
 		AEE14A43C073ADAD5849355C /* HouseholdModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HouseholdModelTests.swift; sourceTree = "<group>"; };
+		B2C33DEF507B89F0A04A64ED /* ChecklistDeduper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistDeduper.swift; sourceTree = "<group>"; };
 		B5169DF9CE3C7BF70629DCB0 /* NewsSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewsSource.swift; sourceTree = "<group>"; };
 		BFBB72AAD637BABD1EB2158D /* WaterSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterSnapshot.swift; sourceTree = "<group>"; };
 		C20B100F7370B45B6A3C0DF6 /* ProGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProGate.swift; sourceTree = "<group>"; };
@@ -332,6 +337,7 @@
 				055397DAC2A75DB07B73B3C1 /* Household.xcdatamodeld */,
 				53D8EF5492D02EBF4302F90B /* AdvanceBriefPageIntent.swift */,
 				E3B06519DB31FFBC73F53C45 /* BriefSectionPrefs.swift */,
+				B2C33DEF507B89F0A04A64ED /* ChecklistDeduper.swift */,
 				04DB84A29E403A0583A0A5A0 /* ChecklistIntents.swift */,
 				8BCF81A89034D8BFF7C4C001 /* ChecklistSnapshot.swift */,
 				0FA8E97AC6C1EC33810AADF7 /* ChecklistStore.swift */,
@@ -493,6 +499,7 @@
 		4A7E843203AAD83DEC39F24E /* MorningVaultTests */ = {
 			isa = PBXGroup;
 			children = (
+				6CB39654429C86F4F852CC90 /* ChecklistDedupeTests.swift */,
 				D46F8E4629B15F9027CCDC85 /* ChecklistIntentsTests.swift */,
 				DB14433B3B74ED214126E9F3 /* ChecklistStoreTests.swift */,
 				D1E8986FB14E6BD00845ED20 /* ChecklistWeeklyReviewTests.swift */,
@@ -717,6 +724,7 @@
 			files = (
 				F32F6116C1FDD94F731D37E6 /* AdvanceBriefPageIntent.swift in Sources */,
 				8CF1AE2A53F43BC60F58048A /* BriefSectionPrefs.swift in Sources */,
+				15B1CD9EE3357AABAC3B8B76 /* ChecklistDeduper.swift in Sources */,
 				848F252C031C5E5C3F4D738D /* ChecklistIntents.swift in Sources */,
 				09B45772B4DBBD41236EAEE2 /* ChecklistSnapshot.swift in Sources */,
 				7F68A88EA9892CCC9000EC03 /* ChecklistStore.swift in Sources */,
@@ -762,6 +770,7 @@
 				399FF72C653B49862C1EB0F4 /* CacheService.swift in Sources */,
 				0919EDACA523845233895CD9 /* CalendarPickerView.swift in Sources */,
 				2E932C7B9F19E3955192EB5B /* CalendarService.swift in Sources */,
+				792542AAFF589FA1F2D7B67B /* ChecklistDeduper.swift in Sources */,
 				636797E40B4F20908CB0BC4B /* ChecklistEditorView.swift in Sources */,
 				DB93282AD861716B2245FA9C /* ChecklistIntents.swift in Sources */,
 				45CFE2CF9DA4013A765AB61D /* ChecklistItemEditor.swift in Sources */,
@@ -839,6 +848,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FEC284FFAC4F1E023E8F16AB /* ChecklistDedupeTests.swift in Sources */,
 				8EC9F42CA2D8C167CBD3C9C8 /* ChecklistIntentsTests.swift in Sources */,
 				02DF3BA3F6C6E4E507990E25 /* ChecklistStoreTests.swift in Sources */,
 				D8D59A36E2286D211070134A /* ChecklistWeeklyReviewTests.swift in Sources */,

@@ -40,8 +40,11 @@ enum SuggestionEngine {
     static let leadTime: TimeInterval = 60 * 60
 
     static func rules(_ input: Input) -> [Suggestion] {
-        let existing = Set(input.existingTitles.map { $0.trimmingCharacters(in: .whitespaces).lowercased() })
+        let existing = Set(input.existingTitles.map { ChecklistDeduper.normalizedTitle($0) })
         var result: [Suggestion] = []
+        // Households that mirror every event into two calendars hand us the same real event
+        // twice with different ids. One suggestion per (title, rule, start); the first wins.
+        var seen = Set<String>()
 
         for event in input.events.sorted(by: { $0.start < $1.start }) {
             if let selected = input.selectedCalendars, let cal = event.calendarIdentifier, !selected.contains(cal) { continue }
@@ -59,8 +62,10 @@ enum SuggestionEngine {
             if input.decisions.contains(where: { $0.ruleID == rule.id && $0.titlePattern == pattern && $0.decision == .neverForTitle }) { continue }
 
             let title = rule.resolvedTitle(for: text)
-            if existing.contains(title.lowercased()) { continue }
+            if existing.contains(ChecklistDeduper.normalizedTitle(title)) { continue }
             if input.addedFromEvents.contains("\(event.id)|\(rule.id)") { continue }
+            let fingerprint = Self.eventFingerprint(title: title, ruleID: rule.id, start: event.start, isAllDay: event.isAllDay, calendar: input.calendar)
+            guard seen.insert(fingerprint).inserted else { continue }
 
             result.append(Suggestion(
                 eventID: event.id,
@@ -74,6 +79,20 @@ enum SuggestionEngine {
             if result.count >= maxPerDay { break }
         }
         return result
+    }
+
+    /// Identity of the real-world event behind a suggestion: the resolved title (case and
+    /// whitespace insensitive), the rule, and the start. All-day events match on the day,
+    /// timed events on the minute, so the same event mirrored into a second calendar with a
+    /// different event id collapses into one suggestion.
+    static func eventFingerprint(title: String, ruleID: String, start: Date, isAllDay: Bool, calendar: Calendar) -> String {
+        let when: String
+        if isAllDay {
+            when = "day-\(ChecklistDay.key(for: start, calendar: calendar))"
+        } else {
+            when = "min-\(Int(start.timeIntervalSinceReferenceDate / 60))"
+        }
+        return "\(ChecklistDeduper.normalizedTitle(title))|\(ruleID)|\(when)"
     }
 
     /// Highest keyword count wins; ties go to the earlier rule in the table.
