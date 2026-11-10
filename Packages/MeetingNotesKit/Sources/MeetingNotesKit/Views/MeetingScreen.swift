@@ -241,7 +241,14 @@ struct MeetingScreen: View {
                     attendees: initialAttendees,
                     context: context
                 )
+                if session.phase == .idle { session.flagSilentStop() }
             }
+        }
+        .onChange(of: session.phase) { old, new in
+            // A recording that falls back to idle on its own must say why. A Discard the
+            // user confirmed also lands here, but only within seconds of starting.
+            guard new == .idle, old == .starting || old == .recording else { return }
+            if old == .starting || session.elapsed < 5 { session.flagSilentStop() }
         }
     }
 

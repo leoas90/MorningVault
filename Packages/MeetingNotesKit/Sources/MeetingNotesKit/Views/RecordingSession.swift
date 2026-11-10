@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import SwiftData
 
 /// Drives one recording: audio in, saved meeting out.
@@ -126,7 +127,12 @@ public final class RecordingSession: ObservableObject {
         attendees: [String] = [],
         context: ModelContext? = nil
     ) async {
-        guard phase == .idle || phase == .finished else { return }
+        guard phase == .idle || phase == .finished else {
+            note("start ignored: phase \(phase)")
+            return
+        }
+        trail = []
+        note("start (event: \(calendarEventID != nil), context: \(context != nil))")
         phase = .starting
         errorMessage = nil
         errorDetails = nil
@@ -159,17 +165,28 @@ public final class RecordingSession: ObservableObject {
 
         // Microphone first: without it there is nothing to record.
         guard await RecordingPermissions.requestMicrophone() else {
+            note("microphone denied")
             fail(RecorderError.microphoneDenied)
             return
         }
+        note("microphone ok, phase \(phase)")
         // Speech second, so both prompts show before the timer starts. A
         // refusal only turns transcription off.
         speechAuthorized = await RecordingPermissions.requestSpeech()
+        note("speech \(speechAuthorized ? "ok" : "off"), phase \(phase)")
 
         do {
             try await recorder.start(meetingID: recordingID)
         } catch {
+            note("recorder failed: \(error.localizedDescription)")
             fail(error)
+            return
+        }
+        note("recorder state \(recorder.state), phase \(phase)")
+        // Something else (a Discard, a Stop) ran while the permissions were asked.
+        guard phase == .starting else {
+            note("phase moved to \(phase) during start, stopping the recorder")
+            await recorder.cancel()
             return
         }
 
@@ -210,6 +227,7 @@ public final class RecordingSession: ObservableObject {
 
     /// Stops the recording and saves the meeting.
     public func stop(context: ModelContext) async {
+        note("stop called, phase \(phase)")
         guard isRecording else { return }
         liveStartTask?.cancel()
         liveStartTask = nil
@@ -291,6 +309,7 @@ public final class RecordingSession: ObservableObject {
 
     /// Throws the recording away.
     public func cancel() async {
+        note("cancel called, phase \(phase)")
         liveStartTask?.cancel()
         liveStartTask = nil
         speakerTask?.cancel()
@@ -314,6 +333,30 @@ public final class RecordingSession: ObservableObject {
         meetingID = nil
         banner = nil
         bannerDetails = nil
+    }
+
+    // MARK: - Start trail
+
+    private static let log = Logger(subsystem: "com.yeziddr.morningvault", category: "recording")
+
+    /// What happened during the last start, newest last. Shown under Details when a
+    /// recording falls back to idle without an error, so the cause is visible on the phone.
+    public private(set) var trail: [String] = []
+
+    private func note(_ event: String) {
+        let stamp = Date().formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute().second().secondFraction(.fractional(3)))
+        trail.append("\(stamp) \(event)")
+        if trail.count > 40 { trail.removeFirst(trail.count - 40) }
+        Self.log.notice("\(event, privacy: .public)")
+    }
+
+    /// Called by the page when the recording went back to idle with nothing to show.
+    public func flagSilentStop() {
+        guard errorMessage == nil else { return }
+        note("flagged: back to idle without an error")
+        errorMessage = "The recording stopped right after it started. Tap Start recording to try again, and send the details to support if it keeps happening."
+        errorDetails = trail.joined(separator: "\n")
+        errorNeedsSettings = false
     }
 
     /// Clears the error so the user can try again.
@@ -394,6 +437,7 @@ public final class RecordingSession: ObservableObject {
     }
 
     private func fail(_ error: Error) {
+        note("fail: \(error.localizedDescription)")
         let text = UserMessage.from(error, context: "The recording could not start.")
         errorMessage = text.message
         errorDetails = text.details
