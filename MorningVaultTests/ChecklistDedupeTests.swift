@@ -162,4 +162,37 @@ final class ChecklistDedupeTests: XCTestCase {
         let again = await model.removeDuplicates()
         XCTAssertEqual(again, 0)
     }
+
+    // MARK: Calendar events (Brief "Next" / "Earlier today")
+
+    private struct Ev { var title: String; var start: Date; var allDay = false }
+
+    func testMirroredEventsCollapseOnTitleAndStart() {
+        let evs = [Ev(title: "Anna Mtg - CPP product demo", start: date(2026, 11, 11, 10)),
+                   Ev(title: "anna mtg -  CPP product demo ", start: date(2026, 11, 11, 10)),
+                   Ev(title: "Anna Training Angie", start: date(2026, 11, 11, 10, 30)),
+                   Ev(title: "Anna Training Angie", start: date(2026, 11, 11, 10, 30)),
+                   Ev(title: "Quest Diagnostics", start: date(2026, 11, 11, 11))]
+        let out = CalendarEventDeduper.uniqued(evs, title: \.title, start: \.start, isAllDay: \.allDay, calendar: la)
+        XCTAssertEqual(out.map(\.title), ["Anna Mtg - CPP product demo", "Anna Training Angie", "Quest Diagnostics"])
+    }
+
+    func testSameTitleDifferentTimeStays() {
+        let evs = [Ev(title: "Standup", start: date(2026, 11, 11, 9)),
+                   Ev(title: "Standup", start: date(2026, 11, 11, 15))]
+        XCTAssertEqual(CalendarEventDeduper.uniqued(evs, title: \.title, start: \.start, isAllDay: \.allDay, calendar: la).count, 2)
+    }
+
+    func testAllDayMatchesOnDay() {
+        let evs = [Ev(title: "Holiday", start: date(2026, 11, 11, 0), allDay: true),
+                   Ev(title: "Holiday", start: date(2026, 11, 11, 1), allDay: true)]
+        XCTAssertEqual(CalendarEventDeduper.uniqued(evs, title: \.title, start: \.start, isAllDay: \.allDay, calendar: la).count, 1)
+    }
+
+    func testBriefScheduleDropsDuplicateLines() {
+        let lines = CalendarLine.parse("10:00 AM — Anna Mtg\n10:00 AM — Anna Mtg\n10:30 AM — Training\n10:30 AM — Training\n11:00 AM — Quest")
+        let s = BriefSchedule.make(from: lines, now: date(2026, 11, 11, 21, 42), calendar: la)
+        XCTAssertEqual(s.earlier.count, 3)
+        XCTAssertEqual(Set(s.earlier.map(\.id)).count, 3)
+    }
 }

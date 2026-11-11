@@ -45,7 +45,7 @@ final class CalendarService: ObservableObject {
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
 
         let predicate = store.predicateForEvents(withStart: startOfDay, end: endOfDay, calendars: nil)
-        let events = store.events(matching: predicate)
+        let events = Self.uniqueEvents(store.events(matching: predicate))
 
         return events.map { ek in
             CalendarEvent(
@@ -72,7 +72,7 @@ final class CalendarService: ObservableObject {
         let endDate = calendar.date(byAdding: .day, value: days, to: startOfDay)!
 
         let predicate = store.predicateForEvents(withStart: startOfDay, end: endDate, calendars: nil)
-        let events = store.events(matching: predicate)
+        let events = Self.uniqueEvents(store.events(matching: predicate))
 
         return events.map { ek in
             CalendarEvent(
@@ -86,6 +86,14 @@ final class CalendarService: ObservableObject {
                 calendarColor: ek.calendar.cgColor.hexString
             )
         }
+    }
+}
+
+extension CalendarService {
+    /// Mirrored calendars hand back one real event twice; keep one per title + start.
+    static func uniqueEvents(_ events: [EKEvent]) -> [EKEvent] {
+        CalendarEventDeduper.uniqued(events, title: { $0.title ?? "" }, start: { $0.startDate },
+                                     isAllDay: { $0.isAllDay })
     }
 }
 

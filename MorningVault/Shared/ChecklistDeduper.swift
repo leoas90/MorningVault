@@ -65,3 +65,25 @@ enum ChecklistDeduper {
         duplicateGroups(items: items, completionCounts: completionCounts).flatMap(\.archive)
     }
 }
+
+// MARK: - Duplicate calendar events
+
+/// The same real event mirrored into two calendars (iCloud and Google Family) arrives from
+/// EventKit twice with different ids. Same title (case and whitespace insensitive) and same
+/// start (the minute for timed events, the day for all-day) is one event; the first wins.
+enum CalendarEventDeduper {
+    static func uniqued<T>(_ items: [T], title: (T) -> String, start: (T) -> Date,
+                           isAllDay: (T) -> Bool, calendar: Calendar = .current) -> [T] {
+        var seen = Set<String>()
+        return items.filter { item in
+            let when: String
+            if isAllDay(item) {
+                let c = calendar.dateComponents([.year, .month, .day], from: start(item))
+                when = "day-\(c.year ?? 0)-\(c.month ?? 0)-\(c.day ?? 0)"
+            } else {
+                when = "min-\(Int(start(item).timeIntervalSinceReferenceDate / 60))"
+            }
+            return seen.insert("\(ChecklistDeduper.normalizedTitle(title(item)))|\(when)").inserted
+        }
+    }
+}

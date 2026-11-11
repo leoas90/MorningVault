@@ -449,7 +449,10 @@ struct BriefSchedule {
     static func make(from events: [CalendarLine], now: Date, calendar: Calendar = .current) -> BriefSchedule {
         var upcoming: [CalendarLine] = []
         var earlier: [CalendarLine] = []
+        var seen = Set<String>()
         for event in events {
+            // Same time + same title is one event (mirrored calendars); also keeps ForEach ids unique.
+            guard seen.insert(event.time + "|" + ChecklistDeduper.normalizedTitle(event.title)).inserted else { continue }
             if let start = startDate(of: event.time, on: now, calendar: calendar), start < now {
                 earlier.append(event)
             } else {
